@@ -37,3 +37,7 @@ async def on_message(account: Account, event: Event):
 
 app.run()
 ```
+
+## 文档
+
+请阅读 [仓库文档](./docs.md)
