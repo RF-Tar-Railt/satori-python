@@ -5,14 +5,14 @@ from .element import Element
 from .model import Role, User, Event, Guild, Login, Member, Channel, Message, PageResult
 
 if TYPE_CHECKING:
-    from .network import Connection
+    from .network.base import BaseNetwork
 
 
 class Account:
     platform: str
     self_id: str
 
-    def __init__(self, platform: str, self_id: str, client: "Connection"):
+    def __init__(self, platform: str, self_id: str, client: "BaseNetwork"):
         self.platform = platform
         self.self_id = self_id
         self.client = client

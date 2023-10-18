@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import asyncio
 from contextlib import suppress
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 import aiohttp
 from loguru import logger
@@ -11,44 +11,20 @@ from launart import Service
 from launart.manager import Launart
 from launart.utilles import any_completed
 
-from .account import Account
-from .config import ClientInfo
-from .model import Event, Opcode, LoginStatus
-from .exception import (
-    NetworkError,
-    NotFoundException,
-    ForbiddenException,
-    BadRequestException,
-    UnauthorizedException,
-    MethodNotAllowedException,
-    ApiNotImplementedException,
-)
+from satori.account import Account
+from satori.model import Opcode, LoginStatus, Event
+from satori.config import ClientInfo
+from .base import BaseNetwork
 
-if TYPE_CHECKING:
-    from .main import App
-
-
-class Connection(Service):
+class WsNetwork(BaseNetwork[ClientInfo], Service):
     required: set[str] = set()
     stages: set[str] = {"preparing", "blocking", "cleanup"}
 
     @property
     def id(self):
-        return f"satori/network/client#{self.config.host}:{self.config.port}"
+        return f"satori/network/ws#{self.config.host}:{self.config.port}"
 
-    accounts: dict[str, Account]
-    close_signal: asyncio.Event
-    sequence: int
     connection: aiohttp.ClientWebSocketResponse | None = None
-    session: aiohttp.ClientSession
-
-    def __init__(self, app: App, config: ClientInfo):
-        super().__init__()
-        self.app = app
-        self.config = config
-        self.accounts = {}
-        self.close_signal = asyncio.Event()
-        self.sequence = -1
 
     async def message_receive(self):
         if self.connection is None:
@@ -60,7 +36,7 @@ class Connection(Service):
                 break
             elif msg.type == aiohttp.WSMsgType.TEXT:
                 data: dict = json.loads(cast(str, msg.data))
-                if data["op"] == 0:
+                if data["op"] == Opcode.EVENT:
                     yield self, data["body"]
                 elif data["op"] > 4:
                     logger.warning(f"Received unknown event: {data}")
@@ -80,51 +56,19 @@ class Connection(Service):
 
             asyncio.create_task(event_parse_task(data))
 
-    async def connection_closed(self):
-        self.close_signal.set()
-
     async def send(self, payload: dict):
         if self.connection is None:
             raise RuntimeError("connection is not established")
 
         await self.connection.send_json(payload)
 
-    async def call_http(self, account: Account, action: str, params: dict | None = None) -> dict:
-        endpoint = self.config.api_base / action
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.config.token}",
-            "X-Platform": account.platform,
-            "X-Self-ID:": account.self_id,
-        }
-        try:
-            async with self.session.post(
-                endpoint,
-                json=params or {},
-                headers=headers,
-            ) as resp:
-                if 200 <= resp.status < 300:
-                    return json.loads(content) if (content := await resp.text()) else {}
-                elif resp.status == 400:
-                    raise BadRequestException(await resp.text())
-                elif resp.status == 401:
-                    raise UnauthorizedException(await resp.text())
-                elif resp.status == 403:
-                    raise ForbiddenException(await resp.text())
-                elif resp.status == 404:
-                    raise NotFoundException(await resp.text())
-                elif resp.status == 405:
-                    raise MethodNotAllowedException(await resp.text())
-                elif resp.status == 500:
-                    raise ApiNotImplementedException(await resp.text())
-                else:
-                    resp.raise_for_status()
-        except Exception as e:
-            raise NetworkError(f"Error while calling {endpoint}") from e
-
     @property
     def alive(self):
         return self.connection is not None and not self.connection.closed
+
+    async def wait_for_available(self):
+        await self.status.wait_for_available()
+
 
     async def _authenticate(self):
         """鉴权连接"""

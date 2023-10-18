@@ -9,8 +9,9 @@ from launart import Launart, Service, any_completed
 
 from .model import Event
 from .account import Account
-from .config import ClientInfo
-from .network import Connection
+from .config import Config, ClientInfo, WebhookInfo
+from .network.ws import WsNetwork
+from .network.webhook import WebhookNetwork
 
 
 class App(Service):
@@ -19,10 +20,10 @@ class App(Service):
     stages: set[str] = {"preparing", "blocking", "cleanup"}
 
     accounts: dict[str, Account]
-    connections: list[Connection]
+    connections: list[WsNetwork | WebhookNetwork]
     callbacks: list[Callable[[Account, Event], Awaitable[Any]]]
 
-    def __init__(self, *configs: ClientInfo):
+    def __init__(self, *configs: Config):
         self.accounts = {}
         self.connections = []
         self.callbacks = []
@@ -30,8 +31,13 @@ class App(Service):
         for config in configs:
             self.apply(config)
 
-    def apply(self, config: ClientInfo):
-        connection = Connection(self, config)
+    def apply(self, config: Config):
+        if isinstance(config, ClientInfo):
+            connection = WsNetwork(self, config)
+        elif isinstance(config, WebhookInfo):
+            connection = WebhookNetwork(self, config)
+        else:
+            raise TypeError(f"Unknown config type: {config}")
         self.connections.append(connection)
 
     def get_account(self, self_id: str) -> Account:
