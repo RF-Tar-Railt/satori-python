@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, List, Optional, cast
+from typing import TYPE_CHECKING, Any, List, Union, Optional, cast, Iterable
 
 from .element import Element
 from .model import Role, User, Event, Guild, Login, Member, Channel, Message, PageResult
@@ -28,7 +28,7 @@ class Account:
     async def send(
         self,
         event: Event,
-        message: List[Element],
+        message: Union[str, Iterable[Union[str, Element]]],
         **kwargs,
     ) -> List[Message]:
         if not event.channel:
@@ -38,7 +38,7 @@ class Account:
     async def send_message(
         self,
         channel_id: str,
-        message: List[Element],
+        message: Union[str, Iterable[Union[str, Element]]],
     ) -> List[Message]:
         """发送消息
 
@@ -46,12 +46,13 @@ class Account:
             channel_id: 要发送的频道 ID
             message: 要发送的消息
         """
-        return await self.message_create(channel_id=channel_id, content="".join(str(i) for i in message))
+        msg = message if isinstance(message, str) else "".join(str(i) for i in message)
+        return await self.message_create(channel_id=channel_id, content=msg)
 
     async def send_private_message(
         self,
         user_id: str,
-        message: List[Element],
+        message: Union[str, Iterable[Union[str, Element]]],
     ) -> List[Message]:
         """发送私聊消息
 
@@ -66,7 +67,7 @@ class Account:
         self,
         channel_id: str,
         message_id: str,
-        message: List[Element],
+        message: Union[str, Iterable[Union[str, Element]]],
     ):
         """更新消息
 
@@ -75,10 +76,11 @@ class Account:
             message_id: 要更新的消息 ID
             message: 要更新的消息
         """
+        msg = message if isinstance(message, str) else "".join(str(i) for i in message)
         await self.message_update(
             channel_id=channel_id,
             message_id=message_id,
-            content="".join(str(i) for i in message),
+            content=msg,
         )
 
     async def message_create(
