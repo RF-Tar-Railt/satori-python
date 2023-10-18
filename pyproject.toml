@@ -1,0 +1,20 @@
+[project]
+name = "satori-py"
+version = "0.1.0"
+description = "Satori Protocol SDK for python"
+authors = [
+    {name = "RF-Tar-Railt",email = "rf_tar_railt@qq.com"},
+]
+dependencies = [
+    "aiohttp>=3.8.6",
+    "loguru>=0.7.2",
+    "launart>=0.8.1",
+    "typing-extensions>=4.8.0",
+]
+requires-python = ">=3.8"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
