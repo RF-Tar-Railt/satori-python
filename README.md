@@ -25,6 +25,7 @@ pip install satori-python
 
 ## 使用
 
+客户端：
 ```python
 from satori import App, Account, Event, ClientInfo
 
@@ -36,6 +37,15 @@ async def on_message(account: Account, event: Event):
         await account.send(event, "Hello, World!")
 
 app.run()
+```
+
+服务端：
+```python
+from satori import Server, Adapter
+
+server = Server(port=5140)
+server.apply(Adapter())
+server.run()
 ```
 
 ## 文档

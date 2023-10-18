@@ -1,6 +1,6 @@
 [project]
 name = "satori-python"
-version = "0.1.1"
+version = "0.2.0"
 description = "Satori Protocol SDK for python"
 authors = [
     {name = "RF-Tar-Railt",email = "rf_tar_railt@qq.com"},

@@ -4,7 +4,7 @@ from abc import abstractmethod
 from typing import Any, Awaitable, Callable
 
 from launart import Service
-from starlette.requests import Headers
+from starlette.datastructures import Headers
 
 from .model import Event, Login
 
@@ -31,7 +31,7 @@ class Adapter(Service):
         ...
 
     @abstractmethod
-    async def call_api(self, headers: Headers, action: str, params: dict[str, Any] | None = None) -> Any:
+    async def call_api(self, headers: Headers, action: str, params: Any) -> Any:
         ...
 
     @property

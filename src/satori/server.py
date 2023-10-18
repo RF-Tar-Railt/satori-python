@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import signal
 from contextlib import suppress
-from typing import Iterable
+from typing import Any, Awaitable, Callable, Iterable
 
 from creart import it
 from graia.amnesia.builtins.asgi import UvicornASGIService
 from launart import Launart, Service, any_completed
 from starlette.applications import Starlette
+from starlette.datastructures import Headers
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, WebSocketRoute
@@ -39,11 +39,23 @@ class Server(Service):
         manager.add_component(UvicornASGIService(host, port))
         self.ws_route = WebSocketRoute(f"/{version}/events", self.websocket_server_handler)
         self.adapters = []
+        self.handlers = {}
         super().__init__()
 
     def apply(self, adapter: Adapter):
         self.adapters.append(adapter)
         adapter.bind_event_callback(self.event_callback)
+
+    def override(self, path: str):
+        def wrapper(func: Callable[[Headers, Any], Awaitable[Any]]):
+            async def handler(request: Request):
+                res = await func(request.headers, await request.json())
+                return res if isinstance(res, Response) else JSONResponse(content=res)
+
+            self.handlers[path] = handler
+            return func
+
+        return wrapper
 
     async def event_callback(self, event: Event):
         for connection in self.connections:
@@ -70,13 +82,14 @@ class Server(Service):
             self.connections.remove(connection)
 
     async def http_server_handler(self, request: Request):
+        if not self.adapters:
+            return Response(status_code=404)
         for adapter in self.adapters:
             if adapter.validate_headers(request.headers):
-                return JSONResponse(
-                    await adapter.call_api(
-                        request.headers, request.path_params["method"], json.loads(await request.body())
-                    )
+                res = await adapter.call_api(
+                    request.headers, request.path_params["method"], await request.json()
                 )
+                return res if isinstance(res, Response) else JSONResponse(content=res)
         return Response(status_code=401)
 
     async def launch(self, manager: Launart):
@@ -88,6 +101,10 @@ class Server(Service):
             app = Starlette(
                 routes=[
                     self.ws_route,
+                    *(
+                        Route(f"/v1/{method}", handler, methods=["POST"])
+                        for method, handler in self.handlers.items()
+                    ),
                     Route("/v1/{method:path}", self.http_server_handler, methods=["POST"]),
                 ]
             )
