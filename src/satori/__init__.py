@@ -21,5 +21,6 @@ from .element import Subscript as Subscript
 from .element import Underline as Underline
 from .element import transform as transform
 from .config import ClientInfo as ClientInfo
+from .config import WebhookInfo as WebhookInfo
 from .element import Superscript as Superscript
 from .element import Strikethrough as Strikethrough

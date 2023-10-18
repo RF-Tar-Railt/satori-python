@@ -40,7 +40,7 @@ class WebhookInfo(Config):
 
     @property
     def identity(self):
-        return f"{self.self_host}:{self.self_port}#{self.host}:{self.port}"
+        return f"{self.self_host}:{self.self_port}&&{self.host}:{self.port}"
 
     @property
     def api_base(self):
