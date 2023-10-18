@@ -10,7 +10,6 @@ from satori.model import Login, LoginStatus
 
 
 class ExampleAdapter(Adapter):
-
     @property
     def required(self):
         return set()
@@ -35,7 +34,7 @@ class ExampleAdapter(Adapter):
         return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example")]
 
     async def call_api(self, headers: Headers, action: str, params=None) -> Any:
-        print(headers, action, params)
+        print(headers, action, params)  # noqa: T201
         return [{"id": "1234", "content": "example"}]
 
     async def daemon(self):

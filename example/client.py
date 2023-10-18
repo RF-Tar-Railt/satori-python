@@ -5,7 +5,7 @@ app = App(ClientInfo(port=12345))
 
 @app.register
 async def on_message(account: Account, event: Event):
-    print(event)
+    print(event)  # noqa: T201
     if event.user and event.user.id == "1234567890":
         await account.send_message(event.channel.id, "Hello, World!")
 

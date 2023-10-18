@@ -51,3 +51,9 @@ server.run()
 ## 文档
 
 请阅读 [仓库文档](./docs.md)
+
+## 示例
+
+- 客户端：[client.py](./example/client.py)
+- 服务端：[server.py](./example/server.py)
+- 适配器：[adapter.py](./example/adapter.py)
