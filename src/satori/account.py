@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, List, Union, Optional, cast, Iterable
+from typing import TYPE_CHECKING, Any, List, Union, Iterable, Optional, cast
 
 from .element import Element
 from .model import Role, User, Event, Guild, Login, Member, Channel, Message, PageResult
