@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-import signal
 import asyncio
-from typing import Any, Callable, Iterable, Awaitable
+import signal
+from typing import Any, Awaitable, Callable, Iterable
 
-from loguru import logger
 from launart import Launart, Service, any_completed
+from loguru import logger
 
-from .model import Event
 from .account import Account
-from .config import Config, ClientInfo, WebhookInfo
-from .network.ws import WsNetwork
+from .config import ClientInfo, Config, WebhookInfo
+from .model import Event
 from .network.webhook import WebhookNetwork
+from .network.ws_client import WsNetwork
 
 
 class App(Service):
-    id = "satori-python.main"
+    id = "satori-python.client"
     required: set[str] = set()
     stages: set[str] = {"preparing", "blocking", "cleanup"}
 

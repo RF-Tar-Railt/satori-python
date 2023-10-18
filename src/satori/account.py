@@ -1,8 +1,8 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, List, Union, Iterable, Optional, cast
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Union, cast
 
 from .element import Element
-from .model import Role, User, Event, Guild, Login, Member, Channel, Message, PageResult
+from .model import Channel, Event, Guild, Login, Member, Message, PageResult, Role, User
 
 if TYPE_CHECKING:
     from .network.base import BaseNetwork

@@ -1,21 +1,19 @@
 from __future__ import annotations
 
-import json
 import asyncio
-from contextlib import suppress
-from typing import cast
 
 import aiohttp
 from aiohttp import web
-from loguru import logger
 from launart import Service
 from launart.manager import Launart
 from launart.utilles import any_completed
+from loguru import logger
 
-from satori.account import Account
-from satori.model import Opcode, LoginStatus, Event
 from satori.config import WebhookInfo
+from satori.model import Event, Opcode
+
 from .base import BaseNetwork
+
 
 class WebhookNetwork(BaseNetwork[WebhookInfo], Service):
     required: set[str] = set()
@@ -39,6 +37,7 @@ class WebhookNetwork(BaseNetwork[WebhookInfo], Service):
         op = data["op"]
         if op == Opcode.EVENT:
             body = data["body"]
+
             async def event_parse_task(raw: dict):
                 try:
                     event = Event.parse(raw)

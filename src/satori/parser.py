@@ -1,6 +1,6 @@
 import re
-from dataclasses import field, dataclass
-from typing import Any, Dict, List, Union, Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Union
 
 
 def escape(text: str) -> str:

@@ -1,20 +1,22 @@
 from __future__ import annotations
 
-import json
 import asyncio
+import json
 from contextlib import suppress
 from typing import cast
 
 import aiohttp
-from loguru import logger
 from launart import Service
 from launart.manager import Launart
 from launart.utilles import any_completed
+from loguru import logger
 
 from satori.account import Account
-from satori.model import Opcode, LoginStatus, Event
 from satori.config import ClientInfo
+from satori.model import Event, LoginStatus, Opcode
+
 from .base import BaseNetwork
+
 
 class WsNetwork(BaseNetwork[ClientInfo], Service):
     required: set[str] = set()
@@ -50,9 +52,10 @@ class WsNetwork(BaseNetwork[ClientInfo], Service):
             async def event_parse_task(raw: dict):
                 try:
                     event = Event.parse(raw)
-                    await self.app.post(event)
                 except Exception as e:
                     logger.warning(f"Failed to parse event: {raw}\nCaused by {e!r}")
+                else:
+                    await self.app.post(event)
 
             asyncio.create_task(event_parse_task(data))
 
@@ -68,7 +71,6 @@ class WsNetwork(BaseNetwork[ClientInfo], Service):
 
     async def wait_for_available(self):
         await self.status.wait_for_available()
-
 
     async def _authenticate(self):
         """鉴权连接"""
@@ -88,11 +90,15 @@ class WsNetwork(BaseNetwork[ClientInfo], Service):
             logger.error(f"Error while sending IDENTIFY event: {e}")
             return False
 
-        resp = await self.connection.receive_json()
-        if resp["op"] != Opcode.READY:
+        resp = await self.connection.receive()
+        if resp.type != aiohttp.WSMsgType.TEXT:
             logger.error(f"Received unexpected payload: {resp}")
             return False
-        for login in resp["body"]["logins"]:
+        data = resp.json()
+        if data["op"] != Opcode.READY:
+            logger.error(f"Received unexpected payload: {data}")
+            return False
+        for login in data["body"]["logins"]:
             if "self_id" not in login:
                 continue
             platform = login.get("platform", "satori")

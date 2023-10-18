@@ -1,10 +1,10 @@
-from enum import IntEnum
-from datetime import datetime
 from dataclasses import dataclass
-from typing import List, Generic, TypeVar, Callable, Optional
+from datetime import datetime
+from enum import IntEnum
+from typing import Callable, Generic, List, Optional, TypeVar
 
-from .parser import parse
 from .element import Element, transform
+from .parser import parse
 
 
 class ChannelType(IntEnum):
@@ -46,6 +46,14 @@ class Guild:
     def parse(cls, raw: dict):
         return cls(**raw)
 
+    def dump(self):
+        res = {"id": self.id}
+        if self.name:
+            res["name"] = self.name
+        if self.avatar:
+            res["avatar"] = self.avatar
+        return res
+
 
 @dataclass
 class User:
@@ -57,6 +65,16 @@ class User:
     @classmethod
     def parse(cls, raw: dict):
         return cls(**raw)
+
+    def dump(self):
+        res = {"id": self.id}
+        if self.name:
+            res["name"] = self.name
+        if self.avatar:
+            res["avatar"] = self.avatar
+        if self.is_bot:
+            res["is_bot"] = self.is_bot
+        return res
 
 
 @dataclass
@@ -74,6 +92,18 @@ class Member:
         if "joined_at" in raw:
             data["joined_at"] = datetime.fromtimestamp(int(raw["joined_at"]) / 1000)
         return cls(**data)
+
+    def dump(self):
+        res = {}
+        if self.user:
+            res["user"] = self.user.dump()
+        if self.name:
+            res["name"] = self.name
+        if self.avatar:
+            res["avatar"] = self.avatar
+        if self.joined_at:
+            res["joined_at"] = int(self.joined_at.timestamp() * 1000)
+        return res
 
 
 @dataclass
@@ -114,6 +144,16 @@ class Login:
             data["user"] = User(**raw["user"])
         data["status"] = LoginStatus(data["status"])
         return cls(**data)
+
+    def dump(self):
+        res = {"status": self.status.value}
+        if self.user:
+            res["user"] = self.user.dump()
+        if self.self_id:
+            res["self_id"] = self.self_id
+        if self.platform:
+            res["platform"] = self.platform
+        return res
 
 
 class Opcode(IntEnum):
@@ -166,6 +206,22 @@ class Message:
             data["updated_at"] = datetime.fromtimestamp(int(raw["updated_at"]) / 1000)
         return cls(**data)
 
+    def dump(self):
+        res = {"id": self.id, "content": "".join(map(str, self.content))}
+        if self.channel:
+            res["channel"] = self.channel.dump()
+        if self.guild:
+            res["guild"] = self.guild.dump()
+        if self.member:
+            res["member"] = self.member.dump()
+        if self.user:
+            res["user"] = self.user.dump()
+        if self.created_at:
+            res["created_at"] = int(self.created_at.timestamp() * 1000)
+        if self.updated_at:
+            res["updated_at"] = int(self.updated_at.timestamp() * 1000)
+        return res
+
 
 @dataclass
 class Event:
@@ -209,6 +265,32 @@ class Event:
         if "user" in raw:
             data["user"] = User(**raw["user"])
         return cls(**data)
+
+    def dump(self):
+        res = {
+            "id": self.id,
+            "type": self.type,
+            "platform": self.platform,
+            "self_id": self.self_id,
+            "timestamp": int(self.timestamp.timestamp() * 1000),
+        }
+        if self.channel:
+            res["channel"] = self.channel.dump()
+        if self.guild:
+            res["guild"] = self.guild.dump()
+        if self.login:
+            res["login"] = self.login.dump()
+        if self.member:
+            res["member"] = self.member.dump()
+        if self.message:
+            res["message"] = self.message.dump()
+        if self.operator:
+            res["operator"] = self.operator.dump()
+        if self.role:
+            res["role"] = self.role.dump()
+        if self.user:
+            res["user"] = self.user.dump()
+        return res
 
 
 T = TypeVar("T")

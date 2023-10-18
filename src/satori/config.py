@@ -1,7 +1,8 @@
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 from yarl import URL
+
 
 class Config:
     @property
@@ -11,6 +12,7 @@ class Config:
     @property
     def api_base(self) -> URL:
         raise NotImplementedError
+
 
 @dataclass
 class ClientInfo(Config):
@@ -29,6 +31,7 @@ class ClientInfo(Config):
     @property
     def ws_base(self):
         return URL(f"ws://{self.host}:{self.port}") / "v1"
+
 
 @dataclass
 class WebhookInfo(Config):

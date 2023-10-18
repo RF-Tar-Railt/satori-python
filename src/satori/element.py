@@ -1,11 +1,12 @@
+from base64 import b64encode
+from dataclasses import dataclass, fields
 from io import BytesIO
 from pathlib import Path
-from base64 import b64encode
+from typing import Any, List, Optional, Union
 from typing_extensions import override
-from dataclasses import fields, dataclass
-from typing import Any, List, Union, Optional
 
 from .parser import RawElement, escape
+
 
 @dataclass
 class Element:
