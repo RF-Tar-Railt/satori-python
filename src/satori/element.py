@@ -3,15 +3,9 @@ from pathlib import Path
 from base64 import b64encode
 from typing_extensions import override
 from dataclasses import fields, dataclass
-from typing import Any, List, Union, Optional, TypedDict
+from typing import Any, List, Union, Optional
 
 from .parser import RawElement, escape
-
-
-class RawData(TypedDict):
-    data: Union[bytes, BytesIO]
-    mime: str
-
 
 @dataclass
 class Element:
@@ -59,13 +53,6 @@ class At(Element):
     type: Optional[str] = None
 
     @staticmethod
-    def at(
-        user_id: str,
-        name: Optional[str] = None,
-    ) -> "At":
-        return At(id=user_id, name=name)
-
-    @staticmethod
     def at_role(
         role: str,
         name: Optional[str] = None,
@@ -73,7 +60,7 @@ class At(Element):
         return At(role=role, name=name)
 
     @staticmethod
-    def at_all(here: bool = False) -> "At":
+    def all(here: bool = False) -> "At":
         return At(type="here" if here else "all")
 
 
@@ -101,7 +88,8 @@ class Resource(Element):
         cls,
         url: Optional[str] = None,
         path: Optional[Union[str, Path]] = None,
-        raw: Optional[RawData] = None,
+        raw: Optional[Union[bytes, BytesIO]] = None,
+        mime: Optional[str] = None,
         cache: Optional[bool] = None,
         timeout: Optional[str] = None,
     ):
@@ -109,9 +97,9 @@ class Resource(Element):
             data = {"src": url}
         elif path:
             data = {"src": Path(path).as_uri()}
-        elif raw:
-            bd = raw["data"] if isinstance(raw["data"], bytes) else raw["data"].getvalue()
-            data = {"src": f"data:{raw['mime']};base64,{b64encode(bd).decode()}"}
+        elif raw and mime:
+            bd = raw if isinstance(raw, bytes) else raw.getvalue()
+            data = {"src": f"data:{mime};base64,{b64encode(bd).decode()}"}
         else:
             raise ValueError(f"{cls} need at least one of url, path and raw")
         if cache is not None:

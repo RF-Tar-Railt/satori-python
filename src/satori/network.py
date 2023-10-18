@@ -72,8 +72,11 @@ class Connection(Service):
             self.sequence = int(data["id"])
 
             async def event_parse_task(raw: dict):
-                event = Event.parse(raw)
-                await self.app.post(event)
+                try:
+                    event = Event.parse(raw)
+                    await self.app.post(event)
+                except Exception as e:
+                    logger.warning(f"Failed to parse event: {raw}\nCaused by {e!r}")
 
             asyncio.create_task(event_parse_task(data))
 

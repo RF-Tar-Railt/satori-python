@@ -100,6 +100,18 @@ image = Image.of(url="https://example.com/image.png")
 - `path`: 资源的本地路径.
 - `raw`: 资源的二进制数据. 会要求同时传入 `mime` 参数.
 
+```python
+from satori import Image
+from io import BytesIO
+from PIL import Image as PILImage
+
+img = PILImage.open("image.png")
+data = BytesIO()
+img.save(data, format="PNG")
+
+image = Image.of(raw=data, mime="image/png")
+```
+
 ### 修饰类型
 
 - `Bold`, `Italic`, `Underline`, `Strikethrough`, ...: 修饰类型，对应 [修饰元素](https://satori.js.org/zh-CN/protocol/elements.html#%E4%BF%AE%E9%A5%B0%E5%85%83%E7%B4%A0).
