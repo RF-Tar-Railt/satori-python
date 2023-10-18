@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import json
-from typing import cast, TYPE_CHECKING
-
-import aiohttp
 import asyncio
 from contextlib import suppress
+from typing import TYPE_CHECKING, cast
+
+import aiohttp
 from loguru import logger
 from launart import Service
 from launart.manager import Launart
 from launart.utilles import any_completed
 
+from .account import Account
 from .config import ClientInfo
 from .model import Event, Opcode, LoginStatus
 from .exception import (
@@ -22,10 +23,10 @@ from .exception import (
     MethodNotAllowedException,
     ApiNotImplementedException,
 )
-from .account import Account
-if TYPE_CHECKING:
 
+if TYPE_CHECKING:
     from .main import App
+
 
 class Connection(Service):
     required: set[str] = set()
@@ -85,12 +86,7 @@ class Connection(Service):
 
         await self.connection.send_json(payload)
 
-    async def call_http(
-        self,
-        account: Account,
-        action: str,
-        params: dict | None = None
-    ) -> dict:
+    async def call_http(self, account: Account, action: str, params: dict | None = None) -> dict:
         endpoint = self.config.api_base / action
         headers = {
             "Content-Type": "application/json",
@@ -135,7 +131,7 @@ class Connection(Service):
             "op": Opcode.IDENTIFY,
             "body": {
                 "token": self.config.token,
-            }
+            },
         }
         if self.sequence > -1:
             payload["body"]["sequence"] = self.sequence
@@ -165,7 +161,9 @@ class Connection(Service):
             else:
                 account = Account(platform, self_id, self)
                 logger.info(f"account registered: {account}")
-                account.connected.set() if login["status"] == LoginStatus.ONLINE else account.connected.clear()
+                account.connected.set() if login[
+                    "status"
+                ] == LoginStatus.ONLINE else account.connected.clear()
                 self.app.accounts[identity] = account
                 self.accounts[identity] = account
 

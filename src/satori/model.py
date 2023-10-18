@@ -1,10 +1,10 @@
 from enum import IntEnum
 from datetime import datetime
-from typing import List, Generic, TypeVar, Optional, Callable, Union
 from dataclasses import dataclass
+from typing import List, Generic, TypeVar, Callable, Optional
 
-from .element import Element, transform
 from .parser import parse
+from .element import Element, transform
 
 
 class ChannelType(IntEnum):
@@ -12,6 +12,7 @@ class ChannelType(IntEnum):
     VOICE = 1
     CATEGORY = 2
     DIRECT = 3
+
 
 @dataclass
 class Channel:
@@ -27,15 +28,13 @@ class Channel:
         return cls(**data)
 
     def dump(self):
-        res = {
-            "id": self.id,
-            "type": self.type.value
-        }
+        res = {"id": self.id, "type": self.type.value}
         if self.name:
             res["name"] = self.name
         if self.parent_id:
             res["parent_id"] = self.parent_id
         return res
+
 
 @dataclass
 class Guild:
@@ -58,7 +57,6 @@ class User:
     @classmethod
     def parse(cls, raw: dict):
         return cls(**raw)
-
 
 
 @dataclass
@@ -126,15 +124,16 @@ class Opcode(IntEnum):
     READY = 4
 
 
-
 @dataclass
 class Identify:
     token: Optional[str] = None
     sequence: Optional[int] = None
 
+
 @dataclass
 class Ready:
     logins: List[Login]
+
 
 @dataclass
 class Message:
@@ -213,6 +212,7 @@ class Event:
 
 
 T = TypeVar("T")
+
 
 @dataclass
 class PageResult(Generic[T]):

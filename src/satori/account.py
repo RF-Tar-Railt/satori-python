@@ -1,8 +1,8 @@
-from typing import TYPE_CHECKING, List, Optional, cast, Any
 import asyncio
+from typing import TYPE_CHECKING, Any, List, Optional, cast
 
-from .model import Event, Message, PageResult, Channel, Guild, Member, Role, User, Login
 from .element import Element
+from .model import Role, User, Event, Guild, Login, Member, Channel, Message, PageResult
 
 if TYPE_CHECKING:
     from .network import Connection
@@ -46,9 +46,7 @@ class Account:
             channel_id: 要发送的频道 ID
             message: 要发送的消息
         """
-        return await self.message_create(
-            channel_id=channel_id, content="".join(str(i) for i in message)
-        )
+        return await self.message_create(channel_id=channel_id, content="".join(str(i) for i in message))
 
     async def send_private_message(
         self,
@@ -62,9 +60,7 @@ class Account:
             message: 要发送的消息
         """
         channel = await self.user_channel_create(user_id=user_id)
-        return await self.message_create(
-            channel_id=channel.id, content="".join(str(i) for i in message)
-        )
+        return await self.message_create(channel_id=channel.id, content="".join(str(i) for i in message))
 
     async def update_message(
         self,
@@ -127,9 +123,7 @@ class Account:
             {"channel_id": channel_id, "message_id": message_id, "content": content},
         )
 
-    async def message_list(
-        self, *, channel_id: str, next_token: Optional[str] = None
-    ) -> PageResult[Message]:
+    async def message_list(self, *, channel_id: str, next_token: Optional[str] = None) -> PageResult[Message]:
         res = await self.client.call_http(
             self,
             "message.list",
@@ -145,9 +139,7 @@ class Account:
         )
         return Channel.parse(res)
 
-    async def channel_list(
-        self, *, guild_id: str, next_token: Optional[str] = None
-    ) -> PageResult[Channel]:
+    async def channel_list(self, *, guild_id: str, next_token: Optional[str] = None) -> PageResult[Channel]:
         res = await self.client.call_http(
             self,
             "channel.list",
@@ -198,9 +190,7 @@ class Account:
         )
         return Guild.parse(res)
 
-    async def guild_list(
-        self, *, next_token: Optional[str] = None
-    ) -> PageResult[Guild]:
+    async def guild_list(self, *, next_token: Optional[str] = None) -> PageResult[Guild]:
         res = await self.client.call_http(
             self,
             "guild.list",
@@ -208,9 +198,7 @@ class Account:
         )
         return PageResult.parse(res, Guild.parse)
 
-    async def guild_approve(
-        self, *, request_id: str, approve: bool, comment: str
-    ) -> None:
+    async def guild_approve(self, *, request_id: str, approve: bool, comment: str) -> None:
         await self.client.call_http(
             self,
             "guild.approve",
@@ -235,45 +223,35 @@ class Account:
         )
         return Member.parse(res)
 
-    async def guild_member_kick(
-        self, *, guild_id: str, user_id: str, permanent: bool = False
-    ) -> None:
+    async def guild_member_kick(self, *, guild_id: str, user_id: str, permanent: bool = False) -> None:
         await self.client.call_http(
             self,
             "guild.member.kick",
             {"guild_id": guild_id, "user_id": user_id, "permanent": permanent},
         )
 
-    async def guild_member_approve(
-        self, *, request_id: str, approve: bool, comment: str
-    ) -> None:
+    async def guild_member_approve(self, *, request_id: str, approve: bool, comment: str) -> None:
         await self.client.call_http(
             self,
             "guild.member.approve",
             {"message_id": request_id, "approve": approve, "comment": comment},
         )
 
-    async def guild_member_role_set(
-        self, *, guild_id: str, user_id: str, role_id: str
-    ) -> None:
+    async def guild_member_role_set(self, *, guild_id: str, user_id: str, role_id: str) -> None:
         await self.client.call_http(
             self,
             "guild.member.role.set",
             {"guild_id": guild_id, "user_id": user_id, "role_id": role_id},
         )
 
-    async def guild_member_role_unset(
-        self, *, guild_id: str, user_id: str, role_id: str
-    ) -> None:
+    async def guild_member_role_unset(self, *, guild_id: str, user_id: str, role_id: str) -> None:
         await self.client.call_http(
             self,
             "guild.member.role.unset",
             {"guild_id": guild_id, "user_id": user_id, "role_id": role_id},
         )
 
-    async def guild_role_list(
-        self, guild_id: str, next_token: Optional[str] = None
-    ) -> PageResult[Role]:
+    async def guild_role_list(self, guild_id: str, next_token: Optional[str] = None) -> PageResult[Role]:
         res = await self.client.call_http(
             self,
             "guild.role.list",
@@ -388,15 +366,11 @@ class Account:
         res = await self.client.call_http(self, "user.get", {"user_id": user_id})
         return User.parse(res)
 
-    async def friend_list(
-        self, *, next_token: Optional[str] = None
-    ) -> PageResult[User]:
+    async def friend_list(self, *, next_token: Optional[str] = None) -> PageResult[User]:
         res = await self.client.call_http(self, "friend.list", {"next": next_token})
         return PageResult.parse(res, User.parse)
 
-    async def friend_approve(
-        self, *, request_id: str, approve: bool, comment: str
-    ) -> None:
+    async def friend_approve(self, *, request_id: str, approve: bool, comment: str) -> None:
         await self.client.call_http(
             self,
             "friend.approve",

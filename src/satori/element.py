@@ -1,8 +1,8 @@
 from io import BytesIO
 from pathlib import Path
 from base64 import b64encode
-from dataclasses import dataclass, fields
 from typing_extensions import override
+from dataclasses import fields, dataclass
 from typing import Any, List, Union, Optional, TypedDict
 
 from .parser import RawElement, escape
@@ -15,7 +15,6 @@ class RawData(TypedDict):
 
 @dataclass
 class Element:
-
     @classmethod
     def from_raw(cls, raw: RawElement) -> "Element":
         _fields = {f.name for f in fields(cls)}
@@ -61,21 +60,22 @@ class At(Element):
 
     @staticmethod
     def at(
-            user_id: str,
-            name: Optional[str] = None,
+        user_id: str,
+        name: Optional[str] = None,
     ) -> "At":
         return At(id=user_id, name=name)
 
     @staticmethod
     def at_role(
-            role: str,
-            name: Optional[str] = None,
+        role: str,
+        name: Optional[str] = None,
     ) -> "At":
         return At(role=role, name=name)
 
     @staticmethod
     def at_all(here: bool = False) -> "At":
         return At(type="here" if here else "all")
+
 
 @dataclass
 class Sharp(Element):
@@ -85,10 +85,10 @@ class Sharp(Element):
 
 @dataclass
 class Link(Text):
-
     @override
     def __str__(self):
         return f'<a href="{escape(self.text)}"/>'
+
 
 @dataclass
 class Resource(Element):
@@ -120,6 +120,7 @@ class Resource(Element):
             data["timeout"] = timeout
         return cls(**data)
 
+
 @dataclass
 class Image(Resource):
     width: Optional[int] = None
@@ -127,6 +128,7 @@ class Image(Resource):
 
     def get_type(self) -> str:
         return "img"
+
 
 @dataclass
 class Audio(Element):
@@ -137,6 +139,7 @@ class Audio(Element):
 class Video(Element):
     pass
 
+
 @dataclass
 class File(Element):
     pass
@@ -144,102 +147,73 @@ class File(Element):
 
 @dataclass
 class Bold(Text):
-
     @override
     def __str__(self):
-        return f'<b>{escape(self.text)}</b>'
+        return f"<b>{escape(self.text)}</b>"
 
 
 @dataclass
 class Italic(Text):
     @override
     def __str__(self):
-        return f'<i>{escape(self.text)}</i>'
+        return f"<i>{escape(self.text)}</i>"
+
 
 @dataclass
 class Underline(Text):
-
-
     @override
     def __str__(self):
-        return f'<u>{escape(self.text)}</u>'
-
-
+        return f"<u>{escape(self.text)}</u>"
 
 
 @dataclass
 class Strikethrough(Text):
-
-
     @override
     def __str__(self):
-        return f'<s>{escape(self.text)}</s>'
-
-
+        return f"<s>{escape(self.text)}</s>"
 
 
 @dataclass
 class Spoiler(Text):
-
-
     @override
     def __str__(self):
-        return f'<spl>{escape(self.text)}</spl>'
-
-
+        return f"<spl>{escape(self.text)}</spl>"
 
 
 @dataclass
 class Code(Text):
-
-
     @override
     def __str__(self):
-        return f'<code>{escape(self.text)}</code>'
-
-
+        return f"<code>{escape(self.text)}</code>"
 
 
 @dataclass
 class Superscript(Text):
-
-
     @override
     def __str__(self):
-        return f'<sup>{escape(self.text)}</sup>'
-
-
+        return f"<sup>{escape(self.text)}</sup>"
 
 
 @dataclass
 class Subscript(Text):
-
-
     @override
     def __str__(self):
-        return f'<sub>{escape(self.text)}</sub>'
-
-
+        return f"<sub>{escape(self.text)}</sub>"
 
 
 @dataclass
 class Br(Text):
-
-
     @override
     def __str__(self):
         return "<br/>"
 
 
-
-
 @dataclass
 class Paragraph(Text):
-
-
     @override
     def __str__(self):
-        return f'<p>{escape(self.text)}</p>'
+        return f"<p>{escape(self.text)}</p>"
+
 
 @dataclass
 class Message(Element):
@@ -260,9 +234,11 @@ class Message(Element):
         else:
             return f'<{_type} {" ".join(attr)}>{"".join(str(e) for e in self.content)}</{_type}>'
 
+
 @dataclass
 class Quote(Message):
     pass
+
 
 @dataclass
 class Author(Element):
@@ -325,6 +301,3 @@ def transform(elements: List[RawElement]) -> List[Element]:
         else:
             msg.append(Text(str(elem)))
     return msg
-
-
-

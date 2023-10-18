@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import signal
-from typing import Callable, Awaitable, Any, Iterable
+import asyncio
+from typing import Any, Callable, Iterable, Awaitable
+
 from loguru import logger
 from launart import Launart, Service, any_completed
 
-from .account import Account
 from .model import Event
-from .network import Connection
+from .account import Account
 from .config import ClientInfo
-
-import asyncio
+from .network import Connection
 
 
 class App(Service):
