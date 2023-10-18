@@ -1,5 +1,5 @@
 [project]
-name = "satori-py"
+name = "satori-python"
 version = "0.1.0"
 description = "Satori Protocol SDK for python"
 authors = [
@@ -33,7 +33,7 @@ dev = [
 
 
 [tool.pdm.build]
-includes = ["nonebot"]
+includes = ["src/satori"]
 
 [tool.black]
 line-length = 110
