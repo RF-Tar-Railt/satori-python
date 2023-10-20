@@ -176,11 +176,14 @@ class Account:
             {"channel_id": channel_id},
         )
 
-    async def user_channel_create(self, *, user_id: str) -> Channel:
+    async def user_channel_create(self, *, user_id: str, guild_id: Optional[str] = None) -> Channel:
+        data = {"user_id": user_id}
+        if guild_id is not None:
+            data["guild_id"] = guild_id
         res = await self.client.call_http(
             self,
             "user.channel.create",
-            {"user_id": user_id},
+            data,
         )
         return Channel.parse(res)
 
