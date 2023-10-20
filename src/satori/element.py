@@ -120,17 +120,17 @@ class Image(Resource):
 
 
 @dataclass
-class Audio(Element):
+class Audio(Resource):
     pass
 
 
 @dataclass
-class Video(Element):
+class Video(Resource):
     pass
 
 
 @dataclass
-class File(Element):
+class File(Resource):
     pass
 
 
