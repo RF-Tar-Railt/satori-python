@@ -10,4 +10,9 @@ async def on_message(account: Account, event: Event):
         await account.send_message(event.channel.id, "Hello, World!")
 
 
+@app.lifecycle
+async def record(account, state):
+    print(account, state)  # noqa: T201
+
+
 app.run()

@@ -9,7 +9,7 @@ from loguru import logger
 
 from .account import Account
 from .config import ClientInfo, Config, WebhookInfo
-from .model import Event
+from .model import Event, LoginStatus
 from .network.webhook import WebhookNetwork
 from .network.ws_client import WsNetwork
 
@@ -21,12 +21,14 @@ class App(Service):
 
     accounts: dict[str, Account]
     connections: list[WsNetwork | WebhookNetwork]
-    callbacks: list[Callable[[Account, Event], Awaitable[Any]]]
+    event_callbacks: list[Callable[[Account, Event], Awaitable[Any]]]
+    lifecycle_callbacks: list[Callable[[Account, LoginStatus], Awaitable[Any]]]
 
     def __init__(self, *configs: Config):
         self.accounts = {}
         self.connections = []
-        self.callbacks = []
+        self.event_callbacks = []
+        self.lifecycle_callbacks = []
         super().__init__()
         for config in configs:
             self.apply(config)
@@ -44,15 +46,24 @@ class App(Service):
         return self.accounts[self_id]
 
     def register(self, callback: Callable[[Account, Event], Awaitable[Any]]):
-        self.callbacks.append(callback)
+        self.event_callbacks.append(callback)
+
+    def lifecycle(self, callback: Callable[[Account, LoginStatus], Awaitable[Any]]):
+        self.lifecycle_callbacks.append(callback)
+
+    async def account_update(self, account: Account, state: LoginStatus):
+        if self.lifecycle_callbacks:
+            await asyncio.gather(*(callback(account, state) for callback in self.lifecycle_callbacks))
 
     async def post(self, event: Event):
+        if not self.event_callbacks:
+            return
         identity = f"{event.platform}/{event.self_id}"
         if identity not in self.accounts:
             logger.warning(f"Received event for unknown account: {event}")
             return
         account = self.accounts[identity]
-        await asyncio.gather(*(callback(account, event) for callback in self.callbacks))
+        await asyncio.gather(*(callback(account, event) for callback in self.event_callbacks))
 
     async def launch(self, manager: Launart):
         for conn in self.connections:
@@ -68,7 +79,9 @@ class App(Service):
             )
 
         async with self.stage("cleanup"):
-            pass
+            for account in self.accounts.values():
+                await self.account_update(account, LoginStatus.OFFLINE)
+            self.accounts.clear()
 
     def run(
         self,

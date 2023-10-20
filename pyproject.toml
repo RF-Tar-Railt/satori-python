@@ -1,6 +1,6 @@
 [project]
 name = "satori-python"
-version = "0.2.1"
+version = "0.3.0"
 description = "Satori Protocol SDK for python"
 authors = [
     {name = "RF-Tar-Railt",email = "rf_tar_railt@qq.com"},
@@ -37,6 +37,10 @@ dev = [
 
 [tool.pdm.build]
 includes = ["src/satori"]
+
+[tool.pdm.scripts]
+format = { composite = ["isort ./src/ ./example/","black ./src/ ./example/","ruff ./src/ ./example/"] }
+
 
 [tool.black]
 line-length = 110

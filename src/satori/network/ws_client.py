@@ -106,6 +106,7 @@ class WsNetwork(BaseNetwork[ClientInfo], Service):
             identity = f"{platform}/{self_id}"
             if identity in self.app.accounts:
                 account = self.app.accounts[identity]
+                self.accounts[identity] = account
                 if login["status"] == LoginStatus.ONLINE:
                     account.connected.set()
                 else:
@@ -119,7 +120,8 @@ class WsNetwork(BaseNetwork[ClientInfo], Service):
                 ] == LoginStatus.ONLINE else account.connected.clear()
                 self.app.accounts[identity] = account
                 self.accounts[identity] = account
-
+                await self.app.account_update(account, LoginStatus.ONLINE)
+            await self.app.account_update(account, LoginStatus.CONNECT)
         if not self.accounts:
             logger.warning(f"No account available for {self.config}")
             return False
@@ -135,49 +137,51 @@ class WsNetwork(BaseNetwork[ClientInfo], Service):
 
     async def daemon(self, manager: Launart, session: aiohttp.ClientSession):
         while not manager.status.exiting:
-            async with session.ws_connect(
-                self.config.ws_base / "events",
-            ) as self.connection:
-                logger.debug(f"{self.config.ws_base} Websocket client connected")
-                self.close_signal.clear()
-                result = await self._authenticate()
-                if not result:
-                    await asyncio.sleep(3)
-                    continue
-                self.close_signal.clear()
-                close_task = asyncio.create_task(self.close_signal.wait())
-                receiver_task = asyncio.create_task(self.message_handle())
-                sigexit_task = asyncio.create_task(manager.status.wait_for_sigexit())
-                heartbeat_task = asyncio.create_task(self._heartbeat())
-                done, pending = await any_completed(
-                    sigexit_task,
-                    close_task,
-                    receiver_task,
-                    heartbeat_task,
-                )
-                if sigexit_task in done:
-                    logger.info(f"{self} Websocket client exiting...")
-                    await self.connection.close()
-                    self.close_signal.set()
-                    self.connection = None
-                    for v in list(self.app.accounts.values()):
-                        if v.identity in self.accounts:
-                            del self.accounts[v.identity]
-                    return
-                if close_task in done:
-                    receiver_task.cancel()
-                    logger.warning(f"{self} Connection closed by server, will reconnect in 5 seconds...")
-                    accounts = {str(i) for i in self.accounts.keys()}
-                    for n in list(self.app.accounts.keys()):
-                        logger.debug(f"Unregistering satori account {n}...")
-                        account = self.app.accounts[n]
-                        account.connected.clear()
-                        if n in accounts:
-                            del self.app.accounts[n]
-                    self.accounts.clear()
-                    await asyncio.sleep(5)
-                    logger.info(f"{self} Reconnecting...")
-                    continue
+            try:
+                async with session.ws_connect(self.config.ws_base / "events", timeout=30) as self.connection:
+                    logger.debug(f"{self.config.ws_base} Websocket client connected")
+                    self.close_signal.clear()
+                    result = await self._authenticate()
+                    if not result:
+                        await asyncio.sleep(3)
+                        continue
+                    self.close_signal.clear()
+                    close_task = asyncio.create_task(self.close_signal.wait())
+                    receiver_task = asyncio.create_task(self.message_handle())
+                    sigexit_task = asyncio.create_task(manager.status.wait_for_sigexit())
+                    heartbeat_task = asyncio.create_task(self._heartbeat())
+                    done, pending = await any_completed(
+                        sigexit_task,
+                        close_task,
+                        receiver_task,
+                        heartbeat_task,
+                    )
+                    if sigexit_task in done:
+                        logger.info(f"{self} Websocket client exiting...")
+                        await self.connection.close()
+                        self.close_signal.set()
+                        self.connection = None
+                        for v in list(self.app.accounts.values()):
+                            if v.identity in self.accounts:
+                                v.connected.clear()
+                                del self.accounts[v.identity]
+                        return
+                    if close_task in done:
+                        receiver_task.cancel()
+                        logger.warning(f"{self} Connection closed by server, will reconnect in 5 seconds...")
+                        for k in self.accounts.keys():
+                            logger.debug(f"Unregistering satori account {k}...")
+                            account = self.app.accounts[k]
+                            account.connected.clear()
+                            await self.app.account_update(account, LoginStatus.DISCONNECT)
+                        self.accounts.clear()
+                        await asyncio.sleep(5)
+                        logger.info(f"{self} Reconnecting...")
+                        continue
+            except Exception as e:
+                logger.error(f"{self} Error while connecting: {e}")
+                await asyncio.sleep(5)
+                logger.info(f"{self} Reconnecting...")
 
     async def launch(self, manager: Launart):
         async with self.stage("preparing"):
