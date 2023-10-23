@@ -56,4 +56,6 @@ server.run()
 
 - 客户端：[client.py](./example/client.py)
 - 服务端：[server.py](./example/server.py)
+- 客户端(webhook)：[client_webhook](./example/client_webhook.py)
+- 服务端(webhook)：[server_webhook](./example/server_webhook.py)
 - 适配器：[adapter.py](./example/adapter.py)
