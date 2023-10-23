@@ -27,9 +27,9 @@ pip install satori-python
 
 客户端：
 ```python
-from satori import App, Account, Event, ClientInfo
+from satori import App, Account, Event, WebsocketsInfo
 
-app = App(ClientInfo(port=5140))
+app = App(WebsocketsInfo(port=5140))
 
 @app.register
 async def on_message(account: Account, event: Event):

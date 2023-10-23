@@ -15,7 +15,7 @@ app = App()
 一个配置对应了一个 Satori 连接:
 
 ```python
-class ClientInfo(Config):
+class WebsocketsInfo(Config):
     host: str = "localhost"
     port: int = 5140
     token: Optional[str] = None
@@ -28,18 +28,18 @@ class WebhookInfo(Config):
     path: str = "v1/events"
     host: str = "127.0.0.1"
     port: int = 8080
+    token: Optional[str] = None
     server_host: str = "localhost"
     server_port: int = 5140
-    token: Optional[str] = None
 ```
 
-你可以在创建 `App` 对象时传入一个或多个 `ClientInfo` 或 `WebhookInfo` 对象:
+你可以在创建 `App` 对象时传入一个或多个 `WebsocketsInfo` 或 `WebhookInfo` 对象:
 
 ```python
-from satori import App, ClientInfo, WebhookInfo
+from satori import App, WebsocketsInfo, WebhookInfo
 
 app = App(
-    ClientInfo(...),
+    WebsocketsInfo(...),
     WebhookInfo(...),
 )
 ```
@@ -47,10 +47,10 @@ app = App(
 或使用 `App.apply` 方法:
 
 ```python
-from satori import App, ClientInfo, WebhookInfo
+from satori import App, WebsocketsInfo, WebhookInfo
 
 app = App()
-app.apply(ClientInfo(...))
+app.apply(WebsocketsInfo(...))
 app.apply(WebhookInfo(...))
 ```
 
@@ -88,7 +88,7 @@ app.run()
 
 ## 调用接口
 
-如前所述，`Account` 对象代表了一个 Satori 平台账号，你可以使用它来调用 API：
+如前所述，`Account` 对象代表了一个 Satori 平台账号，你可以通过其 `session` 属性来调用 API：
 
 ```python
 from satori import App, Account, Event
@@ -98,13 +98,40 @@ app = App()
 @app.register
 async def listen(account: Account, event: Event):
     if event.user.id == "xxxxxx":
-        await account.send_message(
+        await account.session.send_message(
             event.channel.id,
             "Hello, world!",
         )
 ```
 
-`Account` 拥有现在 `satori` 支持的所有 API 方法。
+`Account.session` 拥有现在 `satori` 支持的所有 API 方法。
+
+### 无连接主动发送
+
+`Account` 允许自主创建并请求 api：
+
+```python
+from satori import Account, ApiInfo
+
+async def main():
+    account = Account("kook", "xxxxxxxxxxxxx", ApiInfo(token="xxxx"))
+    await account.send_message("xxxxxxxx", "Hello, World!")
+
+```
+
+### 切换服务端地址
+
+`Account` 同样也可以临时切换 api：
+
+```python
+from satori import App, Account, Event
+
+app = App()
+
+@app.register
+async def listen(account: Account, event: Event):
+    await account.custom(host="123.456.789.012", port=5140).send(event, "Hello, World!")
+```
 
 # 服务端
 
@@ -258,6 +285,8 @@ message = Message(
     ]
 )
 ```
+
+**！！！Satori 下的Message 不是“消息序列”的概念！！！**
 
 ## 元信息类型
 

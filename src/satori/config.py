@@ -49,9 +49,9 @@ class WebhookInfo(Config):
     path: str = "v1/events"
     host: str = "127.0.0.1"
     port: int = 8080
+    token: Optional[str] = None
     server_host: str = "localhost"
     server_port: int = 5140
-    token: Optional[str] = None
 
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):
