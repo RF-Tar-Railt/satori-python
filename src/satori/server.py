@@ -3,19 +3,24 @@ from __future__ import annotations
 import asyncio
 import signal
 from contextlib import suppress
+from traceback import print_exc
 from typing import Any, Awaitable, Callable, Iterable
 
+import aiohttp
 from creart import it
 from graia.amnesia.builtins.asgi import UvicornASGIService
 from launart import Launart, Service, any_completed
+from loguru import logger
 from starlette.applications import Starlette
 from starlette.datastructures import Headers
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
+from yarl import URL
 
 from .adapter import Adapter
+from .config import WebhookInfo
 from .model import Event, Opcode
 from .network.ws_server import WsServerConnection
 
@@ -33,6 +38,7 @@ class Server(Service):
         host: str = "127.0.0.1",
         port: int = 5140,
         version: str = "v1",
+        webhooks: list[WebhookInfo] | None = None,
     ):
         self.connections = []
         manager = it(Launart)
@@ -40,6 +46,8 @@ class Server(Service):
         self.ws_route = WebSocketRoute(f"/{version}/events", self.websocket_server_handler)
         self.adapters = []
         self.handlers = {}
+        self.webhooks = webhooks or []
+        self.session = aiohttp.ClientSession()
         super().__init__()
 
     def apply(self, adapter: Adapter):
@@ -59,7 +67,27 @@ class Server(Service):
 
     async def event_callback(self, event: Event):
         for connection in self.connections:
-            await connection.send({"op": Opcode.EVENT, "body": event.dump()})
+            try:
+                await connection.send({"op": Opcode.EVENT, "body": event.dump()})
+            except Exception as e:
+                print_exc()
+                logger.error(e)
+        for hook in self.webhooks:
+            try:
+                async with self.session.post(
+                    URL(f"http://{hook.identity}"),
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {hook.token or ''}",
+                        "X-Platform": event.platform,
+                        "X-Self-ID": event.self_id,
+                    },
+                    json={"op": Opcode.EVENT, "body": event.dump()},
+                ) as resp:
+                    resp.raise_for_status()
+            except Exception as e:
+                print_exc()
+                logger.error(e)
 
     async def websocket_server_handler(self, ws: WebSocket):
         await ws.accept()
@@ -119,6 +147,7 @@ class Server(Service):
         async with self.stage("cleanup"):
             with suppress(KeyError):
                 del asgi_service.middleware.mounts[""]
+            await self.session.close()
 
     def run(
         self,

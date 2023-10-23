@@ -5,6 +5,7 @@ import json
 from typing import TYPE_CHECKING, Generic, TypeVar
 
 import aiohttp
+from yarl import URL
 
 from satori.account import Account
 from satori.config import Config
@@ -47,13 +48,15 @@ class BaseNetwork(Generic[TConfig]):
     async def connection_closed(self):
         self.close_signal.set()
 
-    async def call_http(self, account: Account, action: str, params: dict | None = None) -> dict:
-        endpoint = self.config.api_base / action
+    async def call_http(
+        self, account: Account, action: str, params: dict | None = None, api_base: URL | None = None
+    ) -> dict:
+        endpoint = (api_base or self.config.api_base) / action
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.config.token or ''}",
             "X-Platform": account.platform,
-            "X-Self-ID:": account.self_id,
+            "X-Self-ID": account.self_id,
         }
         async with self.session.post(
             endpoint,

@@ -35,16 +35,21 @@ class ClientInfo(Config):
 
 @dataclass
 class WebhookInfo(Config):
-    self_host: str = "127.0.0.1"
-    self_port: int = 8080
-    host: str = "localhost"
-    port: int = 5140
+    path: str = "v1/events"
+    host: str = "127.0.0.1"
+    port: int = 8080
+    server_host: str = "localhost"
+    server_port: int = 5140
     token: Optional[str] = None
+
+    def __post_init__(self):
+        if self.path and not self.path.startswith("/"):
+            self.path = f"/{self.path}"
 
     @property
     def identity(self):
-        return f"{self.self_host}:{self.self_port}&&{self.host}:{self.port}"
+        return f"{self.host}:{self.port}{self.path}"
 
     @property
     def api_base(self):
-        return URL(f"http://{self.host}:{self.port}") / "v1"
+        return URL(f"http://{self.server_host}:{self.server_port}") / "v1"
