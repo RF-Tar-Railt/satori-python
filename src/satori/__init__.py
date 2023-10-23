@@ -1,8 +1,9 @@
 from .account import Account as Account
 from .adapter import Adapter as Adapter
 from .client import App as App
-from .config import ClientInfo as ClientInfo
+from .config import ApiInfo as ApiInfo
 from .config import WebhookInfo as WebhookInfo
+from .config import WebsocketsInfo as WebsocketsInfo
 from .element import At as At
 from .element import Audio as Audio
 from .element import Author as Author
@@ -34,3 +35,5 @@ from .model import Member as Member
 from .model import Role as Role
 from .model import User as User
 from .server import Server as Server
+
+ClientInfo = WebsocketsInfo

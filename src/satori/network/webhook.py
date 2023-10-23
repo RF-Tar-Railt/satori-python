@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 
-import aiohttp
 from aiohttp import web
 from launart import Service
 from launart.manager import Launart
@@ -23,7 +22,7 @@ class WebhookNetwork(BaseNetwork[WebhookInfo], Service):
 
     @property
     def id(self):
-        return f"satori/network/webhook#{self.config.identity}"
+        return f"satori/network/webhook/{self.config.identity}#{id(self)}"
 
     async def handle_request(self, req: web.Request):
         header = req.headers
@@ -40,9 +39,9 @@ class WebhookNetwork(BaseNetwork[WebhookInfo], Service):
             account = self.app.accounts[identity]
             self.accounts[identity] = account
             account.connected.set()
-            account.client = self
+            account.config = self.config
         else:
-            account = Account(platform, self_id, self)
+            account = Account(platform, self_id, self.config)
             logger.info(f"account registered: {account}")
             account.connected.set()
             self.app.accounts[identity] = account
@@ -60,6 +59,7 @@ class WebhookNetwork(BaseNetwork[WebhookInfo], Service):
             except Exception as e:
                 logger.warning(f"Failed to parse event: {raw}\nCaused by {e!r}")
             else:
+                self.sequence = event.id
                 await self.app.post(event)
 
         asyncio.create_task(event_parse_task(body))
@@ -90,18 +90,17 @@ class WebhookNetwork(BaseNetwork[WebhookInfo], Service):
                 self.close_signal.set()
                 for v in list(self.app.accounts.values()):
                     if v.identity in self.accounts:
+                        v.connected.clear()
                         del self.accounts[v.identity]
                 return
             if close_task in done:
                 await site.stop()
                 logger.warning(f"{self} Connection closed by server, will reconnect in 5 seconds...")
-                accounts = {str(i) for i in self.accounts.keys()}
-                for n in list(self.app.accounts.keys()):
-                    logger.debug(f"Unregistering satori account {n}...")
-                    account = self.app.accounts[n]
+                for k in self.accounts.keys():
+                    logger.debug(f"Unregistering satori account {k}...")
+                    account = self.app.accounts[k]
                     account.connected.clear()
-                    if n in accounts:
-                        del self.app.accounts[n]
+                    await self.app.account_update(account, LoginStatus.DISCONNECT)
                 self.accounts.clear()
                 await asyncio.sleep(5)
                 logger.info(f"{self} Reconnecting...")
@@ -110,7 +109,6 @@ class WebhookNetwork(BaseNetwork[WebhookInfo], Service):
     async def launch(self, manager: Launart):
         async with self.stage("preparing"):
             logger.info(f"starting server on {self.config.port}:{self.config.host}")
-            self.session = aiohttp.ClientSession()
             self.wsgi = web.Application(logger=logger)
             self.wsgi.router.freeze = lambda: None  # monkey patch
             self.wsgi.router.add_post(self.config.path, self.handle_request)
@@ -125,4 +123,3 @@ class WebhookNetwork(BaseNetwork[WebhookInfo], Service):
             await site.stop()
             await self.wsgi.shutdown()
             await self.wsgi.cleanup()
-            await self.session.close()

@@ -6,7 +6,7 @@ groups = ["default", "dev"]
 cross_platform = true
 static_urls = false
 lock_version = "4.3"
-content_hash = "sha256:044b786807f7fcc4eb4ed7378fd07f18274955a47e4192fbdd39c7eff250fdcf"
+content_hash = "sha256:0fedc3bb0f15511ed8b7445452ea208f464b151b6956e222ea9cc1ba2835c177"
 
 [[package]]
 name = "aiohttp"
@@ -327,6 +327,20 @@ summary = "A platform independent file lock."
 files = [
     {file = "filelock-3.12.4-py3-none-any.whl", hash = "sha256:08c21d87ded6e2b9da6728c3dff51baf1dcecf973b768ef35bcbc3447edb9ad4"},
     {file = "filelock-3.12.4.tar.gz", hash = "sha256:2e6f249f1f3654291606e046b09f1fd5eac39b360664c27f5aad072012f8bcbd"},
+]
+
+[[package]]
+name = "fix-future-annotations"
+version = "0.5.0"
+requires_python = ">=3.8"
+summary = "A CLI and pre-commit hook to upgrade the typing annotations syntax to PEP 585 and PEP 604"
+dependencies = [
+    "tokenize-rt>=5.0.0",
+    "tomli; python_version < \"3.11\"",
+]
+files = [
+    {file = "fix-future-annotations-0.5.0.tar.gz", hash = "sha256:666bf5fd09068f3403b34b2dc69844955a4a7bac4df28dd345183bd18172cbfd"},
+    {file = "fix_future_annotations-0.5.0-py3-none-any.whl", hash = "sha256:45b5e73b36c514a23c2fbb2b7ff26448496399bda3b98a7b78a14439639f2e59"},
 ]
 
 [[package]]
@@ -801,6 +815,16 @@ summary = "a uniform status implementation for graia project"
 files = [
     {file = "statv-0.3.2-py3-none-any.whl", hash = "sha256:32e430b21ab6a62695c67ab6cae3dba6e01e9c3fdbc9344e3236ad7a1f51d0c7"},
     {file = "statv-0.3.2.tar.gz", hash = "sha256:fb4df2a37bf7a792e36a6e657c74cbdef9e2cdb8de3a0762b28b35c9e13f0fdd"},
+]
+
+[[package]]
+name = "tokenize-rt"
+version = "5.2.0"
+requires_python = ">=3.8"
+summary = "A wrapper around the stdlib `tokenize` which roundtrips."
+files = [
+    {file = "tokenize_rt-5.2.0-py2.py3-none-any.whl", hash = "sha256:b79d41a65cfec71285433511b50271b05da3584a1da144a0752e9c621a285289"},
+    {file = "tokenize_rt-5.2.0.tar.gz", hash = "sha256:9fe80f8a5c1edad2d3ede0f37481cc0cc1538a2f442c9c2f9e4feacd2792d054"},
 ]
 
 [[package]]

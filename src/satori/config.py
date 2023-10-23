@@ -15,14 +15,25 @@ class Config:
 
 
 @dataclass
-class ClientInfo(Config):
+class ApiInfo(Config):
+    host: str = "localhost"
+    port: int = 5140
+    token: Optional[str] = None
+
+    @property
+    def api_base(self):
+        return URL(f"http://{self.host}:{self.port}") / "v1"
+
+
+@dataclass
+class WebsocketsInfo(Config):
     host: str = "localhost"
     port: int = 5140
     token: Optional[str] = None
 
     @property
     def identity(self):
-        return f"{self.host}:{self.port}#{self.token}"
+        return f"{self.host}:{self.port}"
 
     @property
     def api_base(self):

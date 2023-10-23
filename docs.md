@@ -25,10 +25,11 @@ class ClientInfo(Config):
 
 ```python
 class WebhookInfo(Config):
-    self_host: str = "127.0.0.1"
-    self_port: int = 8080
-    host: str = "localhost"
-    port: int = 5140
+    path: str = "v1/events"
+    host: str = "127.0.0.1"
+    port: int = 8080
+    server_host: str = "localhost"
+    server_port: int = 5140
     token: Optional[str] = None
 ```
 
@@ -46,11 +47,11 @@ app = App(
 或使用 `App.apply` 方法:
 
 ```python
-from satori import App, ClientInfo
+from satori import App, ClientInfo, WebhookInfo
 
 app = App()
 app.apply(ClientInfo(...))
-app.apply(ClientInfo(...))
+app.apply(WebhookInfo(...))
 ```
 
 ## 订阅
@@ -119,7 +120,7 @@ server = Server()
 
 ## 配置
 
-server 的配置直接在构造时传入:
+server 的配置直接在构造时传入：
 
 ```python
 from satori import Server
@@ -127,6 +128,16 @@ from satori import Server
 server = Server(
     host="0.0.0.0",
     port=8080,
+)
+```
+
+同时可以传入 webhook 目标：
+
+```python
+from satori import Server, WebhookInfo
+
+server = Server(
+    webhooks=[WebhookInfo(port=8080)]
 )
 ```
 

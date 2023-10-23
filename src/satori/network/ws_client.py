@@ -12,19 +12,19 @@ from launart.utilles import any_completed
 from loguru import logger
 
 from satori.account import Account
-from satori.config import ClientInfo
+from satori.config import WebsocketsInfo
 from satori.model import Event, LoginStatus, Opcode
 
 from .base import BaseNetwork
 
 
-class WsNetwork(BaseNetwork[ClientInfo], Service):
+class WsNetwork(BaseNetwork[WebsocketsInfo], Service):
     required: set[str] = set()
     stages: set[str] = {"preparing", "blocking", "cleanup"}
 
     @property
     def id(self):
-        return f"satori/network/ws#{self.config.host}:{self.config.port}"
+        return f"satori/network/ws/{self.config.identity}#{id(self)}"
 
     connection: aiohttp.ClientWebSocketResponse | None = None
 
@@ -111,9 +111,9 @@ class WsNetwork(BaseNetwork[ClientInfo], Service):
                     account.connected.set()
                 else:
                     account.connected.clear()
-                account.client = self
+                account.config = self.config
             else:
-                account = Account(platform, self_id, self)
+                account = Account(platform, self_id, self.config)
                 logger.info(f"account registered: {account}")
                 account.connected.set() if login[
                     "status"
@@ -185,11 +185,10 @@ class WsNetwork(BaseNetwork[ClientInfo], Service):
 
     async def launch(self, manager: Launart):
         async with self.stage("preparing"):
-            self.session = aiohttp.ClientSession()
+            session = aiohttp.ClientSession()
 
         async with self.stage("blocking"):
-            await self.daemon(manager, self.session)
+            await self.daemon(manager, session)
 
         async with self.stage("cleanup"):
-            await self.session.close()
-            self.connection = None
+            await session.close()

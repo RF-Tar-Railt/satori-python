@@ -8,7 +8,7 @@ from launart import Launart, Service, any_completed
 from loguru import logger
 
 from .account import Account
-from .config import ClientInfo, Config, WebhookInfo
+from .config import Config, WebhookInfo, WebsocketsInfo
 from .model import Event, LoginStatus
 from .network.webhook import WebhookNetwork
 from .network.ws_client import WsNetwork
@@ -34,7 +34,7 @@ class App(Service):
             self.apply(config)
 
     def apply(self, config: Config):
-        if isinstance(config, ClientInfo):
+        if isinstance(config, WebsocketsInfo):
             connection = WsNetwork(self, config)
         elif isinstance(config, WebhookInfo):
             connection = WebhookNetwork(self, config)
