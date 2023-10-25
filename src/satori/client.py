@@ -8,10 +8,9 @@ from launart import Launart, Service, any_completed
 from loguru import logger
 
 from .account import Account
-from .config import Config, WebhookInfo, WebsocketsInfo
+from .config import Config
 from .model import Event, LoginStatus
-from .network.webhook import WebhookNetwork
-from .network.ws_client import WsNetwork
+from .network.base import BaseNetwork
 
 
 class App(Service):
@@ -20,7 +19,7 @@ class App(Service):
     stages: set[str] = {"preparing", "blocking", "cleanup"}
 
     accounts: dict[str, Account]
-    connections: list[WsNetwork | WebhookNetwork]
+    connections: list[BaseNetwork]
     event_callbacks: list[Callable[[Account, Event], Awaitable[Any]]]
     lifecycle_callbacks: list[Callable[[Account, LoginStatus], Awaitable[Any]]]
 
@@ -34,11 +33,9 @@ class App(Service):
             self.apply(config)
 
     def apply(self, config: Config):
-        if isinstance(config, WebsocketsInfo):
-            connection = WsNetwork(self, config)
-        elif isinstance(config, WebhookInfo):
-            connection = WebhookNetwork(self, config)
-        else:
+        try:
+            connection = config.network(self, config)
+        except NotImplementedError:
             raise TypeError(f"Unknown config type: {config}")
         self.connections.append(connection)
 

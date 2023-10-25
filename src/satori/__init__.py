@@ -1,7 +1,7 @@
 from .account import Account as Account
+from .account import ApiInfo as ApiInfo
 from .adapter import Adapter as Adapter
 from .client import App as App
-from .config import ApiInfo as ApiInfo
 from .config import WebhookInfo as WebhookInfo
 from .config import WebsocketsInfo as WebsocketsInfo
 from .element import At as At

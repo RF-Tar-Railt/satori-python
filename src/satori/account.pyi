@@ -1,23 +1,33 @@
 import asyncio
-from typing import Any, Iterable, overload
+from typing import Any, Iterable, Protocol, overload
+
+from yarl import URL
 
 from .api import Session
-from .config import ApiInfo, Config
 from .element import Element
 from .model import Channel, Event, Guild, Login, Member, Message, PageResult, Role, User
+
+class Api(Protocol):
+    token: str | None = None
+
+    @property
+    def api_base(self) -> URL: ...
+
+class ApiInfo(Api):
+    def __init__(self, host: str = "localhost", port: int = 5140, token: str | None = None): ...
 
 class Account:
     platform: str
     self_id: str
-    config: Config
+    config: Api
     session: Session
     connected: asyncio.Event
 
-    def __init__(self, platform: str, self_id: str, config: Config): ...
+    def __init__(self, platform: str, self_id: str, config: Api): ...
     @property
     def identity(self) -> str: ...
     @overload
-    def custom(self, config: ApiInfo) -> Session: ...
+    def custom(self, config: Api) -> Session: ...
     @overload
     def custom(self, *, host: str, port: int, token: str | None = None) -> Session: ...
     async def send(

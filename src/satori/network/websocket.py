@@ -3,22 +3,23 @@ from __future__ import annotations
 import asyncio
 import json
 from contextlib import suppress
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import aiohttp
-from launart import Service
 from launart.manager import Launart
 from launart.utilles import any_completed
 from loguru import logger
 
 from satori.account import Account
-from satori.config import WebsocketsInfo
-from satori.model import Event, LoginStatus, Opcode
+from satori.model import LoginStatus, Opcode
 
 from .base import BaseNetwork
 
+if TYPE_CHECKING:
+    from satori.config import WebsocketsInfo as WebsocketsInfo
 
-class WsNetwork(BaseNetwork[WebsocketsInfo], Service):
+
+class WsNetwork(BaseNetwork["WebsocketsInfo"]):
     required: set[str] = set()
     stages: set[str] = {"preparing", "blocking", "cleanup"}
 
@@ -35,29 +36,16 @@ class WsNetwork(BaseNetwork[WebsocketsInfo], Service):
         async for msg in self.connection:
             if msg.type in {aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.ERROR, aiohttp.WSMsgType.CLOSED}:
                 self.close_signal.set()
-                break
+                return
             elif msg.type == aiohttp.WSMsgType.TEXT:
                 data: dict = json.loads(cast(str, msg.data))
                 if data["op"] == Opcode.EVENT:
-                    yield self, data["body"]
+                    self.post_event(data)
                 elif data["op"] > 4:
                     logger.warning(f"Received unknown event: {data}")
+                continue
         else:
             await self.connection_closed()
-
-    async def message_handle(self):
-        async for connection, data in self.message_receive():
-            self.sequence = int(data["id"])
-
-            async def event_parse_task(raw: dict):
-                try:
-                    event = Event.parse(raw)
-                except Exception as e:
-                    logger.warning(f"Failed to parse event: {raw}\nCaused by {e!r}")
-                else:
-                    await self.app.post(event)
-
-            asyncio.create_task(event_parse_task(data))
 
     async def send(self, payload: dict):
         if self.connection is None:
@@ -147,7 +135,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo], Service):
                         continue
                     self.close_signal.clear()
                     close_task = asyncio.create_task(self.close_signal.wait())
-                    receiver_task = asyncio.create_task(self.message_handle())
+                    receiver_task = asyncio.create_task(self.message_receive())
                     sigexit_task = asyncio.create_task(manager.status.wait_for_sigexit())
                     heartbeat_task = asyncio.create_task(self._heartbeat())
                     done, pending = await any_completed(

@@ -1,21 +1,23 @@
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 
 from aiohttp import web
-from launart import Service
 from launart.manager import Launart
 from launart.utilles import any_completed
 from loguru import logger
 
 from satori.account import Account
-from satori.config import WebhookInfo
-from satori.model import Event, LoginStatus, Opcode
+from satori.model import LoginStatus, Opcode
 
 from .base import BaseNetwork
 
+if TYPE_CHECKING:
+    from satori.config import WebhookInfo as WebhookInfo
 
-class WebhookNetwork(BaseNetwork[WebhookInfo], Service):
+
+class WebhookNetwork(BaseNetwork["WebhookInfo"]):
     required: set[str] = set()
     stages: set[str] = {"preparing", "blocking", "cleanup"}
     wsgi: web.Application | None = None
@@ -51,19 +53,8 @@ class WebhookNetwork(BaseNetwork[WebhookInfo], Service):
         op = data["op"]
         if op != Opcode.EVENT:
             return web.Response(status=202)
-        body = data["body"]
-
-        async def event_parse_task(raw: dict):
-            try:
-                event = Event.parse(raw)
-            except Exception as e:
-                logger.warning(f"Failed to parse event: {raw}\nCaused by {e!r}")
-            else:
-                self.sequence = event.id
-                await self.app.post(event)
-
-        asyncio.create_task(event_parse_task(body))
         logger.debug(f"Received payload: {data}")
+        self.post_event(data["body"])
         self.status.connected = True
         self.status.alive = True
         return web.Response()
@@ -108,7 +99,7 @@ class WebhookNetwork(BaseNetwork[WebhookInfo], Service):
 
     async def launch(self, manager: Launart):
         async with self.stage("preparing"):
-            logger.info(f"starting server on {self.config.port}:{self.config.host}")
+            logger.info(f"starting server on {self.config.identity}")
             self.wsgi = web.Application(logger=logger)
             self.wsgi.router.freeze = lambda: None  # monkey patch
             self.wsgi.router.add_post(self.config.path, self.handle_request)

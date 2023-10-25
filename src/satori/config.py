@@ -1,10 +1,23 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Type
+from typing_extensions import Self
 
 from yarl import URL
 
+from .network.base import BaseNetwork
+from .network.webhook import WebhookNetwork
+from .network.websocket import WsNetwork
+
 
 class Config:
+    @property
+    def identity(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def network(self: Self) -> Type[BaseNetwork[Self]]:
+        raise NotImplementedError
+
     @property
     def token(self) -> Optional[str]:
         raise NotImplementedError
@@ -12,17 +25,6 @@ class Config:
     @property
     def api_base(self) -> URL:
         raise NotImplementedError
-
-
-@dataclass
-class ApiInfo(Config):
-    host: str = "localhost"
-    port: int = 5140
-    token: Optional[str] = None
-
-    @property
-    def api_base(self):
-        return URL(f"http://{self.host}:{self.port}") / "v1"
 
 
 @dataclass
@@ -42,6 +44,10 @@ class WebsocketsInfo(Config):
     @property
     def ws_base(self):
         return URL(f"ws://{self.host}:{self.port}") / "v1"
+
+    @property
+    def network(self: Self):
+        return WsNetwork
 
 
 @dataclass
@@ -64,3 +70,7 @@ class WebhookInfo(Config):
     @property
     def api_base(self):
         return URL(f"http://{self.server_host}:{self.server_port}") / "v1"
+
+    @property
+    def network(self: Self):
+        return WebhookNetwork
