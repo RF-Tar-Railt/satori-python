@@ -54,6 +54,23 @@ app.apply(WebsocketsInfo(...))
 app.apply(WebhookInfo(...))
 ```
 
+同时你可以自己定义新的 `Config`，只需要实现下面几类方法即可:
+
+```python
+class Config:
+    @property
+    def identity(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def network(self: Self) -> Type[BaseNetwork[Self]]:
+        raise NotImplementedError
+
+    @property
+    def api_base(self) -> URL:
+        raise NotImplementedError
+```
+
 ## 订阅
 
 `satori-python` 使用 `@app.register` 装饰器来增加一个事件处理函数:
@@ -168,9 +185,25 @@ server = Server(
 )
 ```
 
+## 路由
+
+你可以使用 `Server.route` 方法来自定义路由:
+
+```python
+from satori import Server, Api
+
+server = Server()
+
+@server.route(Api.MESSAGE_GET)
+async def on_message_get(request):
+    return {"id": "123456789", "content": "Hello, world!"}
+```
+
+route 填入的若不属于 `Api` 中的枚举值，会被视为是[内部接口](https://satori.js.org/zh-CN/protocol/internal.html)的路由。
+
 ## 适配器
 
-server 依靠适配器来连接不同的平台:
+server 也依靠适配器来对接不同的平台:
 
 ```python
 from satori import Server, Adapter
@@ -183,7 +216,7 @@ server.apply(Adapter(...))
 
 一个适配器需要实现以下方法:
 - `get_platform`: 返回适配器所适配的平台名称.
-- `bind_event_callback`: 绑定事件回调函数，用于发布平台事件.
+- `publisher`: 用于推送平台事件.
 - `validate_headers`: 验证客户端请求的头部信息.
 - `authenticate`: 验证客户端请求的身份信息 (如果平台需要)
 - `get_logins`: 获取平台上的登录信息.
@@ -200,20 +233,6 @@ from satori import Server
 server = Server()
 
 server.run()
-```
-
-## 自定义路由
-
-你可以使用 `Server.override` 方法来自定义路由:
-
-```python
-from satori import Server
-
-server = Server()
-
-@server.override("message.create")
-async def index(headers, body):
-    return {"id": "123456789", "content": "Hello, world!"}
 ```
 
 # 消息元素

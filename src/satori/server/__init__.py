@@ -12,7 +12,7 @@ from graia.amnesia.builtins.asgi import UvicornASGIService
 from launart import Launart, Service, any_completed
 from loguru import logger
 from starlette.applications import Starlette
-from starlette.requests import Request
+from starlette.requests import Request as StarletteRequest
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
@@ -22,7 +22,7 @@ from ..api import Api
 from ..config import WebhookInfo
 from ..model import Event, Opcode
 from .adapter import Adapter as Adapter
-from .adapter import Request as AdapterRequest
+from .adapter import Request as Request
 
 
 class WsServerConnection:
@@ -76,7 +76,7 @@ class Server(Service):
         self.connections = []
         manager = it(Launart)
         manager.add_component(UvicornASGIService(host, port))
-        self.ws_route = WebSocketRoute(f"/{version}/events", self.websocket_server_handler)
+        self.version = version
         self.adapters = []
         self.routes = []
         self.webhooks = webhooks or []
@@ -86,19 +86,28 @@ class Server(Service):
     def apply(self, adapter: Adapter):
         self.adapters.append(adapter)
 
-    def route(self, path: Api):
-        def wrapper(func: Callable[[AdapterRequest], Awaitable[Any]]):
-            async def handler(request: Request):
+    def route(self, path: str | Api):
+        """注册一个路由
+
+        Args:
+            path (str | Api): 路由路径；若 path 不属于 Api，则会被认为是内部接口
+        """
+
+        def wrapper(func: Callable[[Request], Awaitable[Any]]):
+            async def handler(request: StarletteRequest):
                 res = await func(
-                    AdapterRequest(
+                    Request(
                         cast(dict, request.headers.mutablecopy()),
-                        path.value,
+                        path if isinstance(path, str) else path.value,
                         await request.json(),
                     )
                 )
                 return res if isinstance(res, Response) else JSONResponse(content=res)
 
-            self.routes.append(Route(f"/v1/{path.value}", handler, methods=["POST"]))
+            if isinstance(path, Api):
+                self.routes.append(Route(f"/{self.version}/{path.value}", handler, methods=["POST"]))
+            else:
+                self.routes.append(Route(f"/{self.version}/internal/{path}", handler, methods=["POST"]))
             return func
 
         return wrapper
@@ -147,13 +156,13 @@ class Server(Service):
         finally:
             self.connections.remove(connection)
 
-    async def http_server_handler(self, request: Request):
+    async def http_server_handler(self, request: StarletteRequest):
         if not self.adapters:
             return Response(status_code=404)
         for _adapter in self.adapters:
             if _adapter.validate_headers(cast(dict, request.headers.mutablecopy())):
                 res = await _adapter.call_api(
-                    AdapterRequest(
+                    Request(
                         cast(dict, request.headers.mutablecopy()),
                         request.path_params["method"],
                         await request.json(),
@@ -170,9 +179,9 @@ class Server(Service):
             asgi_service = manager.get_component(UvicornASGIService)
             app = Starlette(
                 routes=[
-                    self.ws_route,
+                    WebSocketRoute(f"/{self.version}/events", self.websocket_server_handler),
                     *self.routes,
-                    Route("/v1/{method:path}", self.http_server_handler, methods=["POST"]),
+                    Route(f"/{self.version}/{{method:path}}", self.http_server_handler, methods=["POST"]),
                 ]
             )
             asgi_service.middleware.mounts[""] = app  # type: ignore

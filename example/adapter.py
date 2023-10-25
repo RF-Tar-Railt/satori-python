@@ -4,7 +4,7 @@ from typing import Any
 
 from launart import Launart
 
-from satori import Request, Adapter, Channel, ChannelType, Event, User
+from satori import Adapter, Channel, ChannelType, Event, Request, User
 from satori.model import Login, LoginStatus
 
 

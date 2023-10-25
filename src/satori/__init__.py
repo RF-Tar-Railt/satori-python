@@ -34,8 +34,8 @@ from .model import LoginStatus as LoginStatus
 from .model import Member as Member
 from .model import Role as Role
 from .model import User as User
-from .server import Server as Server
 from .server import Adapter as Adapter
-from .server import AdapterRequest as Request
+from .server import Request as Request
+from .server import Server as Server
 
 ClientInfo = WebsocketsInfo
