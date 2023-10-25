@@ -63,3 +63,24 @@ server.run()
 - 客户端(webhook)：[client_webhook](./example/client_webhook.py)
 - 服务端(webhook)：[server_webhook](./example/server_webhook.py)
 - 适配器：[adapter.py](./example/adapter.py)
+
+## 架构
+
+```mermaid
+graph LR
+    subgraph Server
+        server -- run --> asgi
+        server -- register --> route -- mount --> asgi
+        server -- apply --> adapter -- mount  --> asgi
+        adapter -- event --> server
+    end
+    subgraph Client
+        config -- apply --> app -- run --> network
+        app -- register --> listener
+        network -- account,event --> listener
+        listener -- handle --> account -- session --> api
+    end
+    
+    api -- request --> asgi -- response --> api
+    server -- raw-event --> asgi -- websocket/webhook --> network
+```
