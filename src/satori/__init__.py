@@ -1,6 +1,6 @@
 from .account import Account as Account
 from .account import ApiInfo as ApiInfo
-from .adapter import Adapter as Adapter
+from .api import Api as Api
 from .client import App as App
 from .config import WebhookInfo as WebhookInfo
 from .config import WebsocketsInfo as WebsocketsInfo
@@ -35,5 +35,7 @@ from .model import Member as Member
 from .model import Role as Role
 from .model import User as User
 from .server import Server as Server
+from .server import Adapter as Adapter
+from .server import AdapterRequest as Request
 
 ClientInfo = WebsocketsInfo

@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any, AsyncIterator
 
 from launart import Service
-from starlette.datastructures import Headers
 
-from .model import Event, Login
+from ..model import Event, Login
+
+
+@dataclass
+class Request:
+    headers: dict[str, Any]
+    action: str
+    params: Any
 
 
 class Adapter(Service):
@@ -15,11 +22,11 @@ class Adapter(Service):
         ...
 
     @abstractmethod
-    def bind_event_callback(self, callback: Callable[[Event], Awaitable[Any]]):
+    def publisher(self) -> AsyncIterator[Event]:
         ...
 
     @abstractmethod
-    def validate_headers(self, headers: Headers) -> bool:
+    def validate_headers(self, headers: dict[str, Any]) -> bool:
         ...
 
     @abstractmethod
@@ -31,7 +38,7 @@ class Adapter(Service):
         ...
 
     @abstractmethod
-    async def call_api(self, headers: Headers, action: str, params: Any) -> Any:
+    async def call_api(self, request: Request) -> Any:
         ...
 
     @property

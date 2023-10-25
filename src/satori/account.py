@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from yarl import URL
 
-from .api import Session
+from .session import Session
 
 
 @dataclass

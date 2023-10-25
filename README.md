@@ -41,10 +41,14 @@ app.run()
 
 服务端：
 ```python
-from satori import Server, Adapter
+from satori import Server, Api
 
 server = Server(port=5140)
-server.apply(Adapter())
+
+@server.route(Api.MESSAGE_CREATE)
+async def on_message_create(*args, **kwargs):
+    return [{"id": "1234", "content": "example"}]
+
 server.run()
 ```
 

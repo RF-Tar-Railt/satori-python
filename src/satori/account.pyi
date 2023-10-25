@@ -3,9 +3,9 @@ from typing import Any, Iterable, Protocol, overload
 
 from yarl import URL
 
-from .api import Session
 from .element import Element
 from .model import Channel, Event, Guild, Login, Member, Message, PageResult, Role, User
+from .session import Session
 
 class Api(Protocol):
     token: str | None = None

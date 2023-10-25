@@ -5,9 +5,9 @@ app = App(ClientInfo(port=12345))
 
 @app.register
 async def on_message(account: Account, event: Event):
-    print(event)  # noqa: T201
     if event.user and event.user.id == "1234567890":
-        await account.session.send_message(event.channel.id, "Hello, World!")
+        print(await account.session.channel_get(event.channel.id))  # noqa: T201
+        await account.session.send_message(event.channel, "Hello, World!")
 
 
 @app.lifecycle

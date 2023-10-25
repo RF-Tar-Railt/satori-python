@@ -4,7 +4,7 @@ import asyncio
 import signal
 from contextlib import suppress
 from traceback import print_exc
-from typing import Any, Awaitable, Callable, Iterable
+from typing import Any, Awaitable, Callable, Iterable, cast
 
 import aiohttp
 from creart import it
@@ -12,16 +12,17 @@ from graia.amnesia.builtins.asgi import UvicornASGIService
 from launart import Launart, Service, any_completed
 from loguru import logger
 from starlette.applications import Starlette
-from starlette.datastructures import Headers
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 from yarl import URL
 
-from .adapter import Adapter
-from .config import WebhookInfo
-from .model import Event, Opcode
+from ..api import Api
+from ..config import WebhookInfo
+from ..model import Event, Opcode
+from .adapter import Adapter as Adapter
+from .adapter import Request as AdapterRequest
 
 
 class WsServerConnection:
@@ -77,22 +78,27 @@ class Server(Service):
         manager.add_component(UvicornASGIService(host, port))
         self.ws_route = WebSocketRoute(f"/{version}/events", self.websocket_server_handler)
         self.adapters = []
-        self.handlers = {}
+        self.routes = []
         self.webhooks = webhooks or []
         self.session = aiohttp.ClientSession()
         super().__init__()
 
     def apply(self, adapter: Adapter):
         self.adapters.append(adapter)
-        adapter.bind_event_callback(self.event_callback)
 
-    def override(self, path: str):
-        def wrapper(func: Callable[[Headers, Any], Awaitable[Any]]):
+    def route(self, path: Api):
+        def wrapper(func: Callable[[AdapterRequest], Awaitable[Any]]):
             async def handler(request: Request):
-                res = await func(request.headers, await request.json())
+                res = await func(
+                    AdapterRequest(
+                        cast(dict, request.headers.mutablecopy()),
+                        path.value,
+                        await request.json(),
+                    )
+                )
                 return res if isinstance(res, Response) else JSONResponse(content=res)
 
-            self.handlers[path] = handler
+            self.routes.append(Route(f"/v1/{path.value}", handler, methods=["POST"]))
             return func
 
         return wrapper
@@ -129,10 +135,10 @@ class Server(Service):
             return await ws.close(code=3000, reason="Unauthorized")
         token = identity["body"]["token"]
         logins = []
-        for adapter in self.adapters:
-            if not adapter.authenticate(token):
+        for _adapter in self.adapters:
+            if not _adapter.authenticate(token):
                 return await ws.close(code=3000, reason="Unauthorized")
-            logins.extend(await adapter.get_logins())
+            logins.extend(await _adapter.get_logins())
         await connection.send({"op": Opcode.READY, "body": {"logins": [lo.dump() for lo in logins]}})
         self.connections.append(connection)
 
@@ -144,36 +150,42 @@ class Server(Service):
     async def http_server_handler(self, request: Request):
         if not self.adapters:
             return Response(status_code=404)
-        for adapter in self.adapters:
-            if adapter.validate_headers(request.headers):
-                res = await adapter.call_api(
-                    request.headers, request.path_params["method"], await request.json()
+        for _adapter in self.adapters:
+            if _adapter.validate_headers(cast(dict, request.headers.mutablecopy())):
+                res = await _adapter.call_api(
+                    AdapterRequest(
+                        cast(dict, request.headers.mutablecopy()),
+                        request.path_params["method"],
+                        await request.json(),
+                    )
                 )
                 return res if isinstance(res, Response) else JSONResponse(content=res)
         return Response(status_code=401)
 
     async def launch(self, manager: Launart):
-        for adapter in self.adapters:
-            manager.add_component(adapter)
+        for _adapter in self.adapters:
+            manager.add_component(_adapter)
 
         async with self.stage("preparing"):
             asgi_service = manager.get_component(UvicornASGIService)
             app = Starlette(
                 routes=[
                     self.ws_route,
-                    *(
-                        Route(f"/v1/{method}", handler, methods=["POST"])
-                        for method, handler in self.handlers.items()
-                    ),
+                    *self.routes,
                     Route("/v1/{method:path}", self.http_server_handler, methods=["POST"]),
                 ]
             )
             asgi_service.middleware.mounts[""] = app  # type: ignore
 
+        async def event_task(_adapter: Adapter):
+            async for event in _adapter.publisher():
+                await self.event_callback(event)
+
         async with self.stage("blocking"):
             await any_completed(
                 manager.status.wait_for_sigexit(),
-                *(adapter.status.wait_for("blocking-completed") for adapter in self.adapters),
+                *(event_task(_adapter) for _adapter in self.adapters),
+                *(_adapter.status.wait_for("blocking-completed") for _adapter in self.adapters),
             )
 
         async with self.stage("cleanup"):

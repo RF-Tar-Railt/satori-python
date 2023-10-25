@@ -40,7 +40,7 @@ class WsNetwork(BaseNetwork["WebsocketsInfo"]):
             elif msg.type == aiohttp.WSMsgType.TEXT:
                 data: dict = json.loads(cast(str, msg.data))
                 if data["op"] == Opcode.EVENT:
-                    self.post_event(data)
+                    self.post_event(data["body"])
                 elif data["op"] > 4:
                     logger.warning(f"Received unknown event: {data}")
                 continue
