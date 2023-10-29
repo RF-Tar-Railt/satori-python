@@ -22,8 +22,10 @@ from ..api import Api
 from ..config import WebhookInfo
 from ..model import Event, Opcode
 from .adapter import Adapter as Adapter
-from .adapter import Request as Request
 from .conection import WebsocketConnection
+from .model import Provider
+from .model import Request as Request
+from .model import Router
 
 
 class Server(Service):
@@ -31,7 +33,10 @@ class Server(Service):
     required: set[str] = {"asgi.service/uvicorn"}
     stages: set[str] = {"preparing", "blocking", "cleanup"}
 
-    adapters: list[Adapter]
+    version: str
+    providers: list[Provider]
+    routers: list[Router]
+    _adapters: list[Adapter]
     connections: list[WebsocketConnection]
 
     def __init__(
@@ -45,14 +50,25 @@ class Server(Service):
         manager = it(Launart)
         manager.add_component(UvicornASGIService(host, port))
         self.version = version
-        self.adapters = []
+        self._adapters = []
+        self.providers = []
+        self.routers = []
         self.routes = []
         self.webhooks = webhooks or []
         self.session = aiohttp.ClientSession()
         super().__init__()
 
-    def apply(self, adapter: Adapter):
-        self.adapters.append(adapter)
+    def apply(self, item: Provider | Router | Adapter):
+        if isinstance(item, Adapter):
+            self._adapters.append(item)
+            self.routers.append(item)
+            self.providers.append(item)
+        elif isinstance(item, Provider):
+            self.providers.append(item)
+        elif isinstance(item, Router):
+            self.routers.append(item)
+        else:
+            raise TypeError(f"Unknown config type: {item}")
 
     def route(self, path: str | Api):
         """注册一个路由
@@ -112,10 +128,10 @@ class Server(Service):
             return await ws.close(code=3000, reason="Unauthorized")
         token = identity["body"]["token"]
         logins = []
-        for _adapter in self.adapters:
-            if not _adapter.authenticate(token):
+        for provider in self.providers:
+            if not provider.authenticate(token):
                 return await ws.close(code=3000, reason="Unauthorized")
-            logins.extend(await _adapter.get_logins())
+            logins.extend(await provider.get_logins())
         await connection.send({"op": Opcode.READY, "body": {"logins": [lo.dump() for lo in logins]}})
         self.connections.append(connection)
 
@@ -125,22 +141,32 @@ class Server(Service):
             self.connections.remove(connection)
 
     async def http_server_handler(self, request: StarletteRequest):
-        if not self.adapters:
+        if not self.routers:
             return Response(status_code=404)
-        for _adapter in self.adapters:
-            if _adapter.validate_headers(cast(dict, request.headers.mutablecopy())):
-                res = await _adapter.call_api(
-                    Request(
-                        cast(dict, request.headers.mutablecopy()),
-                        request.path_params["method"],
-                        await request.json(),
+        for _router in self.routers:
+            if _router.validate_headers(cast(dict, request.headers.mutablecopy())):
+                method = request.path_params["method"]
+                if method.startswith("internal/"):
+                    res = await _router.call_internal_api(
+                        Request(
+                            cast(dict, request.headers.mutablecopy()),
+                            method[len("internal/") :],
+                            await request.json(),
+                        )
                     )
-                )
+                else:
+                    res = await _router.call_api(
+                        Request(
+                            cast(dict, request.headers.mutablecopy()),
+                            method,
+                            await request.json(),
+                        )
+                    )
                 return res if isinstance(res, Response) else JSONResponse(content=res)
         return Response(status_code=401)
 
     async def launch(self, manager: Launart):
-        for _adapter in self.adapters:
+        for _adapter in self._adapters:
             manager.add_component(_adapter)
 
         async with self.stage("preparing"):
@@ -154,15 +180,15 @@ class Server(Service):
             )
             asgi_service.middleware.mounts[""] = app  # type: ignore
 
-        async def event_task(_adapter: Adapter):
-            async for event in _adapter.publisher():
+        async def event_task(_provider: Provider):
+            async for event in _provider.publisher():
                 await self.event_callback(event)
 
         async with self.stage("blocking"):
             await any_completed(
                 manager.status.wait_for_sigexit(),
-                *(event_task(_adapter) for _adapter in self.adapters),
-                *(_adapter.status.wait_for("blocking-completed") for _adapter in self.adapters),
+                *(event_task(provider) for provider in self.providers),
+                *(_adapter.status.wait_for("blocking-completed") for _adapter in self._adapters),
             )
 
         async with self.stage("cleanup"):

@@ -201,9 +201,75 @@ async def on_message_get(request):
 
 route 填入的若不属于 `Api` 中的枚举值，会被视为是[内部接口](https://satori.js.org/zh-CN/protocol/internal.html)的路由。
 
+同时，你也可以通过 `server.apply` 传入一个满足 `Router` 协议的对象:
+
+```python
+from satori import Server, Api, Request, Api
+
+server = Server()
+
+class MyRouter:
+    def validate_headers(self, headers: dict[str, Any]) -> bool:
+        return True
+
+    async def call_api(self, request: Request[Api]):
+        if request.action == Api.MESSAGE_GET:
+            return {"id": "123456789", "content": "Hello, world!"}
+
+    async def call_internal_api(self, request: Request[str]):
+        ...
+
+server.apply(MyRouter())
+```
+
+## 事件
+
+事件由 `Provider` 提供:
+
+```python
+class Provider(Protocol):
+    def publisher(self) -> AsyncIterator[Event]:
+        ...
+
+    def authenticate(self, token: str) -> bool:
+        ...
+
+    async def get_logins(self) -> list[Login]:
+        ...
+```
+
+
+你可以通过 `server.apply` 传入一个满足 `Provider` 协议的对象:
+
+
+```python
+import asyncio
+from datetime import datetime
+
+from satori import Channel, ChannelType, Event, Login, LoginStatus, Server, User
+
+server = Server()
+
+class MyProvider:
+    def authenticate(self, token: str) -> bool:
+        return True
+
+    async def get_logins(self):
+        return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example")]
+
+    async def publisher(self):
+        seq = 0
+        while True:
+            await asyncio.sleep(2)
+            yield Event(seq, "example", "example", "1234567890", datetime.now(), channel=Channel("1234567890", ChannelType.TEXT), user=User("1234567890"))
+            seq += 1
+
+server.apply(MyProvider())
+```
+
 ## 适配器
 
-server 也依靠适配器来对接不同的平台:
+适配器是一个特殊的类，它同时实现了 `Provider` 和 `Router` 协议。
 
 ```python
 from satori import Server, Adapter
@@ -221,6 +287,7 @@ server.apply(Adapter(...))
 - `authenticate`: 验证客户端请求的身份信息 (如果平台需要)
 - `get_logins`: 获取平台上的登录信息.
 - `call_api`: 处理客户端请求的 API 调用.
+- `call_internal_api`: 处理客户端请求的内部 API 调用.
 - `launch`: 调度逻辑.
 
 ## 启动

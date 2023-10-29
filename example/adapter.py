@@ -33,6 +33,9 @@ class ExampleAdapter(Adapter):
         print(req)  # noqa: T201
         return [{"id": "1234", "content": "example"}]
 
+    async def call_internal_api(self, request: Request[str]) -> Any:
+        return "example"
+
     async def publisher(self):
         seq = 0
         while True:

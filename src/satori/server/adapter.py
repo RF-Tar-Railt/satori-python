@@ -1,19 +1,11 @@
-from __future__ import annotations
-
 from abc import abstractmethod
-from dataclasses import dataclass
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Dict, List
 
 from launart import Service
 
+from ..api import Api
 from ..model import Event, Login
-
-
-@dataclass
-class Request:
-    headers: dict[str, Any]
-    action: str
-    params: Any
+from .model import Request
 
 
 class Adapter(Service):
@@ -26,7 +18,7 @@ class Adapter(Service):
         ...
 
     @abstractmethod
-    def validate_headers(self, headers: dict[str, Any]) -> bool:
+    def validate_headers(self, headers: Dict[str, Any]) -> bool:
         ...
 
     @abstractmethod
@@ -34,11 +26,15 @@ class Adapter(Service):
         ...
 
     @abstractmethod
-    async def get_logins(self) -> list[Login]:
+    async def get_logins(self) -> List[Login]:
         ...
 
     @abstractmethod
-    async def call_api(self, request: Request) -> Any:
+    async def call_api(self, request: Request[Api]) -> Any:
+        ...
+
+    @abstractmethod
+    async def call_internal_api(self, request: Request[str]) -> Any:
         ...
 
     @property

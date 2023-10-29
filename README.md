@@ -60,6 +60,7 @@ server.run()
 
 - 客户端：[client.py](./example/client.py)
 - 服务端：[server.py](./example/server.py)
+- - 服务端(使用适配器)：[server_with_adapter.py](./example/server_with_adapter.py)
 - 客户端(webhook)：[client_webhook](./example/client_webhook.py)
 - 服务端(webhook)：[server_webhook](./example/server_webhook.py)
 - 适配器：[adapter.py](./example/adapter.py)
@@ -70,9 +71,9 @@ server.run()
 graph LR
     subgraph Server
         server -- run --> asgi
-        server -- register --> route -- mount --> asgi
-        server -- apply --> adapter -- mount  --> asgi
-        adapter -- event --> server
+        server -- register --> router -- mount --> asgi
+        server -- apply --> provider -- mount  --> asgi
+        provider -- event,logins --> server
     end
     subgraph Client
         config -- apply --> app -- run --> network
