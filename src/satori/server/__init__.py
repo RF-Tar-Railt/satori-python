@@ -43,6 +43,7 @@ class Server(Service):
         self,
         host: str = "127.0.0.1",
         port: int = 5140,
+        path: str = "",
         version: str = "v1",
         webhooks: list[WebhookInfo] | None = None,
     ):
@@ -50,6 +51,9 @@ class Server(Service):
         manager = it(Launart)
         manager.add_component(UvicornASGIService(host, port))
         self.version = version
+        self.path = path
+        if self.path and not self.path.startswith("/"):
+            self.path = f"/{self.path}"
         self._adapters = []
         self.providers = []
         self.routers = []
@@ -89,9 +93,13 @@ class Server(Service):
                 return res if isinstance(res, Response) else JSONResponse(content=res)
 
             if isinstance(path, Api):
-                self.routes.append(Route(f"/{self.version}/{path.value}", handler, methods=["POST"]))
+                self.routes.append(
+                    Route(f"{self.path}/{self.version}/{path.value}", handler, methods=["POST"])
+                )
             else:
-                self.routes.append(Route(f"/{self.version}/internal/{path}", handler, methods=["POST"]))
+                self.routes.append(
+                    Route(f"{self.path}/{self.version}/internal/{path}", handler, methods=["POST"])
+                )
             return func
 
         return wrapper
@@ -173,9 +181,13 @@ class Server(Service):
             asgi_service = manager.get_component(UvicornASGIService)
             app = Starlette(
                 routes=[
-                    WebSocketRoute(f"/{self.version}/events", self.websocket_server_handler),
+                    WebSocketRoute(f"{self.path}/{self.version}/events", self.websocket_server_handler),
                     *self.routes,
-                    Route(f"/{self.version}/{{method:path}}", self.http_server_handler, methods=["POST"]),
+                    Route(
+                        f"{self.path}/{self.version}/{{method:path}}",
+                        self.http_server_handler,
+                        methods=["POST"],
+                    ),
                 ]
             )
             asgi_service.middleware.mounts[""] = app  # type: ignore

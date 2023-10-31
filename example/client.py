@@ -1,6 +1,6 @@
 from satori import Account, App, ClientInfo, Event
 
-app = App(ClientInfo(port=12345))
+app = App(ClientInfo(port=12345, path="foo"))
 
 
 @app.register

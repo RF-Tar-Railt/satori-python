@@ -1,6 +1,6 @@
 from satori import Account, App, Event, WebhookInfo
 
-app = App(WebhookInfo(server_port=12345))
+app = App(WebhookInfo(server_port=12345, path="bar"))
 
 
 @app.register

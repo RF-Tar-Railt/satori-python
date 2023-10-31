@@ -14,7 +14,9 @@ class Api(Protocol):
     def api_base(self) -> URL: ...
 
 class ApiInfo(Api):
-    def __init__(self, host: str = "localhost", port: int = 5140, token: str | None = None): ...
+    def __init__(
+        self, host: str = "localhost", port: int = 5140, path: str = "", token: str | None = None
+    ): ...
 
 class Account:
     platform: str

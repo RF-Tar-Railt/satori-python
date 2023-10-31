@@ -2,16 +2,18 @@ from base64 import b64encode
 from dataclasses import dataclass, fields
 from io import BytesIO
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 from typing_extensions import override
 
 from .parser import RawElement, escape
+
+TE = TypeVar("TE", bound="Element")
 
 
 @dataclass
 class Element:
     @classmethod
-    def from_raw(cls, raw: RawElement) -> "Element":
+    def from_raw(cls: Type[TE], raw: RawElement) -> TE:
         _fields = {f.name for f in fields(cls)}
         attrs = {k: v for k, v in raw.attrs.items() if k in _fields}
         result = cls(**attrs)  # type: ignore
@@ -94,12 +96,13 @@ class Resource(Element):
         cache: Optional[bool] = None,
         timeout: Optional[str] = None,
     ):
+        data: Dict[str, Any]
         if url:
             data = {"src": url}
         elif path:
             data = {"src": Path(path).as_uri()}
         elif raw and mime:
-            bd = raw if isinstance(raw, bytes) else raw.getvalue()
+            bd = raw.getvalue() if isinstance(raw, BytesIO) else raw
             data = {"src": f"data:{mime};base64,{b64encode(bd).decode()}"}
         else:
             raise ValueError(f"{cls} need at least one of url, path and raw")

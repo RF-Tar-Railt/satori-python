@@ -3,7 +3,7 @@ from datetime import datetime
 
 from satori import Api, Channel, ChannelType, Event, Login, LoginStatus, Server, User
 
-server = Server(host="localhost", port=12345)
+server = Server(host="localhost", port=12345, path="foo")
 
 
 class ExampleProvider:

@@ -55,6 +55,7 @@ class Session:
                     raise ApiNotImplementedException(await resp.text())
                 else:
                     resp.raise_for_status()
+                    return json.loads(content) if (content := await resp.text()) else {}
 
     async def send(
         self,

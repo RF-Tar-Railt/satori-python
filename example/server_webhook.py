@@ -2,7 +2,7 @@ from adapter import ExampleAdapter
 
 from satori import Api, Channel, ChannelType, Server, WebhookInfo
 
-server = Server(host="localhost", port=12345, webhooks=[WebhookInfo(host="localhost")])
+server = Server(host="localhost", port=12345, webhooks=[WebhookInfo(host="localhost", path="bar")])
 server.apply(ExampleAdapter())
 
 

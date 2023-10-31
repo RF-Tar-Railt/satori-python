@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import IntEnum
-from typing import Callable, Generic, List, Optional, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
 
 from .element import Element, transform
 from .parser import parse
@@ -67,7 +67,7 @@ class User:
         return cls(**raw)
 
     def dump(self):
-        res = {"id": self.id}
+        res: Dict[str, Any] = {"id": self.id}
         if self.name:
             res["name"] = self.name
         if self.avatar:
@@ -146,7 +146,7 @@ class Login:
         return cls(**data)
 
     def dump(self):
-        res = {"status": self.status.value}
+        res: Dict[str, Any] = {"status": self.status.value}
         if self.user:
             res["user"] = self.user.dump()
         if self.self_id:
@@ -207,7 +207,7 @@ class Message:
         return cls(**data)
 
     def dump(self):
-        res = {"id": self.id, "content": "".join(map(str, self.content))}
+        res: Dict[str, Any] = {"id": self.id, "content": "".join(map(str, self.content))}
         if self.channel:
             res["channel"] = self.channel.dump()
         if self.guild:

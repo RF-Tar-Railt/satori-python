@@ -2,7 +2,7 @@ from adapter import ExampleAdapter
 
 from satori import Api, Channel, ChannelType, Server
 
-server = Server(host="localhost", port=12345)
+server = Server(host="localhost", port=12345, path="foo")
 server.apply(ExampleAdapter())
 
 
