@@ -9,6 +9,7 @@ from .element import Audio as Audio
 from .element import Author as Author
 from .element import Bold as Bold
 from .element import Code as Code
+from .element import E as E
 from .element import Element as Element
 from .element import File as File
 from .element import Image as Image

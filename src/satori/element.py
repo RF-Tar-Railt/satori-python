@@ -1,5 +1,5 @@
 from base64 import b64encode
-from dataclasses import dataclass, fields
+from dataclasses import InitVar, dataclass, field, fields
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union
@@ -74,15 +74,30 @@ class Sharp(Element):
 
 
 @dataclass
-class Link(Text):
+class Link(Element):
+    url: str
+    display: Optional[str] = None
+
+    @override
+    @classmethod
+    def from_raw(cls, raw: RawElement) -> "Link":
+        res = cls(raw.attrs["href"], raw.children[0].attrs["text"] if raw.children else None)
+        for k, v in raw.attrs.items():
+            if k != "href":
+                setattr(res, k, v)
+        return res
+
     @override
     def __str__(self):
-        return f'<a href="{escape(self.text)}"/>'
+        if not self.display:
+            return f'<a href="{escape(self.url)}"/>'
+        return f'<a href="{escape(self.url)}">{escape(self.display)}</a>'
 
 
 @dataclass
 class Resource(Element):
     src: str
+    extra: InitVar[Optional[Dict[str, Any]]] = None
     cache: Optional[bool] = None
     timeout: Optional[str] = None
 
@@ -93,11 +108,12 @@ class Resource(Element):
         path: Optional[Union[str, Path]] = None,
         raw: Optional[Union[bytes, BytesIO]] = None,
         mime: Optional[str] = None,
+        extra: Optional[Dict[str, Any]] = None,
         cache: Optional[bool] = None,
         timeout: Optional[str] = None,
     ):
-        data: Dict[str, Any]
-        if url:
+        data: Dict[str, Any] = {"extra": extra}
+        if url is not None:
             data = {"src": url}
         elif path:
             data = {"src": Path(path).as_uri()}
@@ -111,6 +127,11 @@ class Resource(Element):
         if timeout is not None:
             data["timeout"] = timeout
         return cls(**data)
+
+    def __post_init__(self, extra: Optional[Dict[str, Any]] = None):
+        if extra:
+            for k, v in extra.items():
+                setattr(self, k, True if v is ... else v)
 
 
 @dataclass
@@ -138,70 +159,81 @@ class File(Resource):
 
 
 @dataclass
-class Bold(Text):
+class Style(Text):
+    @override
+    @classmethod
+    def from_raw(cls, raw: RawElement):
+        res = cls(raw.children[0].attrs["text"])
+        for k, v in raw.attrs.items():
+            setattr(res, k, v)
+        return res
+
+
+@dataclass
+class Bold(Style):
     @override
     def __str__(self):
         return f"<b>{escape(self.text)}</b>"
 
 
 @dataclass
-class Italic(Text):
+class Italic(Style):
     @override
     def __str__(self):
         return f"<i>{escape(self.text)}</i>"
 
 
 @dataclass
-class Underline(Text):
+class Underline(Style):
     @override
     def __str__(self):
         return f"<u>{escape(self.text)}</u>"
 
 
 @dataclass
-class Strikethrough(Text):
+class Strikethrough(Style):
     @override
     def __str__(self):
         return f"<s>{escape(self.text)}</s>"
 
 
 @dataclass
-class Spoiler(Text):
+class Spoiler(Style):
     @override
     def __str__(self):
         return f"<spl>{escape(self.text)}</spl>"
 
 
 @dataclass
-class Code(Text):
+class Code(Style):
     @override
     def __str__(self):
         return f"<code>{escape(self.text)}</code>"
 
 
 @dataclass
-class Superscript(Text):
+class Superscript(Style):
     @override
     def __str__(self):
         return f"<sup>{escape(self.text)}</sup>"
 
 
 @dataclass
-class Subscript(Text):
+class Subscript(Style):
     @override
     def __str__(self):
         return f"<sub>{escape(self.text)}</sub>"
 
 
 @dataclass
-class Br(Text):
+class Br(Style):
     @override
     def __str__(self):
         return "<br/>"
 
 
 @dataclass
-class Paragraph(Text):
+class Paragraph(Style):
     @override
     def __str__(self):
         return f"<p>{escape(self.text)}</p>"
@@ -239,6 +271,42 @@ class Author(Element):
     avatar: Optional[str] = None
 
 
+@dataclass
+class Custom(Element):
+    type: str
+    attrs: Dict[str, Any] = field(default_factory=dict)
+    children: Optional[List[Element]] = None
+
+    @override
+    def get_type(self) -> str:
+        return self.type
+
+    @override
+    def __str__(self) -> str:
+        def _attr(key: str, value: Any):
+            if value is True:
+                return key
+            if value is False:
+                return f"no-{key}"
+            if isinstance(value, (int, float)):
+                return f"{key}={value}"
+            return f'{key}="{escape(str(value))}"'
+
+        attrs = " ".join(_attr(k, v) for k, v in self.attrs.items() if not k.startswith("_"))
+        if self.children:
+            return f"<{self.get_type()} {attrs}>{''.join(str(e) for e in self.children)}</{self.get_type()}>"
+        return f"<{self.get_type()} {attrs} />"
+
+
+@dataclass
+class Raw(Element):
+    content: str
+
+    @override
+    def __str__(self):
+        return self.content
+
+
 ELEMENT_TYPE_MAP = {
     "text": Text,
     "at": At,
@@ -274,10 +342,10 @@ def transform(elements: List[RawElement]) -> List[Element]:
             seg_cls = ELEMENT_TYPE_MAP[elem.type]
             msg.append(seg_cls.from_raw(elem))
         elif elem.type in ("a", "link"):
-            msg.append(Link(elem.attrs["href"]))
+            msg.append(Link.from_raw(elem))
         elif elem.type in STYLE_TYPE_MAP:
             seg_cls = STYLE_TYPE_MAP[elem.type]
-            msg.append(seg_cls(elem.children[0].attrs["text"]))  # type: ignore
+            msg.append(seg_cls.from_raw(elem))
         elif elem.type in ("br", "newline"):
             msg.append(Br("\n"))
         elif elem.type == "message":
@@ -291,5 +359,36 @@ def transform(elements: List[RawElement]) -> List[Element]:
                 res.content = transform(elem.children)
             msg.append(res)
         else:
-            msg.append(Text(str(elem)))
+            msg.append(Custom(elem.type, elem.attrs, transform(elem.children)))
     return msg
+
+
+class E:
+    text = Text
+    at = At
+    at_role = At.at_role
+    all = At.all
+    sharp = Sharp
+    link = Link
+    image = Image.of
+    audio = Audio.of
+    video = Video.of
+    file = File.of
+    bold = Bold
+    italic = Italic
+    underline = Underline
+    strikethrough = Strikethrough
+    spoiler = Spoiler
+    code = Code
+    sup = Superscript
+    sub = Subscript
+    br = Br
+    paragraph = Paragraph
+    message = Message
+    quote = Quote
+    author = Author
+    custom = Custom
+    raw = Raw
+
+    def __new__(cls, *args, **kwargs):
+        raise TypeError("E is not instantiable")
