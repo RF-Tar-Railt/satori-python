@@ -1,5 +1,5 @@
 from base64 import b64encode
-from dataclasses import InitVar, dataclass, field, fields
+from dataclasses import InitVar, dataclass, fields
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union
@@ -36,7 +36,8 @@ class Element:
             return f'{key}="{escape(str(value))}"'
 
         attrs = " ".join(_attr(k, v) for k, v in vars(self).items() if not k.startswith("_"))
-        return f"<{self.get_type()} {attrs} />"
+        attrs = f" {attrs}" if attrs else ""
+        return f"<{self.get_type()}{attrs}/>"
 
 
 @dataclass
@@ -241,9 +242,23 @@ class Paragraph(Style):
 
 @dataclass
 class Message(Element):
-    id: Optional[str] = None
-    forward: Optional[bool] = None
-    content: Optional[List[Element]] = None
+    id: Optional[str]
+    forward: Optional[bool]
+    content: List[Element]
+
+    def __init__(
+        self,
+        id: Optional[str] = None,
+        forward: Optional[bool] = None,
+        content: Optional[List[Union[str, Element]]] = None,
+    ):
+        self.id = id
+        self.forward = forward
+        self.content = [Text(i) if isinstance(i, str) else i for i in content or []]
+
+    def __call__(self, *content: Union[str, Element]):
+        self.content.extend(Text(i) if isinstance(i, str) else i for i in content)
+        return self
 
     @override
     def __str__(self):
@@ -253,10 +268,11 @@ class Message(Element):
         if self.forward:
             attr.append("forward")
         _type = self.get_type()
+        attrs = (" " + " ".join(attr)) if attr else ""
         if not self.content:
-            return f'<{_type} {" ".join(attr)} />'
+            return f"<{_type}{attrs}/>"
         else:
-            return f'<{_type} {" ".join(attr)}>{"".join(str(e) for e in self.content)}</{_type}>'
+            return f'<{_type}{attrs}>{"".join(str(e) for e in self.content)}</{_type}>'
 
 
 @dataclass
@@ -274,8 +290,22 @@ class Author(Element):
 @dataclass
 class Custom(Element):
     type: str
-    attrs: Dict[str, Any] = field(default_factory=dict)
-    children: Optional[List[Element]] = None
+    attrs: Dict[str, Any]
+    children: List[Element]
+
+    def __init__(
+        self,
+        type: str,
+        attrs: Optional[Dict[str, Any]] = None,
+        children: Optional[List[Union[str, Element]]] = None,
+    ):
+        self.type = type
+        self.attrs = attrs or {}
+        self.children = [Text(i) if isinstance(i, str) else i for i in children or []]
+
+    def __call__(self, *children: Union[str, Element]):
+        self.children.extend(Text(i) if isinstance(i, str) else i for i in children)
+        return self
 
     @override
     def get_type(self) -> str:
@@ -293,9 +323,10 @@ class Custom(Element):
             return f'{key}="{escape(str(value))}"'
 
         attrs = " ".join(_attr(k, v) for k, v in self.attrs.items() if not k.startswith("_"))
+        attrs = f" {attrs}" if attrs else ""
         if self.children:
-            return f"<{self.get_type()} {attrs}>{''.join(str(e) for e in self.children)}</{self.get_type()}>"
-        return f"<{self.get_type()} {attrs} />"
+            return f"<{self.get_type()}{attrs}>{''.join(str(e) for e in self.children)}</{self.get_type()}>"
+        return f"<{self.get_type()}{attrs}/>"
 
 
 @dataclass
@@ -349,17 +380,11 @@ def transform(elements: List[RawElement]) -> List[Element]:
         elif elem.type in ("br", "newline"):
             msg.append(Br("\n"))
         elif elem.type == "message":
-            res = Message.from_raw(elem)
-            if elem.children:
-                res.content = transform(elem.children)
-            msg.append(res)
+            msg.append(Message.from_raw(elem)(*transform(elem.children)))
         elif elem.type == "quote":
-            res = Quote.from_raw(elem)
-            if elem.children:
-                res.content = transform(elem.children)
-            msg.append(res)
+            msg.append(Quote.from_raw(elem)(*transform(elem.children)))
         else:
-            msg.append(Custom(elem.type, elem.attrs, transform(elem.children)))
+            msg.append(Custom(elem.type, elem.attrs)(*transform(elem.children)))
     return msg
 
 

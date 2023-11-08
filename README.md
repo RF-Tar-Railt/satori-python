@@ -14,6 +14,7 @@
 ### 协议端
 
 目前提供了 `satori` 协议实现的有：
+
 - [Chronocat](https://chronocat.vercel.app)
 - Koishi （搭配 `@koishijs/plugin-server`）
 
@@ -26,6 +27,7 @@ pip install satori-python
 ## 使用
 
 客户端：
+
 ```python
 from satori import App, Account, Event, WebsocketsInfo
 
@@ -40,6 +42,7 @@ app.run()
 ```
 
 服务端：
+
 ```python
 from satori import Server, Api
 
@@ -60,7 +63,7 @@ server.run()
 
 - 客户端：[client.py](./example/client.py)
 - 服务端：[server.py](./example/server.py)
-- - 服务端(使用适配器)：[server_with_adapter.py](./example/server_with_adapter.py)
+  - 服务端(使用适配器)：[server_with_adapter.py](./example/server_with_adapter.py)
 - 客户端(webhook)：[client_webhook](./example/client_webhook.py)
 - 服务端(webhook)：[server_webhook](./example/server_webhook.py)
 - 适配器：[adapter.py](./example/adapter.py)

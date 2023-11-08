@@ -86,6 +86,7 @@ async def listen(account: Account, event: Event):
 ```
 
 `@app.register` 需要一个参数为 `Account` 与 `Event` 的异步函数.
+
 - `Account` 对象代表了一个 Satori 平台账号, 你可以使用它来调用 API.
 - `Event` 对象代表了一个 Satori 事件, 你可以使用它来获取事件的数据.
 
@@ -238,9 +239,7 @@ class Provider(Protocol):
         ...
 ```
 
-
 你可以通过 `server.apply` 传入一个满足 `Provider` 协议的对象:
-
 
 ```python
 import asyncio
@@ -281,6 +280,7 @@ server.apply(Adapter(...))
 ### 必需方法
 
 一个适配器需要实现以下方法:
+
 - `get_platform`: 返回适配器所适配的平台名称.
 - `publisher`: 用于推送平台事件.
 - `validate_headers`: 验证客户端请求的头部信息.
@@ -326,6 +326,7 @@ image = Image.of(url="https://example.com/image.png")
 ```
 
 在 `.of` 方法中，你可以传入以下参数:
+
 - `url`: 资源的 URL.
 - `path`: 资源的本地路径.
 - `raw`: 资源的二进制数据. 会要求同时传入 `mime` 参数.
@@ -355,20 +356,15 @@ image = Image.of(raw=data, mime="image/png")
 对于 `Message`，你可以通过 `content` 参数来传入子元素:
 
 ```python
-from satori import Message, Author, Text
+from satori import Message, Author
 
-message = Message(
-    forward=True,
-    content=[
-        Message(id="123456789"),
-        Message(id="987654321"),
-        Message(
-            content=[
-                Author(id="123456789"),
-                Text("Hello, world!"),
-            ]
-        ),
-    ]
+message = Message(forward=True)(
+    Message(id="123456789"),
+    Message(id="987654321"),
+    Message()(
+        Author(id="123456789"),
+        "Hello, world!"
+    )
 )
 ```
 
@@ -380,3 +376,8 @@ message = Message(
 - `Quote`: 引用类型，对应 [引用](https://satori.js.org/zh-CN/protocol/elements.html#%E5%BC%95%E7%94%A8).
 
 `Quote` 的用法与 `Message` 一致。
+
+## 特殊类型
+
+- `Custom`: 用来构造 Satori 标准外的消息元素。
+- `Raw`: 用来构造 Satori 标准外的消息元素，直接传入文本。
