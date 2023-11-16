@@ -331,7 +331,6 @@ class Button(Element):
         return f'<button {" ".join(attr)} />'
 
 
-
 @dataclass
 class Custom(Element):
     type: str

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import IntEnum
 from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
