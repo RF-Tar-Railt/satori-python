@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from datetime import datetime
 from enum import IntEnum
 from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
@@ -156,6 +156,24 @@ class Login:
         return res
 
 
+@dataclass
+class ArgvInteraction:
+    name: str
+    arguments: list
+    options: Any
+
+    def dump(self):
+        return asdict(self)
+
+
+@dataclass
+class ButtonInteraction:
+    id: str
+
+    def dump(self):
+        return asdict(self)
+
+
 class Opcode(IntEnum):
     EVENT = 0
     PING = 1
@@ -230,6 +248,8 @@ class Event:
     platform: str
     self_id: str
     timestamp: datetime
+    argv: Optional[ArgvInteraction] = None
+    button: Optional[ButtonInteraction] = None
     channel: Optional[Channel] = None
     guild: Optional[Guild] = None
     login: Optional[Login] = None
@@ -248,6 +268,10 @@ class Event:
             "self_id": raw["self_id"],
             "timestamp": datetime.fromtimestamp(int(raw["timestamp"]) / 1000),
         }
+        if "argv" in raw:
+            data["argv"] = ArgvInteraction(**raw["argv"])
+        if "button" in raw:
+            data["button"] = ButtonInteraction(**raw["button"])
         if "channel" in raw:
             data["channel"] = Channel(**raw["channel"])
         if "guild" in raw:
@@ -274,6 +298,10 @@ class Event:
             "self_id": self.self_id,
             "timestamp": int(self.timestamp.timestamp() * 1000),
         }
+        if self.argv:
+            res["argv"] = self.argv.dump()
+        if self.button:
+            res["button"] = self.button.dump()
         if self.channel:
             res["channel"] = self.channel.dump()
         if self.guild:

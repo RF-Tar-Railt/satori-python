@@ -1,6 +1,6 @@
 [project]
 name = "satori-python"
-version = "0.7.0"
+version = "0.8.0"
 description = "Satori Protocol SDK for python"
 authors = [
     {name = "RF-Tar-Railt",email = "rf_tar_railt@qq.com"},
@@ -8,11 +8,11 @@ authors = [
 dependencies = [
     "aiohttp>=3.8.6",
     "loguru>=0.7.2",
-    "launart>=0.8.1",
+    "launart>=0.8.2",
     "typing-extensions>=4.8.0",
     "graia-amnesia>=0.8.2",
-    "starlette>=0.31.1",
-    "uvicorn[standard]>=0.23.2",
+    "starlette>=0.32.0.post1",
+    "uvicorn[standard]>=0.24.0.post1",
 ]
 requires-python = ">=3.8"
 readme = "README.md"
@@ -40,8 +40,8 @@ build-backend = "pdm.backend"
 [tool.pdm.dev-dependencies]
 dev = [
     "isort>=5.12.0",
-    "black>=23.10.0",
-    "ruff>=0.1.0",
+    "black>=23.11.0",
+    "ruff>=0.1.5",
     "pre-commit>=3.5.0",
     "fix-future-annotations>=0.5.0",
 ]

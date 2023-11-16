@@ -79,8 +79,8 @@ class Link(Element):
     url: str
     display: Optional[str] = None
 
-    @override
     @classmethod
+    @override
     def from_raw(cls, raw: RawElement) -> "Link":
         res = cls(raw.attrs["href"], raw.children[0].attrs["text"] if raw.children else None)
         for k, v in raw.attrs.items():
@@ -288,6 +288,51 @@ class Author(Element):
 
 
 @dataclass
+class Button(Element):
+    type: str
+    display: Optional[str] = None
+    id: Optional[str] = None
+    href: Optional[str] = None
+    text: Optional[str] = None
+    theme: Optional[str] = None
+
+    @classmethod
+    def action(cls, button_id: str, display: Optional[str] = None, theme: Optional[str] = None):
+        return Button("action", id=button_id, display=display, theme=theme)
+
+    @classmethod
+    def link(cls, url: str, display: Optional[str] = None, theme: Optional[str] = None):
+        return Button("link", href=url, display=display, theme=theme)
+
+    @classmethod
+    def input(cls, text: str, display: Optional[str] = None, theme: Optional[str] = None):
+        return Button("input", text=text, display=display, theme=theme)
+
+    @classmethod
+    @override
+    def from_raw(cls, raw: RawElement) -> "Button":
+        res = cls(**raw.attrs)
+        res.display = raw.children[0].attrs["text"] if raw.children else None
+        return res
+
+    @override
+    def __str__(self):
+        attr = [f'type="{escape(self.type)}"']
+        if self.type == "action":
+            attr.append(f'id="{escape(self.id)}"')
+        if self.type == "link":
+            attr.append(f'href="{escape(self.href)}"')
+        if self.type == "input":
+            attr.append(f'text="{escape(self.text)}"')
+        if self.theme:
+            attr.append(f'theme="{escape(self.theme)}"')
+        if self.display:
+            return f'<button {" ".join(attr)}>{escape(self.display)}</button>'
+        return f'<button {" ".join(attr)} />'
+
+
+
+@dataclass
 class Custom(Element):
     type: str
     attrs: Dict[str, Any]
@@ -374,6 +419,8 @@ def transform(elements: List[RawElement]) -> List[Element]:
             msg.append(seg_cls.from_raw(elem))
         elif elem.type in ("a", "link"):
             msg.append(Link.from_raw(elem))
+        elif elem.type == "button":
+            msg.append(Button.from_raw(elem))
         elif elem.type in STYLE_TYPE_MAP:
             seg_cls = STYLE_TYPE_MAP[elem.type]
             msg.append(seg_cls.from_raw(elem))
@@ -399,6 +446,7 @@ class E:
     audio = Audio.of
     video = Video.of
     file = File.of
+    resource = Resource
     bold = Bold
     italic = Italic
     underline = Underline
@@ -414,6 +462,10 @@ class E:
     author = Author
     custom = Custom
     raw = Raw
+    button = Button
+    action_button = Button.action
+    link_button = Button.link
+    input_button = Button.input
 
     def __new__(cls, *args, **kwargs):
         raise TypeError("E is not instantiable")
