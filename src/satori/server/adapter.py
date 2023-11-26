@@ -3,7 +3,8 @@ from typing import Any, AsyncIterator, Dict, List
 
 from launart import Service
 
-from ..api import Api
+from satori.const import Api
+
 from ..model import Event, Login
 from .model import Request
 

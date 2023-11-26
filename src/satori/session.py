@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Iterable, List, cast
 
 import aiohttp
 
-from .api import Api
+from .const import Api
 from .element import Element
 from .exception import (
     ApiNotImplementedException,

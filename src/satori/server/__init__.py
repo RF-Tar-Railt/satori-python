@@ -18,9 +18,10 @@ from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 from yarl import URL
 
-from ..api import Api
-from ..config import WebhookInfo
-from ..model import Event, Opcode
+from satori.config import WebhookInfo
+from satori.const import Api
+from satori.model import Event, Opcode
+
 from .adapter import Adapter as Adapter
 from .conection import WebsocketConnection
 from .model import Provider

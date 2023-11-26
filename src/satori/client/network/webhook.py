@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
 
 from aiohttp import web
 from launart.manager import Launart
@@ -9,15 +8,13 @@ from launart.utilles import any_completed
 from loguru import logger
 
 from satori.account import Account
+from satori.config import WebhookInfo as WebhookInfo
 from satori.model import LoginStatus, Opcode
 
 from .base import BaseNetwork
 
-if TYPE_CHECKING:
-    from satori.config import WebhookInfo as WebhookInfo
 
-
-class WebhookNetwork(BaseNetwork["WebhookInfo"]):
+class WebhookNetwork(BaseNetwork[WebhookInfo]):
     required: set[str] = set()
     stages: set[str] = {"preparing", "blocking", "cleanup"}
     wsgi: web.Application | None = None
@@ -77,7 +74,7 @@ class WebhookNetwork(BaseNetwork["WebhookInfo"]):
                 close_task,
             )
             if sigexit_task in done:
-                logger.info(f"{self} Webhook server exiting...")
+                logger.info(f"{self.id} Webhook server exiting...")
                 self.close_signal.set()
                 for v in list(self.app.accounts.values()):
                     if v.identity in self.accounts:
@@ -86,7 +83,7 @@ class WebhookNetwork(BaseNetwork["WebhookInfo"]):
                 return
             if close_task in done:
                 await site.stop()
-                logger.warning(f"{self} Connection closed by server, will reconnect in 5 seconds...")
+                logger.warning(f"{self.id} Connection closed by server, will reconnect in 5 seconds...")
                 for k in self.accounts.keys():
                     logger.debug(f"Unregistering satori account {k}...")
                     account = self.app.accounts[k]

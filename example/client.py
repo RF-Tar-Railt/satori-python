@@ -1,6 +1,7 @@
-from satori import Account, App, ClientInfo, Event
+from satori import Account, Event, WebsocketsInfo
+from satori.client import App
 
-app = App(ClientInfo(port=12345, path="foo"))
+app = App(WebsocketsInfo(port=12345, path="foo"))
 
 
 @app.register

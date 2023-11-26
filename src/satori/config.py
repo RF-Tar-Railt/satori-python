@@ -1,21 +1,12 @@
 from dataclasses import dataclass
-from typing import Optional, Type
-from typing_extensions import Self
+from typing import Optional
 
 from yarl import URL
-
-from .network.base import BaseNetwork
-from .network.webhook import WebhookNetwork
-from .network.websocket import WsNetwork
 
 
 class Config:
     @property
     def identity(self) -> str:
-        raise NotImplementedError
-
-    @property
-    def network(self: Self) -> Type[BaseNetwork[Self]]:
         raise NotImplementedError
 
     @property
@@ -50,10 +41,6 @@ class WebsocketsInfo(Config):
     def ws_base(self):
         return URL(f"ws://{self.host}:{self.port}{self.path}") / "v1"
 
-    @property
-    def network(self: Self):
-        return WsNetwork
-
 
 @dataclass
 class WebhookInfo(Config):
@@ -78,7 +65,3 @@ class WebhookInfo(Config):
     @property
     def api_base(self):
         return URL(f"http://{self.server_host}:{self.server_port}{self.server_path}") / "v1"
-
-    @property
-    def network(self: Self):
-        return WebhookNetwork

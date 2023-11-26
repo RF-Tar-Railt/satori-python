@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Generic, Protocol, TypeVar, runtime_checkable
 
-from ..api import Api
-from ..model import Event, Login
+from satori.const import Api
+from satori.model import Event, Login
 
 TA = TypeVar("TA", str, Api)
 

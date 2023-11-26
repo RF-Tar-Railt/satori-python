@@ -2,15 +2,25 @@ from __future__ import annotations
 
 import asyncio
 import signal
-from typing import Any, Awaitable, Callable, Iterable
+from typing import Any, Awaitable, Callable, Iterable, TypeVar
 
 from launart import Launart, Service, any_completed
 from loguru import logger
 
-from .account import Account
-from .config import Config
-from .model import Event, LoginStatus
-from .network.base import BaseNetwork
+from satori.account import Account
+from satori.config import Config, WebhookInfo, WebsocketsInfo
+from satori.model import Event, LoginStatus
+
+from .network.base import BaseNetwork as BaseNetwork
+from .network.webhook import WebhookNetwork
+from .network.websocket import WsNetwork
+
+TConfig = TypeVar("TConfig", bound=Config)
+
+MAPPING: dict[type[TConfig], type[BaseNetwork[TConfig]]] = {
+    WebhookInfo: WebhookNetwork,
+    WebsocketsInfo: WsNetwork,
+}
 
 
 class App(Service):
@@ -23,6 +33,10 @@ class App(Service):
     event_callbacks: list[Callable[[Account, Event], Awaitable[Any]]]
     lifecycle_callbacks: list[Callable[[Account, LoginStatus], Awaitable[Any]]]
 
+    @classmethod
+    def register_config(cls, tc: type[TConfig], tn: type[BaseNetwork[TConfig]]):
+        MAPPING[tc] = tn
+
     def __init__(self, *configs: Config):
         self.accounts = {}
         self.connections = []
@@ -34,8 +48,8 @@ class App(Service):
 
     def apply(self, config: Config):
         try:
-            connection = config.network(self, config)
-        except NotImplementedError:
+            connection = MAPPING[config.__class__](self, config)
+        except KeyError:
             raise TypeError(f"Unknown config type: {config}")
         self.connections.append(connection)
 

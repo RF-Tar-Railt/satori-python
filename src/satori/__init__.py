@@ -1,9 +1,8 @@
 from .account import Account as Account
 from .account import ApiInfo as ApiInfo
-from .api import Api as Api
-from .client import App as App
 from .config import WebhookInfo as WebhookInfo
 from .config import WebsocketsInfo as WebsocketsInfo
+from .const import Api as Api
 from .element import At as At
 from .element import Audio as Audio
 from .element import Author as Author
@@ -35,8 +34,5 @@ from .model import LoginStatus as LoginStatus
 from .model import Member as Member
 from .model import Role as Role
 from .model import User as User
-from .server import Adapter as Adapter
-from .server import Request as Request
-from .server import Server as Server
 
-ClientInfo = WebsocketsInfo
+__version__ = "0.9.0"

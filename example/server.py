@@ -1,7 +1,8 @@
 import asyncio
 from datetime import datetime
 
-from satori import Api, Channel, ChannelType, Event, Login, LoginStatus, Server, User
+from satori import Api, Channel, ChannelType, Event, Login, LoginStatus, User
+from satori.server import Server
 
 server = Server(host="localhost", port=12345, path="foo")
 

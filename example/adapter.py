@@ -4,8 +4,9 @@ from typing import Any
 
 from launart import Launart
 
-from satori import Adapter, Channel, ChannelType, Event, Request, User
+from satori import Channel, ChannelType, Event, User
 from satori.model import Login, LoginStatus
+from satori.server import Adapter, Request
 
 
 class ExampleAdapter(Adapter):

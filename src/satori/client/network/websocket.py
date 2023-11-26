@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from contextlib import suppress
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 import aiohttp
 from launart.manager import Launart
@@ -11,15 +11,13 @@ from launart.utilles import any_completed
 from loguru import logger
 
 from satori.account import Account
+from satori.config import WebsocketsInfo as WebsocketsInfo
 from satori.model import LoginStatus, Opcode
 
 from .base import BaseNetwork
 
-if TYPE_CHECKING:
-    from satori.config import WebsocketsInfo as WebsocketsInfo
 
-
-class WsNetwork(BaseNetwork["WebsocketsInfo"]):
+class WsNetwork(BaseNetwork[WebsocketsInfo]):
     required: set[str] = set()
     stages: set[str] = {"preparing", "blocking", "cleanup"}
 
@@ -127,7 +125,7 @@ class WsNetwork(BaseNetwork["WebsocketsInfo"]):
         while not manager.status.exiting:
             try:
                 async with session.ws_connect(self.config.ws_base / "events", timeout=30) as self.connection:
-                    logger.debug(f"{self.config.ws_base} Websocket client connected")
+                    logger.debug(f"{self.id} Websocket client connected")
                     self.close_signal.clear()
                     result = await self._authenticate()
                     if not result:
@@ -145,7 +143,7 @@ class WsNetwork(BaseNetwork["WebsocketsInfo"]):
                         heartbeat_task,
                     )
                     if sigexit_task in done:
-                        logger.info(f"{self} Websocket client exiting...")
+                        logger.info(f"{self.id} Websocket client exiting...")
                         await self.connection.close()
                         self.close_signal.set()
                         self.connection = None
