@@ -22,7 +22,7 @@ jobs:
         id: version
         run: |
           echo "VERSION=$(pdm show --version)" >> $GITHUB_OUTPUT
-          echo "TAG_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "TAG_VERSION=${GITHUB_REF#refs/tags/server-v}" >> $GITHUB_OUTPUT
           echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Check Version
