@@ -20,8 +20,24 @@
 
 ## 安装
 
+安装完整体：
 ```shell
 pip install satori-python
+```
+
+只安装基础部分：
+```shell
+pip install satori-python-core
+```
+
+只安装客户端部分：
+```shell
+pip install satori-python-client
+```
+
+只安装服务端部分：
+```shell
+pip install satori-python-server
 ```
 
 ## 使用

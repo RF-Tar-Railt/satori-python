@@ -34,5 +34,3 @@ from .model import LoginStatus as LoginStatus
 from .model import Member as Member
 from .model import Role as Role
 from .model import User as User
-
-__version__ = "0.9.0"
