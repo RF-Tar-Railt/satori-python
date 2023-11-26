@@ -3,8 +3,9 @@ from typing import Any, Iterable, Protocol, overload
 
 from yarl import URL
 
-from .element import Element
-from .model import Channel, Event, Guild, Login, Member, Message, PageResult, Role, User
+from satori.element import Element
+from satori.model import Channel, Event, Guild, Login, Member, Message, PageResult, Role, User
+
 from .session import Session
 
 class Api(Protocol):

@@ -1,10 +1,10 @@
 [project]
 name = "satori-python"
-version = "0.9.0"
 description = "Satori Protocol SDK for python"
 authors = [
     {name = "RF-Tar-Railt",email = "rf_tar_railt@qq.com"},
 ]
+dynamic = ["version"]
 dependencies = [
     "aiohttp>=3.8.6",
     "loguru>=0.7.2",
@@ -55,6 +55,9 @@ includes = ["src/satori"]
 [tool.pdm.scripts]
 format = { composite = ["isort ./src/ ./example/","black ./src/ ./example/","ruff ./src/ ./example/"] }
 
+[tool.pdm.version]
+source = "file"
+path = "src/satori/__init__.py"
 
 [tool.black]
 line-length = 110

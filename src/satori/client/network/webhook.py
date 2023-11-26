@@ -7,10 +7,10 @@ from launart.manager import Launart
 from launart.utilles import any_completed
 from loguru import logger
 
-from satori.account import Account
 from satori.config import WebhookInfo as WebhookInfo
 from satori.model import LoginStatus, Opcode
 
+from ..account import Account
 from .base import BaseNetwork
 
 

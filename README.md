@@ -45,8 +45,8 @@ pip install satori-python-server
 客户端：
 
 ```python
-from satori import Account, Event, WebsocketsInfo
-from satori.client import App
+from satori import Event, WebsocketsInfo
+from satori.client import Account, App
 
 app = App(WebsocketsInfo(port=5140))
 

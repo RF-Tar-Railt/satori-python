@@ -7,10 +7,11 @@ from typing import Any, Awaitable, Callable, Iterable, TypeVar
 from launart import Launart, Service, any_completed
 from loguru import logger
 
-from satori.account import Account
 from satori.config import Config, WebhookInfo, WebsocketsInfo
 from satori.model import Event, LoginStatus
 
+from .account import Account as Account
+from .account import ApiInfo as ApiInfo
 from .network.base import BaseNetwork as BaseNetwork
 from .network.webhook import WebhookNetwork
 from .network.websocket import WsNetwork

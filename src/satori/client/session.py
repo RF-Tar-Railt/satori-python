@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Any, Iterable, List, cast
 
 import aiohttp
 
-from .const import Api
-from .element import Element
-from .exception import (
+from satori.const import Api
+from satori.element import Element
+from satori.exception import (
     ApiNotImplementedException,
     BadRequestException,
     ForbiddenException,
@@ -15,7 +15,7 @@ from .exception import (
     NotFoundException,
     UnauthorizedException,
 )
-from .model import Channel, Event, Guild, Login, Member, Message, PageResult, Role, User
+from satori.model import Channel, Event, Guild, Login, Member, Message, PageResult, Role, User
 
 if TYPE_CHECKING:
     from .account import Account
