@@ -7,7 +7,10 @@ dynamic = ["version"]
 authors = [
   {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
 ]
-dependencies = []
+dependencies = [
+    "aiohttp",
+    "launart",
+]
 description = "Satori Protocol SDK for python, specify client part"
 license = {text = "MIT"}
 readme = "README.md"

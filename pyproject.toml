@@ -13,6 +13,7 @@ dependencies = [
     "graia-amnesia>=0.8.2",
     "starlette>=0.32.0.post1",
     "uvicorn[standard]>=0.24.0.post1",
+    "yarl>=1.9.3",
 ]
 requires-python = ">=3.9"
 readme = "README.md"

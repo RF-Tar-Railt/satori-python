@@ -8,11 +8,9 @@ authors = [
   {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
 ]
 dependencies = [
-    "aiohttp",
     "loguru",
-    "launart",
+    "yarl",
     "typing-extensions",
-    "graia-amnesia",
 ]
 description = "Satori Protocol SDK for python, specify common part"
 license = {text = "MIT"}
