@@ -5,7 +5,7 @@
 一个 `satori-python` 客户端的构建从创建 `App` 对象开始:
 
 ```python
-from satori import App
+from satori.client import App
 
 app = App()
 ```
@@ -36,7 +36,8 @@ class WebhookInfo(Config):
 你可以在创建 `App` 对象时传入一个或多个 `WebsocketsInfo` 或 `WebhookInfo` 对象:
 
 ```python
-from satori import App, WebsocketsInfo, WebhookInfo
+from satori.client import App
+from satori.config import WebsocketsInfo, WebhookInfo
 
 app = App(
     WebsocketsInfo(...),
@@ -47,7 +48,8 @@ app = App(
 或使用 `App.apply` 方法:
 
 ```python
-from satori import App, WebsocketsInfo, WebhookInfo
+from satori.client import App
+from satori.config import WebsocketsInfo, WebhookInfo
 
 app = App()
 app.apply(WebsocketsInfo(...))
@@ -63,12 +65,16 @@ class Config:
         raise NotImplementedError
 
     @property
-    def network(self: Self) -> Type[BaseNetwork[Self]]:
-        raise NotImplementedError
-
-    @property
     def api_base(self) -> URL:
         raise NotImplementedError
+```
+
+然后在 App 注册对应的 Network：
+
+```python
+from satori.client import App
+
+App.register_config(YourConfig, YourNetwork)
 ```
 
 ## 订阅
@@ -76,13 +82,14 @@ class Config:
 `satori-python` 使用 `@app.register` 装饰器来增加一个事件处理函数:
 
 ```python
-from satori import App, Account, Event
+from satori.client import App, Account
+from satori.model import Event
 
 app = App()
 
 @app.register
 async def listen(account: Account, event: Event):
-    print(event)
+    print(account, event)
 ```
 
 `@app.register` 需要一个参数为 `Account` 与 `Event` 的异步函数.
@@ -95,7 +102,7 @@ async def listen(account: Account, event: Event):
 使用 `App.run` 方法来运行 `App` 对象:
 
 ```python
-from satori import App
+from satori.client import App
 
 app = App()
 
@@ -109,7 +116,8 @@ app.run()
 如前所述，`Account` 对象代表了一个 Satori 平台账号，你可以通过其 `session` 属性来调用 API：
 
 ```python
-from satori import App, Account, Event
+from satori.client import App, Account
+from satori.model import Event
 
 app = App()
 
@@ -129,7 +137,7 @@ async def listen(account: Account, event: Event):
 `Account` 允许自主创建并请求 api：
 
 ```python
-from satori import Account, ApiInfo
+from satori.client import Account, ApiInfo
 
 async def main():
     account = Account("kook", "xxxxxxxxxxxxx", ApiInfo(token="xxxx"))
@@ -142,7 +150,8 @@ async def main():
 `Account` 同样也可以临时切换 api：
 
 ```python
-from satori import App, Account, Event
+from satori.client import App, Account
+from satori.model import Event
 
 app = App()
 
@@ -158,7 +167,7 @@ async def listen(account: Account, event: Event):
 一个 `satori-python` 服务端的构建从创建 `Server` 对象开始:
 
 ```python
-from satori import Server
+from satori.server import Server
 
 server = Server()
 ```
@@ -168,7 +177,7 @@ server = Server()
 server 的配置直接在构造时传入：
 
 ```python
-from satori import Server
+from satori.server import Server
 
 server = Server(
     host="0.0.0.0",
@@ -179,7 +188,8 @@ server = Server(
 同时可以传入 webhook 目标：
 
 ```python
-from satori import Server, WebhookInfo
+from satori.config import WebhookInfo
+from satori.server import Server
 
 server = Server(
     webhooks=[WebhookInfo(port=8080)]
@@ -191,7 +201,8 @@ server = Server(
 你可以使用 `Server.route` 方法来自定义路由:
 
 ```python
-from satori import Server, Api
+from satori.const import Api
+from satori.server import Server
 
 server = Server()
 
@@ -205,7 +216,8 @@ route 填入的若不属于 `Api` 中的枚举值，会被视为是[内部接口
 同时，你也可以通过 `server.apply` 传入一个满足 `Router` 协议的对象:
 
 ```python
-from satori import Server, Api, Request, Api
+from satori.const import Api
+from satori.server import Server, Request
 
 server = Server()
 
@@ -271,7 +283,7 @@ server.apply(MyProvider())
 适配器是一个特殊的类，它同时实现了 `Provider` 和 `Router` 协议。
 
 ```python
-from satori import Server, Adapter
+from satori.server import Server, Adapter
 
 server = Server()
 server.apply(Adapter(...))
@@ -295,7 +307,7 @@ server.apply(Adapter(...))
 使用 `Server.run` 方法来运行 `Server` 对象:
 
 ```python
-from satori import Server
+from satori.server import Server
 
 server = Server()
 

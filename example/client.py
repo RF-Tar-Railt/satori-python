@@ -1,5 +1,5 @@
-from satori import Account, Event, WebsocketsInfo
-from satori.client import App
+from satori import Event, WebsocketsInfo
+from satori.client import Account, App
 
 app = App(WebsocketsInfo(port=12345, path="foo"))
 
