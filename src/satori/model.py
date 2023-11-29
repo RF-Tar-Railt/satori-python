@@ -273,9 +273,9 @@ class Event:
         if "button" in raw:
             data["button"] = ButtonInteraction(**raw["button"])
         if "channel" in raw:
-            data["channel"] = Channel(**raw["channel"])
+            data["channel"] = Channel.parse(raw["channel"])
         if "guild" in raw:
-            data["guild"] = Guild(**raw["guild"])
+            data["guild"] = Guild.parse(raw["guild"])
         if "login" in raw:
             data["login"] = Login.parse(raw["login"])
         if "member" in raw:
@@ -283,11 +283,11 @@ class Event:
         if "message" in raw:
             data["message"] = Message.parse(raw["message"])
         if "operator" in raw:
-            data["operator"] = User(**raw["operator"])
+            data["operator"] = User.parse(raw["operator"])
         if "role" in raw:
-            data["role"] = Role(**raw["role"])
+            data["role"] = Role.parse(raw["role"])
         if "user" in raw:
-            data["user"] = User(**raw["user"])
+            data["user"] = User.parse(raw["user"])
         return cls(**data)
 
     def dump(self):

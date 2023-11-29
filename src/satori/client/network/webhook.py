@@ -52,8 +52,6 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
             return web.Response(status=202)
         logger.debug(f"Received payload: {data}")
         self.post_event(data["body"])
-        self.status.connected = True
-        self.status.alive = True
         return web.Response()
 
     @property
@@ -97,7 +95,7 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
     async def launch(self, manager: Launart):
         async with self.stage("preparing"):
             logger.info(f"starting server on {self.config.identity}")
-            self.wsgi = web.Application(logger=logger)
+            self.wsgi = web.Application(logger=logger)  # type: ignore
             self.wsgi.router.freeze = lambda: None  # monkey patch
             self.wsgi.router.add_post(self.config.path, self.handle_request)
             runner = web.AppRunner(self.wsgi)

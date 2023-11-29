@@ -319,13 +319,13 @@ class Button(Element):
     def __str__(self):
         attr = [f'type="{escape(self.type)}"']
         if self.type == "action":
-            attr.append(f'id="{escape(self.id)}"')
+            attr.append(escape(f'id="{self.id}"'))
         if self.type == "link":
-            attr.append(f'href="{escape(self.href)}"')
+            attr.append(escape(f'href="{self.href}"'))
         if self.type == "input":
-            attr.append(f'text="{escape(self.text)}"')
+            attr.append(escape(f'text="{self.text}"'))
         if self.theme:
-            attr.append(f'theme="{escape(self.theme)}"')
+            attr.append(escape(f'theme="{self.theme}"'))
         if self.display:
             return f'<button {" ".join(attr)}>{escape(self.display)}</button>'
         return f'<button {" ".join(attr)} />'

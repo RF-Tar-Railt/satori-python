@@ -18,7 +18,7 @@ from .network.websocket import WsNetwork
 
 TConfig = TypeVar("TConfig", bound=Config)
 
-MAPPING: dict[type[TConfig], type[BaseNetwork[TConfig]]] = {
+MAPPING: dict[type[Config], type[BaseNetwork]] = {
     WebhookInfo: WebhookNetwork,
     WebsocketsInfo: WsNetwork,
 }
