@@ -177,7 +177,6 @@ class File(Resource):
 
 @dataclass
 class Style(Text):
-
     @classmethod
     @override
     def from_raw(cls, raw: RawElement):
@@ -244,7 +243,6 @@ class Code(Style):
 @dataclass
 class Superscript(Style):
     """<sup> 元素用于将其中的内容以上标显示。"""
-
 
     @override
     def __str__(self):
