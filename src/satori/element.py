@@ -42,6 +42,8 @@ class Element:
 
 @dataclass
 class Text(Element):
+    """一段纯文本。"""
+
     text: str
 
     @override
@@ -51,6 +53,8 @@ class Text(Element):
 
 @dataclass
 class At(Element):
+    """<at> 元素用于提及某个或某些用户。"""
+
     id: Optional[str] = None
     name: Optional[str] = None
     role: Optional[str] = None
@@ -70,12 +74,16 @@ class At(Element):
 
 @dataclass
 class Sharp(Element):
+    """<sharp> 元素用于提及某个频道。"""
+
     id: str
     name: Optional[str] = None
 
 
 @dataclass
 class Link(Element):
+    """<a> 元素用于显示一个链接。"""
+
     url: str
     display: Optional[str] = None
 
@@ -137,6 +145,8 @@ class Resource(Element):
 
 @dataclass
 class Image(Resource):
+    """<img> 元素用于表示图片。"""
+
     width: Optional[int] = None
     height: Optional[int] = None
 
@@ -146,23 +156,30 @@ class Image(Resource):
 
 @dataclass
 class Audio(Resource):
+    """<audio> 元素用于表示语音。"""
+
     pass
 
 
 @dataclass
 class Video(Resource):
+    """<video> 元素用于表示视频。"""
+
     pass
 
 
 @dataclass
 class File(Resource):
+    """<file> 元素用于表示文件。"""
+
     pass
 
 
 @dataclass
 class Style(Text):
-    @override
+
     @classmethod
+    @override
     def from_raw(cls, raw: RawElement):
         res = cls(raw.children[0].attrs["text"])
         for k, v in raw.attrs.items():
@@ -172,6 +189,8 @@ class Style(Text):
 
 @dataclass
 class Bold(Style):
+    """<b> 或 <strong> 元素用于将其中的内容以粗体显示。"""
+
     @override
     def __str__(self):
         return f"<b>{escape(self.text)}</b>"
@@ -179,6 +198,8 @@ class Bold(Style):
 
 @dataclass
 class Italic(Style):
+    """<i> 或 <em> 元素用于将其中的内容以斜体显示。"""
+
     @override
     def __str__(self):
         return f"<i>{escape(self.text)}</i>"
@@ -186,6 +207,8 @@ class Italic(Style):
 
 @dataclass
 class Underline(Style):
+    """<u> 或 <ins> 元素用于为其中的内容附加下划线。"""
+
     @override
     def __str__(self):
         return f"<u>{escape(self.text)}</u>"
@@ -193,6 +216,8 @@ class Underline(Style):
 
 @dataclass
 class Strikethrough(Style):
+    """<s> 或 <del> 元素用于为其中的内容附加删除线。"""
+
     @override
     def __str__(self):
         return f"<s>{escape(self.text)}</s>"
@@ -200,6 +225,8 @@ class Strikethrough(Style):
 
 @dataclass
 class Spoiler(Style):
+    """<spl> 元素用于将其中的内容标记为剧透 (默认会被隐藏，点击后才显示)。"""
+
     @override
     def __str__(self):
         return f"<spl>{escape(self.text)}</spl>"
@@ -207,6 +234,8 @@ class Spoiler(Style):
 
 @dataclass
 class Code(Style):
+    """<code> 元素用于将其中的内容以等宽字体显示 (通常还会有特定的背景色)。"""
+
     @override
     def __str__(self):
         return f"<code>{escape(self.text)}</code>"
@@ -214,6 +243,9 @@ class Code(Style):
 
 @dataclass
 class Superscript(Style):
+    """<sup> 元素用于将其中的内容以上标显示。"""
+
+
     @override
     def __str__(self):
         return f"<sup>{escape(self.text)}</sup>"
@@ -221,6 +253,8 @@ class Superscript(Style):
 
 @dataclass
 class Subscript(Style):
+    """<sub> 元素用于将其中的内容以下标显示。"""
+
     @override
     def __str__(self):
         return f"<sub>{escape(self.text)}</sub>"
@@ -228,6 +262,8 @@ class Subscript(Style):
 
 @dataclass
 class Br(Style):
+    """<br> 元素表示一个独立的换行。"""
+
     @override
     def __str__(self):
         return "<br/>"
@@ -235,6 +271,8 @@ class Br(Style):
 
 @dataclass
 class Paragraph(Style):
+    """<p> 元素表示一个段落。在渲染时，它与相邻的元素之间会确保有一个换行。"""
+
     @override
     def __str__(self):
         return f"<p>{escape(self.text)}</p>"
@@ -242,6 +280,11 @@ class Paragraph(Style):
 
 @dataclass
 class Message(Element):
+    """<message> 元素的基本用法是表示一条消息。
+
+    子元素对应于消息的内容。如果其没有子元素，则消息不会被发送。
+    """
+
     id: Optional[str]
     forward: Optional[bool]
     content: List[Element]
@@ -277,11 +320,18 @@ class Message(Element):
 
 @dataclass
 class Quote(Message):
+    """<quote> 元素用于表示对消息引用。
+
+    它的子元素会被渲染为引用的内容。
+    """
+
     pass
 
 
 @dataclass
 class Author(Element):
+    """<author> 元素用于表示消息的作者。它的子元素会被渲染为作者的名字。"""
+
     id: str
     nickname: Optional[str] = None
     avatar: Optional[str] = None
@@ -289,6 +339,8 @@ class Author(Element):
 
 @dataclass
 class Button(Element):
+    """<button> 元素用于表示一个按钮。它的子元素会被渲染为按钮的文本。"""
+
     type: str
     display: Optional[str] = None
     id: Optional[str] = None
@@ -333,6 +385,8 @@ class Button(Element):
 
 @dataclass
 class Custom(Element):
+    """自定义元素用于构造标准元素以外的元素"""
+
     type: str
     attrs: Dict[str, Any]
     children: List[Element]
@@ -375,6 +429,8 @@ class Custom(Element):
 
 @dataclass
 class Raw(Element):
+    """Raw 元素表示原始文本"""
+
     content: str
 
     @override

@@ -34,6 +34,7 @@ from .model import Guild as Guild
 from .model import Login as Login
 from .model import LoginStatus as LoginStatus
 from .model import Member as Member
+from .model import MessageObject as MessageObject
 from .model import Role as Role
 from .model import User as User
 
