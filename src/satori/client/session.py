@@ -15,7 +15,7 @@ from satori.exception import (
     NotFoundException,
     UnauthorizedException,
 )
-from satori.model import Channel, Event, Guild, Login, Member, Message, PageResult, Role, User
+from satori.model import Channel, Event, Guild, Login, Member, MessageObject, PageResult, Role, User
 
 if TYPE_CHECKING:
     from .account import Account
@@ -61,7 +61,7 @@ class Session:
         self,
         event: Event,
         message: str | Iterable[str | Element],
-    ) -> list[Message]:
+    ) -> list[MessageObject]:
         if not event.channel:
             raise RuntimeError("Event cannot be replied to!")
         return await self.send_message(event.channel.id, message)
@@ -70,7 +70,7 @@ class Session:
         self,
         channel: str | Channel,
         message: str | Iterable[str | Element],
-    ) -> list[Message]:
+    ) -> list[MessageObject]:
         """发送消息
 
         参数:
@@ -85,7 +85,7 @@ class Session:
         self,
         user: str | User,
         message: str | Iterable[str | Element],
-    ) -> list[Message]:
+    ) -> list[MessageObject]:
         """发送私聊消息
 
         参数:
@@ -121,20 +121,20 @@ class Session:
         self,
         channel_id: str,
         content: str,
-    ) -> list[Message]:
+    ) -> list[MessageObject]:
         res = await self.call_api(
             Api.MESSAGE_CREATE,
             {"channel_id": channel_id, "content": content},
         )
         res = cast(List[dict], res)
-        return [Message.parse(i) for i in res]
+        return [MessageObject.parse(i) for i in res]
 
-    async def message_get(self, channel_id: str, message_id: str) -> Message:
+    async def message_get(self, channel_id: str, message_id: str) -> MessageObject:
         res = await self.call_api(
             Api.MESSAGE_GET,
             {"channel_id": channel_id, "message_id": message_id},
         )
-        return Message.parse(res)
+        return MessageObject.parse(res)
 
     async def message_delete(self, channel_id: str, message_id: str) -> None:
         await self.call_api(
@@ -153,12 +153,12 @@ class Session:
             {"channel_id": channel_id, "message_id": message_id, "content": content},
         )
 
-    async def message_list(self, channel_id: str, next_token: str | None = None) -> PageResult[Message]:
+    async def message_list(self, channel_id: str, next_token: str | None = None) -> PageResult[MessageObject]:
         res = await self.call_api(
             Api.MESSAGE_LIST,
             {"channel_id": channel_id, "next": next_token},
         )
-        return PageResult.parse(res, Message.parse)
+        return PageResult.parse(res, MessageObject.parse)
 
     async def channel_get(self, channel_id: str) -> Channel:
         res = await self.call_api(

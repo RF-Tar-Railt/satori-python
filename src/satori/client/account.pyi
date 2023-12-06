@@ -4,7 +4,7 @@ from typing import Any, Iterable, Protocol, overload
 from yarl import URL
 
 from satori.element import Element
-from satori.model import Channel, Event, Guild, Login, Member, Message, PageResult, Role, User
+from satori.model import Channel, Event, Guild, Login, Member, MessageObject, PageResult, Role, User
 
 from .session import Session
 
@@ -38,12 +38,12 @@ class Account:
         event: Event,
         message: str | Iterable[str | Element],
         **kwargs,
-    ) -> list[Message]: ...
+    ) -> list[MessageObject]: ...
     async def send_message(
         self,
         channel_id: str,
         message: str | Iterable[str | Element],
-    ) -> list[Message]:
+    ) -> list[MessageObject]:
         """发送消息
 
         参数:
@@ -55,7 +55,7 @@ class Account:
         self,
         user_id: str,
         message: str | Iterable[str | Element],
-    ) -> list[Message]:
+    ) -> list[MessageObject]:
         """发送私聊消息
 
         参数:
@@ -82,8 +82,8 @@ class Account:
         *,
         channel_id: str,
         content: str,
-    ) -> list[Message]: ...
-    async def message_get(self, *, channel_id: str, message_id: str) -> Message: ...
+    ) -> list[MessageObject]: ...
+    async def message_get(self, *, channel_id: str, message_id: str) -> MessageObject: ...
     async def message_delete(self, *, channel_id: str, message_id: str) -> None: ...
     async def message_update(
         self,
@@ -94,7 +94,7 @@ class Account:
     ) -> None: ...
     async def message_list(
         self, *, channel_id: str, next_token: str | None = None
-    ) -> PageResult[Message]: ...
+    ) -> PageResult[MessageObject]: ...
     async def channel_get(self, *, channel_id: str) -> Channel: ...
     async def channel_list(self, *, guild_id: str, next_token: str | None = None) -> PageResult[Channel]: ...
     async def channel_create(self, *, guild_id: str, data: Channel) -> Channel: ...

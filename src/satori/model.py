@@ -59,6 +59,7 @@ class Guild:
 class User:
     id: str
     name: Optional[str] = None
+    nick: Optional[str] = None
     avatar: Optional[str] = None
     is_bot: Optional[bool] = None
 
@@ -70,6 +71,8 @@ class User:
         res: Dict[str, Any] = {"id": self.id}
         if self.name:
             res["name"] = self.name
+        if self.nick:
+            res["nick"] = self.nick
         if self.avatar:
             res["avatar"] = self.avatar
         if self.is_bot:
@@ -80,6 +83,7 @@ class User:
 @dataclass
 class Member:
     user: Optional[User] = None
+    nick: Optional[str] = None
     name: Optional[str] = None
     avatar: Optional[str] = None
     joined_at: Optional[datetime] = None
@@ -88,7 +92,7 @@ class Member:
     def parse(cls, raw: dict):
         data = raw.copy()
         if "user" in raw:
-            data["user"] = User(**raw["user"])
+            data["user"] = User.parse(raw["user"])
         if "joined_at" in raw:
             data["joined_at"] = datetime.fromtimestamp(int(raw["joined_at"]) / 1000)
         return cls(**data)
@@ -97,8 +101,8 @@ class Member:
         res = {}
         if self.user:
             res["user"] = self.user.dump()
-        if self.name:
-            res["name"] = self.name
+        if self.nick or self.name:
+            res["nick"] = self.nick or self.name
         if self.avatar:
             res["avatar"] = self.avatar
         if self.joined_at:
@@ -194,7 +198,7 @@ class Ready:
 
 
 @dataclass
-class Message:
+class MessageObject:
     id: str
     content: List[Element]
     channel: Optional[Channel] = None
@@ -254,7 +258,7 @@ class Event:
     guild: Optional[Guild] = None
     login: Optional[Login] = None
     member: Optional[Member] = None
-    message: Optional[Message] = None
+    message: Optional[MessageObject] = None
     operator: Optional[User] = None
     role: Optional[Role] = None
     user: Optional[User] = None
@@ -281,7 +285,7 @@ class Event:
         if "member" in raw:
             data["member"] = Member.parse(raw["member"])
         if "message" in raw:
-            data["message"] = Message.parse(raw["message"])
+            data["message"] = MessageObject.parse(raw["message"])
         if "operator" in raw:
             data["operator"] = User.parse(raw["operator"])
         if "role" in raw:
