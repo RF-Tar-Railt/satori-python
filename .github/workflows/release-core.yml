@@ -27,7 +27,7 @@ jobs:
 
       - name: Build Package
         run: |
-          pdm mina build core
+          export MINA_BUILD_TARGET=core && pdm mina build core
 
       - name: Publish Package
         run: |

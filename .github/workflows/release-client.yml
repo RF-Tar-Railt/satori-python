@@ -27,7 +27,7 @@ jobs:
 
       - name: Build Package
         run: |
-          pdm mina build client
+          export MINA_BUILD_TARGET=client && pdm mina build client
 
       - name: Publish Package
         run: |

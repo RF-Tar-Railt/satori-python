@@ -15,6 +15,7 @@ from .element import Image as Image
 from .element import Italic as Italic
 from .element import Link as Link
 from .element import Message as Message
+from .element import Paragraph as Paragraph
 from .element import Quote as Quote
 from .element import Sharp as Sharp
 from .element import Spoiler as Spoiler
@@ -38,4 +39,4 @@ from .model import MessageObject as MessageObject
 from .model import Role as Role
 from .model import User as User
 
-__version__ = "0.9.2"
+__version__ = "0.10.0"
