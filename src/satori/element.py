@@ -1,43 +1,66 @@
 from base64 import b64encode
-from dataclasses import InitVar, dataclass, fields
+from dataclasses import InitVar, dataclass, field, fields
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union
-from typing_extensions import override
+import re
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing_extensions import override, Self
 
-from .parser import RawElement, escape
+from .parser import Element as RawElement, escape, param_case
 
 TE = TypeVar("TE", bound="Element")
 
 
 @dataclass
 class Element:
-    @classmethod
-    def from_raw(cls: Type[TE], raw: RawElement) -> TE:
-        _fields = {f.name for f in fields(cls)}
-        attrs = {k: v for k, v in raw.attrs.items() if k in _fields}
-        result = cls(**attrs)  # type: ignore
-        for k, v in raw.attrs.items():
-            if k not in _fields:
-                setattr(result, k, v)
-        return result
+    _attrs: Dict[str, Any] = field(init=False, default_factory=dict)
+    _children: List["Element"] = field(init=False, default_factory=list)
 
-    def get_type(self) -> str:
+    @property
+    def tag(self) -> str:
         return self.__class__.__name__.lower()
 
-    def __str__(self) -> str:
-        def _attr(key: str, value: Any):
-            if value is True:
-                return key
-            if value is False:
-                return f"no-{key}"
-            if isinstance(value, (int, float)):
-                return f"{key}={value}"
-            return f'{key}="{escape(str(value))}"'
+    def __post_init__(self):
+        for f in fields(self):
+            if f.name in ("_attrs", "_children"):
+                continue
+            self._attrs[f.name] = getattr(self, f.name)
 
-        attrs = " ".join(_attr(k, v) for k, v in vars(self).items() if not k.startswith("_"))
-        attrs = f" {attrs}" if attrs else ""
-        return f"<{self.get_type()}{attrs}/>"
+    def attributes(self) -> str:
+        def _attr(key: str, value: Any):
+            if value is None:
+                return ""
+            key = param_case(key)
+            if value is True:
+                return f" {key}"
+            if value is False:
+                return f" no-{key}"
+            return f' {key}="{escape(str(value), True)}"'
+
+        return "".join(_attr(k, v) for k, v in self._attrs.items())
+
+
+    def dumps(self, strip: bool = False) -> str:
+        if self.tag == "text" and "text" in self._attrs:
+            return self._attrs["text"] if strip else escape(self._attrs["text"])
+        inner = "".join(c.dumps(strip) for c in self._children)
+        if strip:
+            return inner
+        attrs = self.attributes()
+        if not self._children:
+            return f"<{self.tag}{attrs}/>"
+        return f"<{self.tag}{attrs}>{inner}</{self.tag}>"
+
+    def __str__(self) -> str:
+        return self.dumps()
+
+    def __call__(self, *content: Union[str, "Element"]):
+        self._children.extend(Text(i) if isinstance(i, str) else i for i in content)
+        self.__post_call__()
+        return self
+    
+    def __post_call__(self):
+        ...
 
 
 @dataclass
@@ -47,8 +70,8 @@ class Text(Element):
     text: str
 
     @override
-    def __str__(self) -> str:
-        return escape(self.text)
+    def dumps(self, strip: bool = False) -> str:
+        return self.text if strip else escape(self.text)
 
 
 @dataclass
@@ -61,7 +84,7 @@ class At(Element):
     type: Optional[str] = None
 
     @staticmethod
-    def at_role(
+    def role_(
         role: str,
         name: Optional[str] = None,
     ) -> "At":
@@ -85,22 +108,22 @@ class Link(Element):
     """<a> 元素用于显示一个链接。"""
 
     url: str
-    display: Optional[str] = None
 
-    @classmethod
+    def __post_call__(self):
+        if not self._children:
+            return
+        if len(self._children) == 1 and isinstance(self._children[0], Text):
+            return
+        raise ValueError("Link can only have one Text child")
+    
+    @property
     @override
-    def from_raw(cls, raw: RawElement) -> "Link":
-        res = cls(raw.attrs["href"], raw.children[0].attrs["text"] if raw.children else None)
-        for k, v in raw.attrs.items():
-            if k != "href":
-                setattr(res, k, v)
-        return res
-
+    def tag(self) -> str:
+        return "a"
+    
     @override
-    def __str__(self):
-        if not self.display:
-            return f'<a href="{escape(self.url)}"/>'
-        return f'<a href="{escape(self.url)}">{escape(self.display)}</a>'
+    def attributes(self) -> str:
+        return f' href="{escape(self.url)}"'
 
 
 @dataclass
@@ -138,10 +161,9 @@ class Resource(Element):
         return cls(**data)
 
     def __post_init__(self, extra: Optional[Dict[str, Any]] = None):
+        super().__post_init__()
         if extra:
-            for k, v in extra.items():
-                setattr(self, k, True if v is ... else v)
-
+            self._attrs.update(extra)
 
 @dataclass
 class Image(Resource):
@@ -150,7 +172,9 @@ class Image(Resource):
     width: Optional[int] = None
     height: Optional[int] = None
 
-    def get_type(self) -> str:
+    @property
+    @override
+    def tag(self) -> str:
         return "img"
 
 
@@ -177,85 +201,95 @@ class File(Resource):
 
 @dataclass
 class Style(Text):
-    @classmethod
-    @override
-    def from_raw(cls, raw: RawElement):
-        res = cls(raw.children[0].attrs["text"])
-        for k, v in raw.attrs.items():
-            setattr(res, k, v)
-        return res
+    """样式元素的基类。"""
+
+    text: InitVar[Optional[str]] = None
+
+    def __post_init__(self, text: Optional[str] = None):
+        super().__post_init__()
+        if text:
+            self._children.append(Text(text))
 
 
 @dataclass
 class Bold(Style):
     """<b> 或 <strong> 元素用于将其中的内容以粗体显示。"""
 
+
+    @property
     @override
-    def __str__(self):
-        return f"<b>{escape(self.text)}</b>"
+    def tag(self) -> str:
+        return "b"
 
 
 @dataclass
 class Italic(Style):
     """<i> 或 <em> 元素用于将其中的内容以斜体显示。"""
 
+    @property
     @override
-    def __str__(self):
-        return f"<i>{escape(self.text)}</i>"
+    def tag(self) -> str:
+        return "i"
 
 
 @dataclass
 class Underline(Style):
     """<u> 或 <ins> 元素用于为其中的内容附加下划线。"""
 
+    @property
     @override
-    def __str__(self):
-        return f"<u>{escape(self.text)}</u>"
+    def tag(self) -> str:
+        return "u"
 
 
 @dataclass
 class Strikethrough(Style):
     """<s> 或 <del> 元素用于为其中的内容附加删除线。"""
 
+    @property
     @override
-    def __str__(self):
-        return f"<s>{escape(self.text)}</s>"
+    def tag(self) -> str:
+        return "s"
 
 
 @dataclass
 class Spoiler(Style):
     """<spl> 元素用于将其中的内容标记为剧透 (默认会被隐藏，点击后才显示)。"""
 
+    @property
     @override
-    def __str__(self):
-        return f"<spl>{escape(self.text)}</spl>"
+    def tag(self) -> str:
+        return "spl"
 
 
 @dataclass
 class Code(Style):
     """<code> 元素用于将其中的内容以等宽字体显示 (通常还会有特定的背景色)。"""
 
+    @property
     @override
-    def __str__(self):
-        return f"<code>{escape(self.text)}</code>"
+    def tag(self) -> str:
+        return "code"
 
 
 @dataclass
 class Superscript(Style):
     """<sup> 元素用于将其中的内容以上标显示。"""
 
+    @property
     @override
-    def __str__(self):
-        return f"<sup>{escape(self.text)}</sup>"
+    def tag(self) -> str:
+        return "sup"
 
 
 @dataclass
 class Subscript(Style):
     """<sub> 元素用于将其中的内容以下标显示。"""
 
+    @property
     @override
-    def __str__(self):
-        return f"<sub>{escape(self.text)}</sub>"
+    def tag(self) -> str:
+        return "sub"
 
 
 @dataclass
@@ -263,17 +297,24 @@ class Br(Style):
     """<br> 元素表示一个独立的换行。"""
 
     @override
-    def __str__(self):
-        return "<br/>"
+    def __post_call__(self):
+        if self._children:
+            raise ValueError("Br cannot have children")
+
+    @property
+    @override
+    def tag(self) -> str:
+        return "br"
 
 
 @dataclass
 class Paragraph(Style):
     """<p> 元素表示一个段落。在渲染时，它与相邻的元素之间会确保有一个换行。"""
 
+    @property
     @override
-    def __str__(self):
-        return f"<p>{escape(self.text)}</p>"
+    def tag(self) -> str:
+        return "p"
 
 
 @dataclass
@@ -285,35 +326,12 @@ class Message(Element):
 
     id: Optional[str]
     forward: Optional[bool]
-    content: List[Element]
+    content: InitVar[Optional[List[Union[str, Element]]]] = None
 
-    def __init__(
-        self,
-        id: Optional[str] = None,
-        forward: Optional[bool] = None,
-        content: Optional[List[Union[str, Element]]] = None,
-    ):
-        self.id = id
-        self.forward = forward
-        self.content = [Text(i) if isinstance(i, str) else i for i in content or []]
-
-    def __call__(self, *content: Union[str, Element]):
-        self.content.extend(Text(i) if isinstance(i, str) else i for i in content)
-        return self
-
-    @override
-    def __str__(self):
-        attr = []
-        if self.id:
-            attr.append(f'id="{escape(self.id)}"')
-        if self.forward:
-            attr.append("forward")
-        _type = self.get_type()
-        attrs = (" " + " ".join(attr)) if attr else ""
-        if not self.content:
-            return f"<{_type}{attrs}/>"
-        else:
-            return f'<{_type}{attrs}>{"".join(str(e) for e in self.content)}</{_type}>'
+    def __post_init__(self, content: Optional[List[Union[str, Element]]] = None):
+        super().__post_init__()
+        if content:
+            self._children.extend(Text(i) if isinstance(i, str) else i for i in content)
 
 
 @dataclass
@@ -340,45 +358,42 @@ class Button(Element):
     """<button> 元素用于表示一个按钮。它的子元素会被渲染为按钮的文本。"""
 
     type: str
-    display: Optional[str] = None
     id: Optional[str] = None
     href: Optional[str] = None
     text: Optional[str] = None
     theme: Optional[str] = None
 
     @classmethod
-    def action(cls, button_id: str, display: Optional[str] = None, theme: Optional[str] = None):
-        return Button("action", id=button_id, display=display, theme=theme)
+    def action(cls, button_id: str, theme: Optional[str] = None):
+        return Button("action", id=button_id, theme=theme)
 
     @classmethod
-    def link(cls, url: str, display: Optional[str] = None, theme: Optional[str] = None):
-        return Button("link", href=url, display=display, theme=theme)
+    def link(cls, url: str, theme: Optional[str] = None):
+        return Button("link", href=url, theme=theme)
 
     @classmethod
-    def input(cls, text: str, display: Optional[str] = None, theme: Optional[str] = None):
-        return Button("input", text=text, display=display, theme=theme)
+    def input(cls, text: str, theme: Optional[str] = None):
+        return Button("input", text=text, theme=theme)
 
-    @classmethod
-    @override
-    def from_raw(cls, raw: RawElement) -> "Button":
-        res = cls(**raw.attrs)
-        res.display = raw.children[0].attrs["text"] if raw.children else None
-        return res
-
-    @override
-    def __str__(self):
-        attr = [f'type="{escape(self.type)}"']
+    def attributes(self) -> str:
+        attr = [f' type="{escape(self.type)}"']
         if self.type == "action":
-            attr.append(escape(f'id="{self.id}"'))
+            attr.append(escape(f' id="{self.id}"'))
         if self.type == "link":
-            attr.append(escape(f'href="{self.href}"'))
+            attr.append(escape(f' href="{self.href}"'))
         if self.type == "input":
-            attr.append(escape(f'text="{self.text}"'))
+            attr.append(escape(f' text="{self.text}"'))
         if self.theme:
-            attr.append(escape(f'theme="{self.theme}"'))
-        if self.display:
-            return f'<button {" ".join(attr)}>{escape(self.display)}</button>'
-        return f'<button {" ".join(attr)} />'
+            attr.append(escape(f' theme="{self.theme}"'))
+        return "".join(attr)
+
+    @override
+    def __post_call__(self):
+        if not self._children:
+            return
+        if len(self._children) == 1 and isinstance(self._children[0], Text):
+            return
+        raise ValueError("Button can only have one Text child")
 
 
 @dataclass
@@ -386,43 +401,20 @@ class Custom(Element):
     """自定义元素用于构造标准元素以外的元素"""
 
     type: str
-    attrs: Dict[str, Any]
-    children: List[Element]
+    attrs: InitVar[Dict[str, Any]] = field(default_factory=dict)
+    children: InitVar[List[Union[str, Element]]] = field(default_factory=list)
 
-    def __init__(
-        self,
-        type: str,
-        attrs: Optional[Dict[str, Any]] = None,
-        children: Optional[List[Union[str, Element]]] = None,
-    ):
-        self.type = type
-        self.attrs = attrs or {}
-        self.children = [Text(i) if isinstance(i, str) else i for i in children or []]
+    def __post_init__(self, attrs: Dict[str, Any], children: List[Union[str, Element]]):
+        super().__post_init__()
+        self._attrs.update(attrs)
+        self._children.extend(Text(i) if isinstance(i, str) else i for i in children)
 
-    def __call__(self, *children: Union[str, Element]):
-        self.children.extend(Text(i) if isinstance(i, str) else i for i in children)
-        return self
 
+    @property
     @override
-    def get_type(self) -> str:
+    def tag(self) -> str:
         return self.type
 
-    @override
-    def __str__(self) -> str:
-        def _attr(key: str, value: Any):
-            if value is True:
-                return key
-            if value is False:
-                return f"no-{key}"
-            if isinstance(value, (int, float)):
-                return f"{key}={value}"
-            return f'{key}="{escape(str(value))}"'
-
-        attrs = " ".join(_attr(k, v) for k, v in self.attrs.items() if not k.startswith("_"))
-        attrs = f" {attrs}" if attrs else ""
-        if self.children:
-            return f"<{self.get_type()}{attrs}>{''.join(str(e) for e in self.children)}</{self.get_type()}>"
-        return f"<{self.get_type()}{attrs}/>"
 
 
 @dataclass
@@ -432,8 +424,8 @@ class Raw(Element):
     content: str
 
     @override
-    def __str__(self):
-        return self.content
+    def dumps(self, strip: bool = False):
+        return self.content if strip else escape(self.content)
 
 
 ELEMENT_TYPE_MAP = {
@@ -441,6 +433,7 @@ ELEMENT_TYPE_MAP = {
     "at": At,
     "sharp": Sharp,
     "img": Image,
+    "image": Image,
     "audio": Audio,
     "video": Video,
     "file": File,
@@ -450,39 +443,55 @@ ELEMENT_TYPE_MAP = {
 STYLE_TYPE_MAP = {
     "b": Bold,
     "strong": Bold,
+    "bold": Bold,
     "i": Italic,
     "em": Italic,
+    "italic": Italic,
     "u": Underline,
     "ins": Underline,
+    "underline": Underline,
     "s": Strikethrough,
     "del": Strikethrough,
+    "strike": Strikethrough,
+    "strikethrough": Strikethrough,
     "spl": Spoiler,
+    "spoiler": Spoiler,
     "code": Code,
     "sup": Superscript,
+    "superscript": Superscript,
     "sub": Subscript,
+    "subscript": Subscript,
     "p": Paragraph,
+    "paragraph": Paragraph,
+    "br": Br,
 }
 
 
 def transform(elements: List[RawElement]) -> List[Element]:
     msg = []
     for elem in elements:
-        if elem.type in ELEMENT_TYPE_MAP:
-            seg_cls = ELEMENT_TYPE_MAP[elem.type]
+        tag = elem.tag()
+        if tag in ELEMENT_TYPE_MAP:
+            seg_cls = ELEMENT_TYPE_MAP[tag]
             msg.append(seg_cls.from_raw(elem))
-        elif elem.type in ("a", "link"):
-            msg.append(Link.from_raw(elem))
-        elif elem.type == "button":
-            msg.append(Button.from_raw(elem))
-        elif elem.type in STYLE_TYPE_MAP:
-            seg_cls = STYLE_TYPE_MAP[elem.type]
-            msg.append(seg_cls.from_raw(elem))
-        elif elem.type in ("br", "newline"):
+        elif tag in ("a", "link"):
+            link = Link(elem.attrs["href"])
+            if elem.children:
+                link(*transform(elem.children))
+            msg.append(link)
+        elif tag == "button":
+            button = Button(**elem.attrs)
+            if elem.children:
+                button(*transform(elem.children))
+        elif tag in STYLE_TYPE_MAP:
+            seg_cls = STYLE_TYPE_MAP[tag]
+            msg.append(seg_cls()(*transform(elem.children)))
+        elif tag in ("br", "newline"):
             msg.append(Br("\n"))
-        elif elem.type == "message":
-            msg.append(Message.from_raw(elem)(*transform(elem.children)))
-        elif elem.type == "quote":
-            msg.append(Quote.from_raw(elem)(*transform(elem.children)))
+        elif tag == "message":
+            msg.append(Message(**elem.attrs)(*transform(elem.children)))
+        elif tag == "quote":
+            msg.append(Quote(**elem.attrs)(*transform(elem.children)))
         else:
             msg.append(Custom(elem.type, elem.attrs)(*transform(elem.children)))
     return msg
@@ -491,8 +500,8 @@ def transform(elements: List[RawElement]) -> List[Element]:
 class E:
     text = Text
     at = At
-    at_role = At.at_role
-    all = At.all
+    at_role = At.role_
+    at_all = At.all
     sharp = Sharp
     link = Link
     image = Image.of

@@ -82,3 +82,6 @@ target-version = "py38"
 [tool.pyright]
 pythonPlatform = "All"
 pythonVersion = "3.8"
+typeCheckingMode = "basic"
+reportShadowedImports = false
+disableBytesTypePromotions = true
