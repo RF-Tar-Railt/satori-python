@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Iterable, Protocol, overload
+from typing import Any, TypeVar, Iterable, Protocol, overload
 
 from yarl import URL
 
@@ -7,6 +7,8 @@ from satori.element import Element
 from satori.model import Channel, Event, Guild, Login, Member, MessageObject, PageResult, Role, User
 
 from .session import Session
+
+TS = TypeVar("TS", bound="Session")
 
 class Api(Protocol):
     token: str | None = None
@@ -26,13 +28,13 @@ class Account:
     session: Session
     connected: asyncio.Event
 
-    def __init__(self, platform: str, self_id: str, config: Api): ...
+    def __init__(self, platform: str, self_id: str, config: Api, session_cls: type[Session] = Session): ...
     @property
     def identity(self) -> str: ...
     @overload
-    def custom(self, config: Api) -> Session: ...
+    def custom(self, config: Api, session_cls: type[TS] = Session) -> TS: ...
     @overload
-    def custom(self, *, host: str, port: int, token: str | None = None) -> Session: ...
+    def custom(self, *, session_cls: type[TS] = Session, host: str, port: int, token: str | None = None) -> TS: ...
     async def send(
         self,
         event: Event,

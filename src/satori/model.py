@@ -9,9 +9,9 @@ from .parser import parse
 
 class ChannelType(IntEnum):
     TEXT = 0
-    VOICE = 1
+    DIRECT = 1
     CATEGORY = 2
-    DIRECT = 3
+    VOICE = 3
 
 
 @dataclass
@@ -200,7 +200,7 @@ class Ready:
 @dataclass
 class MessageObject:
     id: str
-    content: List[Element]
+    content: str
     channel: Optional[Channel] = None
     guild: Optional[Guild] = None
     member: Optional[Member] = None
@@ -208,20 +208,24 @@ class MessageObject:
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+    @property
+    def message(self) -> List[Element]:
+        return transform(parse(self.content))
+
     @classmethod
     def parse(cls, raw: dict):
         data = {
             "id": raw["id"],
-            "content": transform(parse(raw["content"])),
+            "content": raw["content"],
         }
         if "channel" in raw:
-            data["channel"] = Channel(**raw["channel"])
+            data["channel"] = Channel.parse(raw["channel"])
         if "guild" in raw:
-            data["guild"] = Guild(**raw["guild"])
+            data["guild"] = Guild.parse(raw["guild"])
         if "member" in raw:
             data["member"] = Member.parse(raw["member"])
         if "user" in raw:
-            data["user"] = User(**raw["user"])
+            data["user"] = User.parse(raw["user"])
         if "created_at" in raw:
             data["created_at"] = datetime.fromtimestamp(int(raw["created_at"]) / 1000)
         if "updated_at" in raw:
@@ -229,7 +233,7 @@ class MessageObject:
         return cls(**data)
 
     def dump(self):
-        res: Dict[str, Any] = {"id": self.id, "content": "".join(map(str, self.content))}
+        res: Dict[str, Any] = {"id": self.id, "content": self.content}
         if self.channel:
             res["channel"] = self.channel.dump()
         if self.guild:

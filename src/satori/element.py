@@ -396,18 +396,21 @@ class Button(Element):
         raise ValueError("Button can only have one Text child")
 
 
-@dataclass
+@dataclass(init=False)
 class Custom(Element):
     """自定义元素用于构造标准元素以外的元素"""
 
-    type: str
-    attrs: InitVar[Dict[str, Any]] = field(default_factory=dict)
-    children: InitVar[List[Union[str, Element]]] = field(default_factory=list)
 
-    def __post_init__(self, attrs: Dict[str, Any], children: List[Union[str, Element]]):
-        super().__post_init__()
-        self._attrs.update(attrs)
-        self._children.extend(Text(i) if isinstance(i, str) else i for i in children)
+    def __init__(self, type: str, attrs: Optional[Dict[str, Any]] = None, children: Optional[List[Union[str, Element]]] = None):
+        self.type = type
+        if not hasattr(self, "_attrs"):
+            self._attrs = attrs or {}
+        else:
+            self._attrs.update(attrs or {})
+        if not hasattr(self, "_children"):
+            self._children = [Text(i) if isinstance(i, str) else i for i in (children or [])]
+        else:
+            self._children.extend(Text(i) if isinstance(i, str) else i for i in (children or []))
 
 
     @property
@@ -473,7 +476,7 @@ def transform(elements: List[RawElement]) -> List[Element]:
         tag = elem.tag()
         if tag in ELEMENT_TYPE_MAP:
             seg_cls = ELEMENT_TYPE_MAP[tag]
-            msg.append(seg_cls.from_raw(elem))
+            msg.append(seg_cls(**elem.attrs))
         elif tag in ("a", "link"):
             link = Link(elem.attrs["href"])
             if elem.children:

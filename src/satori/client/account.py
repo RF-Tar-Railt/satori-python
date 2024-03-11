@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from typing import TypeVar
 
 from yarl import URL
 
 from .session import Session
 
+TS = TypeVar("TS", bound="Session")
 
 @dataclass
 class ApiInfo:
@@ -25,15 +27,15 @@ class ApiInfo:
 
 
 class Account:
-    def __init__(self, platform: str, self_id: str, config: ApiInfo):
+    def __init__(self, platform: str, self_id: str, config: ApiInfo, session_cls: type[Session] = Session):
         self.platform = platform
         self.self_id = self_id
         self.config = config
-        self.session = Session(self)  # type: ignore
+        self.session = session_cls(self)  # type: ignore
         self.connected = asyncio.Event()
 
-    def custom(self, config: ApiInfo | None = None, **kwargs):
-        return Account(self.platform, self.self_id, config or ApiInfo(**kwargs)).session
+    def custom(self, config: ApiInfo | None = None, session_cls: type[TS] = Session, **kwargs) -> TS:
+        return Account(self.platform, self.self_id, config or ApiInfo(**kwargs), session_cls).session  # type: ignore
 
     @property
     def identity(self):
