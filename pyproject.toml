@@ -35,7 +35,7 @@ homepage = "https://github.com/RF-Tar-Railt/satori-python"
 repository = "https://github.com/RF-Tar-Railt/satori-python"
 
 [build-system]
-requires = ["mina-build>=0.5.1"]
+requires = ["mina-build<0.6,>=0.5.1"]
 build-backend = "mina.backend"
 
 [tool.pdm.dev-dependencies]
@@ -45,7 +45,7 @@ dev = [
     "ruff>=0.3.2",
     "pre-commit>=3.6.2",
     "fix-future-annotations>=0.5.0",
-    "mina-build>=0.6.1",
+    "mina-build<0.6,>=0.5.1",
     "pdm-mina>=0.3.2",
 ]
 

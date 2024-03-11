@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["cross_platform"]
 lock_version = "4.4"
-content_hash = "sha256:29b91d83b18485cf6e2f358a19a1f3162279283313db41e932793913b6bfe6ee"
+content_hash = "sha256:bbae1f926b4127589b7b484e7e962f864b619d7dfa59b9d0729ae87dfd76ac38"
 
 [[package]]
 name = "aiohttp"
@@ -220,6 +220,16 @@ summary = "Distribution utilities"
 files = [
     {file = "distlib-0.3.7-py2.py3-none-any.whl", hash = "sha256:2e24928bc811348f0feb63014e97aaae3037f2cf48712d51ae61df7fd6075057"},
     {file = "distlib-0.3.7.tar.gz", hash = "sha256:9dafe54b34a028eafd95039d5e5d4851a13734540f1331060d31c9916e7147a8"},
+]
+
+[[package]]
+name = "editables"
+version = "0.5"
+requires_python = ">=3.7"
+summary = "Editable installations"
+files = [
+    {file = "editables-0.5-py3-none-any.whl", hash = "sha256:61e5ffa82629e0d8bfe09bc44a07db3c1ab8ed1ce78a6980732870f19b5e7d4c"},
+    {file = "editables-0.5.tar.gz", hash = "sha256:309627d9b5c4adc0e668d8c6fa7bac1ba7c8c5d415c2d27f60f081f8e80d1de2"},
 ]
 
 [[package]]
@@ -467,15 +477,17 @@ files = [
 
 [[package]]
 name = "mina-build"
-version = "0.6.1"
+version = "0.5.2"
 requires_python = ">=3.9"
 summary = "build backend for Mina Package Structure"
 dependencies = [
-    "pdm-backend",
+    "editables>=0.5",
+    "pdm-backend>=2.1.0",
+    "tomli>=1.1.0; python_version < \"3.11\"",
 ]
 files = [
-    {file = "mina_build-0.6.1-py3-none-any.whl", hash = "sha256:7a9c6977911847ba506646f9e2d36f74cb1591270b2f7b993140fabe98dd1b25"},
-    {file = "mina_build-0.6.1.tar.gz", hash = "sha256:0d781f2888a3b4009ee8cbac29c860fb4a1f190f71c5a3f17141313702ced403"},
+    {file = "mina_build-0.5.2-py3-none-any.whl", hash = "sha256:293cb26d7be95845afc6196e3552e95854c2a0b48b47c8225ca47ed11d980610"},
+    {file = "mina_build-0.5.2.tar.gz", hash = "sha256:9377e06784266504418c2d7dac7275b329d6114ccc25cde32181f82dc9d46097"},
 ]
 
 [[package]]
