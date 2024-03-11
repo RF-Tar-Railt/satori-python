@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, TypeVar, Iterable, Protocol, overload
+from typing import Any, Iterable, Protocol, TypeVar, overload
 
 from yarl import URL
 
@@ -34,7 +34,9 @@ class Account:
     @overload
     def custom(self, config: Api, session_cls: type[TS] = Session) -> TS: ...
     @overload
-    def custom(self, *, session_cls: type[TS] = Session, host: str, port: int, token: str | None = None) -> TS: ...
+    def custom(
+        self, *, session_cls: type[TS] = Session, host: str, port: int, token: str | None = None
+    ) -> TS: ...
     async def send(
         self,
         event: Event,

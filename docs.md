@@ -325,6 +325,18 @@ server.run()
 - `Sharp`: 提及频道类型，对应 [提及频道](https://satori.js.org/zh-CN/protocol/elements.html#%E6%8F%90%E5%8F%8A%E9%A2%91%E9%81%93).
 - `Link`: 链接类型，对应 [链接](https://satori.js.org/zh-CN/protocol/elements.html#%E9%93%BE%E6%8E%A5).
 
+```python
+from satori import Text, At, Sharp, Link
+
+a = Text("1234")
+role = At.role_("admin")
+chl = Sharp("abcd")
+link = Link("www.baidu.com")
+link1 = Link("github.com/RF-Tar-Railt/satori-python")(
+    "satori-python"
+)
+```
+
 ## 资源类型
 
 - `Image`, `Audio`, `Video`, `File`: 资源类型，对应 [资源元素](https://satori.js.org/zh-CN/protocol/elements.html#%E8%B5%84%E6%BA%90%E5%85%83%E7%B4%A0).
@@ -359,6 +371,19 @@ image = Image.of(raw=data, mime="image/png")
 
 - `Bold`, `Italic`, `Underline`, `Strikethrough`, ...: 修饰类型，对应 [修饰元素](https://satori.js.org/zh-CN/protocol/elements.html#%E4%BF%AE%E9%A5%B0%E5%85%83%E7%B4%A0).
 
+```python
+from satori import Bold, Italic, Underline, Paragraph
+
+text = Bold(
+    "hello",
+    Italic("world,"),
+    Underline()(
+        "Satori!"
+    ),
+    Paragraph("This is a paragraph.")
+)
+```
+
 ## 排版类型
 
 - `Br`: 换行类型，对应 [换行](https://satori.js.org/zh-CN/protocol/elements.html#%E6%8D%A2%E8%A1%8C).
@@ -373,9 +398,15 @@ from satori import Message, Author
 message = Message(forward=True)(
     Message(id="123456789"),
     Message(id="987654321"),
+    Message(
+        content=[
+            Author(id="123456789"),
+            "Hello, "
+        ]
+    ),
     Message()(
         Author(id="123456789"),
-        "Hello, world!"
+        "World!"
     )
 )
 ```

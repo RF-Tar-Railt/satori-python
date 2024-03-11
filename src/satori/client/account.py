@@ -10,6 +10,7 @@ from .session import Session
 
 TS = TypeVar("TS", bound="Session")
 
+
 @dataclass
 class ApiInfo:
     host: str = "localhost"

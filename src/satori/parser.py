@@ -1,8 +1,8 @@
 import re
+from dataclasses import dataclass, field
 from enum import IntEnum
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, TypedDict, TypeVar, Union, cast
 from typing_extensions import TypeAlias
-from dataclasses import field, dataclass
-from typing import Any, Dict, List, Union, Literal, TypeVar, Callable, Iterable, Optional, TypedDict, cast
 
 T = TypeVar("T")
 

@@ -2,18 +2,18 @@ from base64 import b64encode
 from dataclasses import InitVar, dataclass, field, fields
 from io import BytesIO
 from pathlib import Path
-import re
-from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
-from typing_extensions import override, Self
+from typing import Any, Dict, List, Optional, TypeVar, Union
+from typing_extensions import override
 
-from .parser import Element as RawElement, escape, param_case
+from .parser import Element as RawElement
+from .parser import escape, param_case
 
 TE = TypeVar("TE", bound="Element")
 
 
 @dataclass
 class Element:
-    _attrs: Dict[str, Any] = field(init=False, default_factory=dict)
+    _attrs: Dict[str, Any] = field(init=False, default_factory=dict, repr=False)
     _children: List["Element"] = field(init=False, default_factory=list)
 
     @property
@@ -25,6 +25,7 @@ class Element:
             if f.name in ("_attrs", "_children"):
                 continue
             self._attrs[f.name] = getattr(self, f.name)
+        self._attrs = {k: v for k, v in self._attrs.items() if v is not None}
 
     def attributes(self) -> str:
         def _attr(key: str, value: Any):
@@ -38,7 +39,6 @@ class Element:
             return f' {key}="{escape(str(value), True)}"'
 
         return "".join(_attr(k, v) for k, v in self._attrs.items())
-
 
     def dumps(self, strip: bool = False) -> str:
         if self.tag == "text" and "text" in self._attrs:
@@ -58,7 +58,7 @@ class Element:
         self._children.extend(Text(i) if isinstance(i, str) else i for i in content)
         self.__post_call__()
         return self
-    
+
     def __post_call__(self):
         ...
 
@@ -115,12 +115,12 @@ class Link(Element):
         if len(self._children) == 1 and isinstance(self._children[0], Text):
             return
         raise ValueError("Link can only have one Text child")
-    
+
     @property
     @override
     def tag(self) -> str:
         return "a"
-    
+
     @override
     def attributes(self) -> str:
         return f' href="{escape(self.url)}"'
@@ -165,6 +165,7 @@ class Resource(Element):
         if extra:
             self._attrs.update(extra)
 
+
 @dataclass
 class Image(Resource):
     """<img> 元素用于表示图片。"""
@@ -199,22 +200,17 @@ class File(Resource):
     pass
 
 
-@dataclass
-class Style(Text):
+@dataclass(init=False)
+class Style(Element):
     """样式元素的基类。"""
 
-    text: InitVar[Optional[str]] = None
-
-    def __post_init__(self, text: Optional[str] = None):
-        super().__post_init__()
-        if text:
-            self._children.append(Text(text))
+    def __init__(self, *text: Union[str, Text, "Style"]):
+        super().__init__()
+        self.__call__(*text)
 
 
-@dataclass
 class Bold(Style):
     """<b> 或 <strong> 元素用于将其中的内容以粗体显示。"""
-
 
     @property
     @override
@@ -222,7 +218,6 @@ class Bold(Style):
         return "b"
 
 
-@dataclass
 class Italic(Style):
     """<i> 或 <em> 元素用于将其中的内容以斜体显示。"""
 
@@ -232,7 +227,6 @@ class Italic(Style):
         return "i"
 
 
-@dataclass
 class Underline(Style):
     """<u> 或 <ins> 元素用于为其中的内容附加下划线。"""
 
@@ -242,7 +236,6 @@ class Underline(Style):
         return "u"
 
 
-@dataclass
 class Strikethrough(Style):
     """<s> 或 <del> 元素用于为其中的内容附加删除线。"""
 
@@ -252,7 +245,6 @@ class Strikethrough(Style):
         return "s"
 
 
-@dataclass
 class Spoiler(Style):
     """<spl> 元素用于将其中的内容标记为剧透 (默认会被隐藏，点击后才显示)。"""
 
@@ -262,7 +254,6 @@ class Spoiler(Style):
         return "spl"
 
 
-@dataclass
 class Code(Style):
     """<code> 元素用于将其中的内容以等宽字体显示 (通常还会有特定的背景色)。"""
 
@@ -272,7 +263,6 @@ class Code(Style):
         return "code"
 
 
-@dataclass
 class Superscript(Style):
     """<sup> 元素用于将其中的内容以上标显示。"""
 
@@ -282,7 +272,6 @@ class Superscript(Style):
         return "sup"
 
 
-@dataclass
 class Subscript(Style):
     """<sub> 元素用于将其中的内容以下标显示。"""
 
@@ -292,7 +281,6 @@ class Subscript(Style):
         return "sub"
 
 
-@dataclass
 class Br(Style):
     """<br> 元素表示一个独立的换行。"""
 
@@ -307,7 +295,6 @@ class Br(Style):
         return "br"
 
 
-@dataclass
 class Paragraph(Style):
     """<p> 元素表示一个段落。在渲染时，它与相邻的元素之间会确保有一个换行。"""
 
@@ -317,7 +304,7 @@ class Paragraph(Style):
         return "p"
 
 
-@dataclass
+@dataclass(init=False)
 class Message(Element):
     """<message> 元素的基本用法是表示一条消息。
 
@@ -326,12 +313,17 @@ class Message(Element):
 
     id: Optional[str]
     forward: Optional[bool]
-    content: InitVar[Optional[List[Union[str, Element]]]] = None
 
-    def __post_init__(self, content: Optional[List[Union[str, Element]]] = None):
-        super().__post_init__()
-        if content:
-            self._children.extend(Text(i) if isinstance(i, str) else i for i in content)
+    def __init__(
+        self,
+        id: Optional[str] = None,
+        forward: Optional[bool] = None,
+        content: Optional[List[Union[str, Element]]] = None,
+    ):
+        self.id = id
+        self.forward = forward
+        super().__init__()
+        self.__call__(*content or [])
 
 
 @dataclass
@@ -400,9 +392,16 @@ class Button(Element):
 class Custom(Element):
     """自定义元素用于构造标准元素以外的元素"""
 
+    type: str
 
-    def __init__(self, type: str, attrs: Optional[Dict[str, Any]] = None, children: Optional[List[Union[str, Element]]] = None):
+    def __init__(
+        self,
+        type: str,
+        attrs: Optional[Dict[str, Any]] = None,
+        children: Optional[List[Union[str, Element]]] = None,
+    ):
         self.type = type
+        super().__init__()
         if not hasattr(self, "_attrs"):
             self._attrs = attrs or {}
         else:
@@ -412,12 +411,10 @@ class Custom(Element):
         else:
             self._children.extend(Text(i) if isinstance(i, str) else i for i in (children or []))
 
-
     @property
     @override
     def tag(self) -> str:
         return self.type
-
 
 
 @dataclass
@@ -490,7 +487,7 @@ def transform(elements: List[RawElement]) -> List[Element]:
             seg_cls = STYLE_TYPE_MAP[tag]
             msg.append(seg_cls()(*transform(elem.children)))
         elif tag in ("br", "newline"):
-            msg.append(Br("\n"))
+            msg.append(Br())
         elif tag == "message":
             msg.append(Message(**elem.attrs)(*transform(elem.children)))
         elif tag == "quote":
