@@ -24,6 +24,13 @@ class Element:
         for f in fields(self):
             if f.name in ("_attrs", "_children"):
                 continue
+            if f.type is not str and isinstance(attr := getattr(self, f.name), str):
+                if f.type is bool:
+                    if attr.lower() not in ("true", "false"):
+                        raise TypeError(f.name, attr)
+                    setattr(self, f.name, attr.lower() == "true")
+                else:
+                    setattr(self, f.name, f.type(attr))
             self._attrs[f.name] = getattr(self, f.name)
         self._attrs = {k: v for k, v in self._attrs.items() if v is not None}
 

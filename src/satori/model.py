@@ -7,6 +7,10 @@ from .element import Element, transform
 from .parser import parse
 
 
+class ModelBase:
+    ...
+
+
 class ChannelType(IntEnum):
     TEXT = 0
     DIRECT = 1
@@ -15,7 +19,7 @@ class ChannelType(IntEnum):
 
 
 @dataclass
-class Channel:
+class Channel(ModelBase):
     id: str
     type: ChannelType
     name: Optional[str] = None
@@ -37,7 +41,7 @@ class Channel:
 
 
 @dataclass
-class Guild:
+class Guild(ModelBase):
     id: str
     name: Optional[str] = None
     avatar: Optional[str] = None
@@ -56,7 +60,7 @@ class Guild:
 
 
 @dataclass
-class User:
+class User(ModelBase):
     id: str
     name: Optional[str] = None
     nick: Optional[str] = None
@@ -81,7 +85,7 @@ class User:
 
 
 @dataclass
-class Member:
+class Member(ModelBase):
     user: Optional[User] = None
     nick: Optional[str] = None
     name: Optional[str] = None
@@ -111,7 +115,7 @@ class Member:
 
 
 @dataclass
-class Role:
+class Role(ModelBase):
     id: str
     name: Optional[str] = None
 
@@ -135,7 +139,7 @@ class LoginStatus(IntEnum):
 
 
 @dataclass
-class Login:
+class Login(ModelBase):
     status: LoginStatus
     user: Optional[User] = None
     self_id: Optional[str] = None
@@ -161,7 +165,7 @@ class Login:
 
 
 @dataclass
-class ArgvInteraction:
+class ArgvInteraction(ModelBase):
     name: str
     arguments: list
     options: Any
@@ -171,7 +175,7 @@ class ArgvInteraction:
 
 
 @dataclass
-class ButtonInteraction:
+class ButtonInteraction(ModelBase):
     id: str
 
     def dump(self):
@@ -187,18 +191,18 @@ class Opcode(IntEnum):
 
 
 @dataclass
-class Identify:
+class Identify(ModelBase):
     token: Optional[str] = None
     sequence: Optional[int] = None
 
 
 @dataclass
-class Ready:
+class Ready(ModelBase):
     logins: List[Login]
 
 
 @dataclass
-class MessageObject:
+class MessageObject(ModelBase):
     id: str
     content: str
     channel: Optional[Channel] = None
@@ -207,6 +211,20 @@ class MessageObject:
     user: Optional[User] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    @classmethod
+    def from_elements(
+        cls, 
+        id: str, 
+        content: List[Element],
+        channel: Optional[Channel] = None,
+        guild: Optional[Guild] = None,
+        member: Optional[Member] = None,
+        user: Optional[User] = None,
+        created_at: Optional[datetime] = None,
+        updated_at: Optional[datetime] = None,
+    ):
+        return cls(id, "".join(str(i) for i in content), channel, guild, member, user, created_at, updated_at)
 
     @property
     def message(self) -> List[Element]:

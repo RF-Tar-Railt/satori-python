@@ -4,7 +4,7 @@ from typing import Any
 
 from launart import Launart
 
-from satori import Channel, ChannelType, Event, User
+from satori import Channel, ChannelType, Event, User, Text
 from satori.model import Login, LoginStatus, MessageObject
 from satori.server import Adapter, Request
 
@@ -32,9 +32,9 @@ class ExampleAdapter(Adapter):
 
     async def call_api(self, req: Request) -> Any:
         print(req)  # noqa: T201
-        return [{"id": "1234", "content": "example"}]
+        return MessageObject.from_elements("1234", [Text("example")]).dump()
 
-    async def call_internal_api(self, request: Request[str]) -> Any:
+    async def call_internal_api(self, request: Request[str, dict]) -> Any:
         return "example"
 
     async def publisher(self):
