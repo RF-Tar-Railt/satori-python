@@ -341,3 +341,5 @@ class PageResult(Generic[T]):
     def parse(cls, raw: dict, parser: Callable[[dict], T]) -> "PageResult[T]":
         data = [parser(item) for item in raw["data"]]
         return cls(data, raw.get("next"))
+
+

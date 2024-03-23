@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 
-from satori import Api, Channel, ChannelType, Event, Login, LoginStatus, User
+from satori import Api, Channel, ChannelType, Event, Login, LoginStatus, User, MessageObject
 from satori.server import Server
 
 server = Server(host="localhost", port=12345, path="foo")
@@ -20,12 +20,15 @@ class ExampleProvider:
             await asyncio.sleep(2)
             yield Event(
                 seq,
-                "example",
+                "message-created",
                 "example",
                 "1234567890",
                 datetime.now(),
-                channel=Channel("1234567890", ChannelType.TEXT),
-                user=User("1234567890"),
+                channel=Channel("345678", ChannelType.TEXT),
+                user=User("9876543210"),
+                message=MessageObject(
+                    f"msg_{seq}", "test"
+                )
             )
             seq += 1
 

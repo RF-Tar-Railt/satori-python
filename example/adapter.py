@@ -5,7 +5,7 @@ from typing import Any
 from launart import Launart
 
 from satori import Channel, ChannelType, Event, User
-from satori.model import Login, LoginStatus
+from satori.model import Login, LoginStatus, MessageObject
 from satori.server import Adapter, Request
 
 
@@ -43,17 +43,15 @@ class ExampleAdapter(Adapter):
             await asyncio.sleep(2)
             yield Event(
                 seq,
-                "example",
+                "message-created",
                 self.get_platform(),
                 "1234567890",
                 datetime.now(),
-                channel=Channel(
-                    "1234567890",
-                    ChannelType.TEXT,
-                ),
-                user=User(
-                    "1234567890",
-                ),
+                channel=Channel("345678", ChannelType.TEXT),
+                user=User("9876543210"),
+                message=MessageObject(
+                    f"msg_{seq}", "test"
+                )
             )
             seq += 1
 

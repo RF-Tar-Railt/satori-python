@@ -17,6 +17,7 @@ from .network.webhook import WebhookNetwork
 from .network.websocket import WsNetwork
 
 TConfig = TypeVar("TConfig", bound=Config)
+TE = TypeVar("TE", bound=Event, contravariant=True)
 
 MAPPING: dict[type[Config], type[BaseNetwork]] = {
     WebhookInfo: WebhookNetwork,
@@ -57,8 +58,8 @@ class App(Service):
     def get_account(self, self_id: str) -> Account:
         return self.accounts[self_id]
 
-    def register(self, callback: Callable[[Account, Event], Awaitable[Any]]):
-        self.event_callbacks.append(callback)
+    def register(self, callback: Callable[[Account, TE], Awaitable[Any]]):
+        self.event_callbacks.append(callback)  # type: ignore
 
     def lifecycle(self, callback: Callable[[Account, LoginStatus], Awaitable[Any]]):
         self.lifecycle_callbacks.append(callback)
