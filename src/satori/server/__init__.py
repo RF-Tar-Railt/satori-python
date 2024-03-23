@@ -4,7 +4,7 @@ import asyncio
 import signal
 from contextlib import suppress
 from traceback import print_exc
-from typing import Any, Awaitable, Callable, Iterable, cast
+from typing import Any, Awaitable, Callable, Iterable, cast, overload, Literal
 
 import aiohttp
 from creart import it
@@ -20,8 +20,9 @@ from yarl import URL
 
 from satori.config import WebhookInfo
 from satori.const import Api
-from satori.model import Event, Opcode
+from satori.model import Event, Opcode, ModelBase
 
+from . import route
 from .adapter import Adapter as Adapter
 from .conection import WebsocketConnection
 from .model import Provider
@@ -74,15 +75,121 @@ class Server(Service):
             self.routers.append(item)
         else:
             raise TypeError(f"Unknown config type: {item}")
+        
+    @overload
+    def route(self, path: Literal[Api.MESSAGE_CREATE]) -> Callable[[route.MESSAGE_CREATE], route.MESSAGE_CREATE]: ...
 
-    def route(self, path: str | Api):
+    @overload
+    def route(self, path: Literal[Api.MESSAGE_UPDATE]) -> Callable[[route.MESSAGE_UPDATE], route.MESSAGE_UPDATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.MESSAGE_GET]) -> Callable[[route.MESSAGE_GET], route.MESSAGE_GET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.MESSAGE_DELETE]) -> Callable[[route.MESSAGE_DELETE], route.MESSAGE_DELETE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.MESSAGE_LIST]) -> Callable[[route.MESSAGE_LIST], route.MESSAGE_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_GET]) -> Callable[[route.CHANNEL_GET], route.CHANNEL_GET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_LIST]) -> Callable[[route.CHANNEL_LIST], route.CHANNEL_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_CREATE]) -> Callable[[route.CHANNEL_CREATE], route.CHANNEL_CREATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_UPDATE]) -> Callable[[route.CHANNEL_UPDATE], route.CHANNEL_UPDATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_DELETE]) -> Callable[[route.CHANNEL_DELETE], route.CHANNEL_DELETE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_MUTE]) -> Callable[[route.CHANNEL_MUTE], route.CHANNEL_MUTE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.USER_CHANNEL_CREATE]) -> Callable[[route.ROUTE_USER_CHANNEL_CREATE], route.ROUTE_USER_CHANNEL_CREATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_GET]) -> Callable[[route.GUILD_GET], route.GUILD_GET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_LIST]) -> Callable[[route.GUILD_LIST], route.GUILD_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_APPROVE]) -> Callable[[route.APPROVE], route.APPROVE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_MEMBER_LIST]) -> Callable[[route.GUILD_MEMBER_LIST], route.GUILD_MEMBER_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_MEMBER_GET]) -> Callable[[route.GUILD_MEMBER_GET], route.GUILD_MEMBER_GET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_MEMBER_KICK]) -> Callable[[route.GUILD_MEMBER_KICK], route.GUILD_MEMBER_KICK]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_MEMBER_MUTE]) -> Callable[[route.GUILD_MEMBER_MUTE], route.GUILD_MEMBER_MUTE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_MEMBER_APPROVE]) -> Callable[[route.APPROVE], route.APPROVE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_MEMBER_ROLE_SET]) -> Callable[[route.GUILD_MEMBER_ROLE_SET], route.GUILD_MEMBER_ROLE_SET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_MEMBER_ROLE_UNSET]) -> Callable[[route.GUILD_MEMBER_ROLE_UNSET], route.GUILD_MEMBER_ROLE_UNSET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_ROLE_LIST]) -> Callable[[route.GUILD_ROLE_LIST], route.GUILD_ROLE_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_ROLE_CREATE]) -> Callable[[route.GUILD_ROLE_CREATE], route.GUILD_ROLE_CREATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_ROLE_UPDATE]) -> Callable[[route.GUILD_ROLE_UPDATE], route.GUILD_ROLE_UPDATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_ROLE_DELETE]) -> Callable[[route.GUILD_ROLE_DELETE], route.GUILD_ROLE_DELETE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.REACTION_CREATE]) -> Callable[[route.REACTION_CREATE], route.REACTION_CREATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.REACTION_DELETE]) -> Callable[[route.REACTION_DELETE], route.REACTION_DELETE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.REACTION_CLEAR]) -> Callable[[route.REACTION_CLEAR], route.REACTION_CLEAR]: ...
+
+    @overload
+    def route(self, path: Literal[Api.REACTION_LIST]) -> Callable[[route.REACTION_LIST], route.REACTION_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.LOGIN_GET]) -> Callable[[route.LOGIN_GET], route.LOGIN_GET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.USER_GET]) -> Callable[[route.USER_GET], route.USER_GET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.FRIEND_LIST]) -> Callable[[route.FRIEND_LIST], route.FRIEND_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.FRIEND_APPROVE]) -> Callable[[route.APPROVE], route.APPROVE]: ...
+    
+    @overload
+    def route(self, path: str) -> Callable[[route.INTERAL], route.INTERAL]:
+        ...
+
+    def route(self, path: str | Api) -> Callable[[route.Router], route.Router]:
         """注册一个路由
 
         Args:
             path (str | Api): 路由路径；若 path 不属于 Api，则会被认为是内部接口
         """
 
-        def wrapper(func: Callable[[Request], Awaitable[Any]]):
+        def wrapper(func: route.INTERAL):
             async def handler(request: StarletteRequest):
                 res = await func(
                     Request(
@@ -91,6 +198,10 @@ class Server(Service):
                         await request.json(),
                     )
                 )
+                if isinstance(res, ModelBase):
+                    return JSONResponse(content=res.dump())
+                if res and isinstance(res, list) and isinstance(res[0], ModelBase):
+                    return JSONResponse(content=[_.dump() for _ in res])  # type: ignore
                 return res if isinstance(res, Response) else JSONResponse(content=res)
 
             if isinstance(path, Api):

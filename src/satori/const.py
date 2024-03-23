@@ -13,6 +13,7 @@ class Api(str, Enum):
     CHANNEL_CREATE = "channel.create"
     CHANNEL_UPDATE = "channel.update"
     CHANNEL_DELETE = "channel.delete"
+    CHANNEL_MUTE = "channel.mute"
     USER_CHANNEL_CREATE = "user.channel.create"
 
     GUILD_GET = "guild.get"
@@ -22,6 +23,7 @@ class Api(str, Enum):
     GUILD_MEMBER_LIST = "guild.member.list"
     GUILD_MEMBER_GET = "guild.member.get"
     GUILD_MEMBER_KICK = "guild.member.kick"
+    GUILD_MEMBER_MUTE = "guild.member.mute"
     GUILD_MEMBER_APPROVE = "guild.member.approve"
     GUILD_MEMBER_ROLE_SET = "guild.member.role.set"
     GUILD_MEMBER_ROLE_UNSET = "guild.member.role.unset"

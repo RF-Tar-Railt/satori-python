@@ -7,9 +7,9 @@ app = App(WebsocketsInfo(port=12345, path="foo"))
 
 @app.register
 async def on_message(account: Account, event: MessageEvent):
-    if event.user and event.user.id == "1234567890":
+    if event.user and event.user.id == "9876543210":
         print(await account.session.channel_get(event.channel.id))  # noqa: T201
-        await account.session.send_message(event.channel, "Hello, World!")
+        print(await account.session.send_message(event.channel, "Hello, World!"))  # noqa: T201
 
 
 @app.lifecycle

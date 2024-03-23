@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 
 from satori import Api, Channel, ChannelType, Event, Login, LoginStatus, User, MessageObject, Text
-from satori.server import Server
+from satori.server import Server, Request, route
 
 server = Server(host="localhost", port=12345, path="foo")
 
@@ -37,13 +37,14 @@ server.apply(ExampleProvider())
 
 
 @server.route(Api.CHANNEL_GET)
-async def handle1(*args, **kwargs):
+async def handle1(request: Request[route.ChannelParam]):
     return Channel("1234567890", ChannelType.TEXT, "test").dump()
 
 
 @server.route(Api.MESSAGE_CREATE)
-async def handle2(*args, **kwargs):
-    return MessageObject.from_elements("1234", [Text("example")]).dump()
+async def handle2(request: Request[route.MessageParam]):
+    a = request.params["content"]
+    return [MessageObject.from_elements("1234", [Text("example")])]
 
 
 server.run()

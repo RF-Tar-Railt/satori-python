@@ -31,11 +31,11 @@ class Adapter(Service):
         ...
 
     @abstractmethod
-    async def call_api(self, request: Request[Api]) -> Any:
+    async def call_api(self, request: Request[Any]) -> Any:
         ...
 
     @abstractmethod
-    async def call_internal_api(self, request: Request[str]) -> Any:
+    async def call_internal_api(self, request: Request[Any]) -> Any:
         ...
 
     @property

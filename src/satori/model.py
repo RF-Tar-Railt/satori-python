@@ -8,7 +8,12 @@ from .parser import parse
 
 
 class ModelBase:
-    ...
+    @classmethod
+    def parse(cls, raw: dict):
+        raise NotImplementedError
+
+    def dump(self) -> dict:
+        raise NotImplementedError
 
 
 class ChannelType(IntEnum):
@@ -170,6 +175,10 @@ class ArgvInteraction(ModelBase):
     arguments: list
     options: Any
 
+    @classmethod
+    def parse(cls, raw: dict):
+        return cls(**raw)
+
     def dump(self):
         return asdict(self)
 
@@ -177,6 +186,10 @@ class ArgvInteraction(ModelBase):
 @dataclass
 class ButtonInteraction(ModelBase):
     id: str
+
+    @classmethod
+    def parse(cls, raw: dict):
+        return cls(**raw)
 
     def dump(self):
         return asdict(self)
@@ -295,9 +308,9 @@ class Event:
             "timestamp": datetime.fromtimestamp(int(raw["timestamp"]) / 1000),
         }
         if "argv" in raw:
-            data["argv"] = ArgvInteraction(**raw["argv"])
+            data["argv"] = ArgvInteraction.parse(raw["argv"])
         if "button" in raw:
-            data["button"] = ButtonInteraction(**raw["button"])
+            data["button"] = ButtonInteraction.parse(raw["button"])
         if "channel" in raw:
             data["channel"] = Channel.parse(raw["channel"])
         if "guild" in raw:
@@ -347,11 +360,11 @@ class Event:
         return res
 
 
-T = TypeVar("T")
+T = TypeVar("T", bound=ModelBase)
 
 
 @dataclass
-class PageResult(Generic[T]):
+class PageResult(ModelBase, Generic[T]):
     data: List[T]
     next: Optional[str] = None
 
@@ -360,4 +373,10 @@ class PageResult(Generic[T]):
         data = [parser(item) for item in raw["data"]]
         return cls(data, raw.get("next"))
 
-
+    def dump(self):
+        res: dict = {
+            "data": [item.dump() for item in self.data]
+        }
+        if self.next:
+            res["next"] = self.next
+        return res
