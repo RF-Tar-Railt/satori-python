@@ -211,10 +211,18 @@ class Server(Service):
 
     def run(
         self,
+        manager: Launart | None = None,
         *,
         loop: asyncio.AbstractEventLoop | None = None,
         stop_signal: Iterable[signal.Signals] = (signal.SIGINT,),
     ):
-        manager = it(Launart)
+        if manager is None:
+            manager = it(Launart)
         manager.add_component(self)
         manager.launch_blocking(loop=loop, stop_signal=stop_signal)
+
+    async def run_async(self, manager: Launart | None = None):
+        if manager is None:
+            manager = it(Launart)
+        manager.add_component(self)
+        await manager.launch()

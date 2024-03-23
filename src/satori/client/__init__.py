@@ -4,6 +4,7 @@ import asyncio
 import signal
 from typing import Any, Awaitable, Callable, Iterable, TypeVar
 
+from creart import it
 from launart import Launart, Service, any_completed
 from loguru import logger
 
@@ -104,6 +105,12 @@ class App(Service):
         stop_signal: Iterable[signal.Signals] = (signal.SIGINT,),
     ):
         if manager is None:
-            manager = Launart()
+            manager = it(Launart)
         manager.add_component(self)
         manager.launch_blocking(loop=loop, stop_signal=stop_signal)
+
+    async def run_async(self, manager: Launart | None = None):
+        if manager is None:
+            manager = it(Launart)
+        manager.add_component(self)
+        await manager.launch()
