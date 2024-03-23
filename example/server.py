@@ -43,7 +43,6 @@ async def handle1(request: Request[route.ChannelParam]):
 
 @server.route(Api.MESSAGE_CREATE)
 async def handle2(request: Request[route.MessageParam]):
-    a = request.params["content"]
     return [MessageObject.from_elements("1234", [Text("example")])]
 
 

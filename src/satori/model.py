@@ -297,6 +297,9 @@ class Event:
     operator: Optional[User] = None
     role: Optional[Role] = None
     user: Optional[User] = None
+    
+    _type: Optional[str] = None
+    _data: Optional[dict] = None
 
     @classmethod
     def parse(cls, raw: dict):
@@ -327,6 +330,10 @@ class Event:
             data["role"] = Role.parse(raw["role"])
         if "user" in raw:
             data["user"] = User.parse(raw["user"])
+        if "_type" in raw:
+            data["_type"] = raw["_type"]
+        if "_data" in raw:
+            data["_data"] = raw["_data"]
         return cls(**data)
 
     def dump(self):
@@ -357,6 +364,10 @@ class Event:
             res["role"] = self.role.dump()
         if self.user:
             res["user"] = self.user.dump()
+        if self._type:
+            res["_type"] = self._type
+        if self._data:
+            res["_data"] = self._data
         return res
 
 

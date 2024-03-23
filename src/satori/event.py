@@ -33,12 +33,11 @@ class ButtonInteractionEvent(Event):
     user: User
     channel: Channel
 
-class CommandInteractionEvent(Event):
-    message: MessageObject
-    user: User
-    channel: Channel
-
 class ArgvInteractionEvent(Event):
     argv: ArgvInteraction
     user: User
     channel: Channel
+
+class InternalEvent(Event):
+    _type: str
+    _data: dict
