@@ -1,8 +1,8 @@
 import asyncio
 from datetime import datetime
 
-from satori import Api, Channel, ChannelType, Event, Login, LoginStatus, User, MessageObject, Text
-from satori.server import Server, Request, route
+from satori import Api, Channel, ChannelType, Event, Login, LoginStatus, MessageObject, Text, User
+from satori.server import Request, Server, route
 
 server = Server(host="localhost", port=12345, path="foo")
 
@@ -26,9 +26,7 @@ class ExampleProvider:
                 datetime.now(),
                 channel=Channel("345678", ChannelType.TEXT),
                 user=User("9876543210"),
-                message=MessageObject(
-                    f"msg_{seq}", "test"
-                )
+                message=MessageObject(f"msg_{seq}", "test"),
             )
             seq += 1
 

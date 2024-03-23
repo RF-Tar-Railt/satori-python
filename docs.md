@@ -79,7 +79,7 @@ App.register_config(YourConfig, YourNetwork)
 
 ## 订阅
 
-`satori-python` 使用 `@app.register` 装饰器来增加一个事件处理函数:
+`satori-python` 使用 `@app.register` 装饰器来增加一个通用事件处理函数:
 
 ```python
 from satori.client import App, Account
@@ -94,12 +94,27 @@ async def listen(account: Account, event: Event):
 
 `@app.register` 需要一个参数为 `Account` 与 `Event` 的异步函数.
 
-- `Account` 对象代表了一个 Satori 平台账号, 你可以使用它来调用 API.
-- `Event` 对象代表了一个 Satori 事件, 你可以使用它来获取事件的数据.
+- `Account` 对象代表了接受事件的 Satori 平台账号, 你可以使用它来调用 API.
+- `Event` 对象代表了任意类型的 Satori 事件, 你可以使用它来获取事件的数据.
+
+除此之外，你可以使用 `@app.register_on` 装饰器来增加一个确定事件类型的处理函数:
+
+```python
+from satori import EventType
+from satori.client import App, Account
+from satori.event import MessageEvent
+
+app = App()
+
+@app.register_on(EventType.MESSAGE_CREATED)
+async def listen(account: Account, event: MessageEvent):
+    print(account, event)
+```
+
 
 ## 运行
 
-使用 `App.run` 方法来运行 `App` 对象:
+使用 `App.run` 方法来同步运行 `App` 对象:
 
 ```python
 from satori.client import App
@@ -108,6 +123,20 @@ app = App()
 
 app.run()
 ```
+
+或使用 `App.run_async` 方法来异步运行 `App` 对象:
+
+```python
+from satori.client import App
+
+app = App()
+
+async def main():
+    await app.run_async()
+
+...
+```
+
 
 `App.run` 可以传入自定义的 `asyncio.AbstractEventLoop` 对象。
 
@@ -145,12 +174,12 @@ async def main():
 
 ```
 
-### 切换服务端地址
+### 切换服务端地址或使用自定义接口
 
-`Account` 同样也可以临时切换 api：
+`Account` 可以临时切换 api：
 
 ```python
-from satori.client import App, Account
+from satori.client import App, Account, Session
 from satori.model import Event
 
 app = App()
@@ -158,6 +187,13 @@ app = App()
 @app.register
 async def listen(account: Account, event: Event):
     await account.custom(host="123.456.789.012", port=5140).send(event, "Hello, World!")
+
+class MySession(Session):
+    async def my_api(self, *args): ...
+
+@app.register
+async def listen(account: Account, event: Event):
+    await account.custom(session_cls=MySession).my_api(event, "Hello, World!")
 ```
 
 # 服务端
@@ -201,17 +237,20 @@ server = Server(
 你可以使用 `Server.route` 方法来自定义路由:
 
 ```python
+from satori import MessageObject
 from satori.const import Api
-from satori.server import Server
+from satori.server import Server, Request, route
 
 server = Server()
 
-@server.route(Api.MESSAGE_GET)
-async def on_message_get(request):
-    return {"id": "123456789", "content": "Hello, world!"}
+@server.route(Api.MESSAGE_CREATE)
+async def on_message_create(request: Request[route.MESSAGE_CREATE]):
+    return [MessageObject(id="123456789", content="Hello, world!")]
 ```
 
 route 填入的若不属于 `Api` 中的枚举值，会被视为是[内部接口](https://satori.js.org/zh-CN/protocol/internal.html)的路由。
+
+route 装饰的函数的返回值既可以是 satori 中的模型，也可以是原始数据。
 
 同时，你也可以通过 `server.apply` 传入一个满足 `Router` 协议的对象:
 
@@ -225,11 +264,11 @@ class MyRouter:
     def validate_headers(self, headers: dict[str, Any]) -> bool:
         return True
 
-    async def call_api(self, request: Request[Api]):
-        if request.action == Api.MESSAGE_GET:
-            return {"id": "123456789", "content": "Hello, world!"}
+    async def call_api(self, request: Request[dict]):
+        if request.action == Api.MESSAGE_CREATE:
+            return [{"id": "123456789", "content": "Hello, world!"}]
 
-    async def call_internal_api(self, request: Request[str]):
+    async def call_internal_api(self, request: Request[Any]):
         ...
 
 server.apply(MyRouter())
@@ -272,7 +311,7 @@ class MyProvider:
         seq = 0
         while True:
             await asyncio.sleep(2)
-            yield Event(seq, "example", "example", "1234567890", datetime.now(), channel=Channel("1234567890", ChannelType.TEXT), user=User("1234567890"))
+            yield Event(seq, "example", "example", "1234567890", datetime.now(), channel=Channel("1234567890", ChannelType.TEXT), user=User("9876543210"))
             seq += 1
 
 server.apply(MyProvider())
@@ -313,6 +352,18 @@ server = Server()
 
 server.run()
 ```
+
+或使用 `Server.run_async` 方法来异步运行 `Server` 对象:
+
+```python
+from satori.server import Server
+
+server = Server()
+
+async def main():
+    await server.run_async()
+
+...
 
 # 消息元素
 

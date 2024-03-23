@@ -55,6 +55,7 @@ class Account:
             message: 要发送的消息
         """
         ...
+
     async def send_private_message(
         self,
         user_id: str,
@@ -67,6 +68,7 @@ class Account:
             message: 要发送的消息
         """
         ...
+
     async def update_message(
         self,
         channel_id: str,
@@ -81,6 +83,7 @@ class Account:
             message: 要更新的消息
         """
         ...
+
     async def message_create(
         self,
         *,

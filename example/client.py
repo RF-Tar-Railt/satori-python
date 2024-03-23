@@ -1,4 +1,4 @@
-from satori import WebsocketsInfo, EventType
+from satori import EventType, WebsocketsInfo
 from satori.client import Account, App
 from satori.event import MessageEvent
 

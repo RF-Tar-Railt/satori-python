@@ -1,4 +1,4 @@
-from satori import WebhookInfo, EventType
+from satori import EventType, WebhookInfo
 from satori.client import Account, App
 from satori.event import MessageEvent
 

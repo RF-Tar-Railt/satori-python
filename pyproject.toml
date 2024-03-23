@@ -54,7 +54,7 @@ dev = [
 includes = ["src/satori"]
 
 [tool.pdm.scripts]
-format = { composite = ["isort ./src/ ./example/","black ./src/ ./example/","ruff ./src/ ./example/"] }
+format = { composite = ["isort ./src/ ./example/","black ./src/ ./example/","ruff check ./src/ ./example/"] }
 
 [tool.pdm.version]
 source = "file"
@@ -73,11 +73,12 @@ skip_gitignore = true
 extra_standard_library = ["typing_extensions"]
 
 [tool.ruff]
-select = ["E", "W", "F", "UP", "C", "T", "Q"]
-ignore = ["E402", "F403", "F405", "C901", "UP037"]
-
 line-length = 110
 target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "UP", "C", "T", "Q"]
+ignore = ["E402", "F403", "F405", "C901", "UP037"]
 
 [tool.pyright]
 pythonPlatform = "All"

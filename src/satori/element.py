@@ -66,8 +66,7 @@ class Element:
         self.__post_call__()
         return self
 
-    def __post_call__(self):
-        ...
+    def __post_call__(self): ...
 
 
 @dataclass

@@ -4,7 +4,7 @@ from typing import Any
 
 from launart import Launart
 
-from satori import Channel, ChannelType, Event, User, Text
+from satori import Channel, ChannelType, Event, Text, User
 from satori.model import Login, LoginStatus, MessageObject
 from satori.server import Adapter, Request
 
@@ -49,9 +49,7 @@ class ExampleAdapter(Adapter):
                 datetime.now(),
                 channel=Channel("345678", ChannelType.TEXT),
                 user=User("9876543210"),
-                message=MessageObject(
-                    f"msg_{seq}", "test"
-                )
+                message=MessageObject(f"msg_{seq}", "test"),
             )
             seq += 1
 

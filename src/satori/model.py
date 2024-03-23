@@ -227,8 +227,8 @@ class MessageObject(ModelBase):
 
     @classmethod
     def from_elements(
-        cls, 
-        id: str, 
+        cls,
+        id: str,
         content: List[Element],
         channel: Optional[Channel] = None,
         guild: Optional[Guild] = None,
@@ -297,7 +297,7 @@ class Event:
     operator: Optional[User] = None
     role: Optional[Role] = None
     user: Optional[User] = None
-    
+
     _type: Optional[str] = None
     _data: Optional[dict] = None
 
@@ -385,9 +385,7 @@ class PageResult(ModelBase, Generic[T]):
         return cls(data, raw.get("next"))
 
     def dump(self):
-        res: dict = {
-            "data": [item.dump() for item in self.data]
-        }
+        res: dict = {"data": [item.dump() for item in self.data]}
         if self.next:
             res["next"] = self.next
         return res

@@ -3,17 +3,16 @@ from __future__ import annotations
 import asyncio
 import signal
 from functools import wraps
-from typing import Any, Awaitable, Callable, Iterable, TypeVar, Union, overload, Literal
+from typing import Any, Awaitable, Callable, Iterable, Literal, TypeVar, overload
 
 from creart import it
 from launart import Launart, Service, any_completed
 from loguru import logger
 
 from satori import event
-from satori.const import EventType
 from satori.config import Config, WebhookInfo, WebsocketsInfo
+from satori.const import EventType
 from satori.model import Event, LoginStatus
-
 
 from .account import Account as Account
 from .account import ApiInfo as ApiInfo
@@ -67,41 +66,99 @@ class App(Service):
         self.event_callbacks.append(callback)
 
     @overload
-    def register_on(self, event_type: Literal[EventType.FRIEND_REQUEST]) -> Callable[[Callable[[Account, event.UserEvent], Awaitable[Any]]], Callable[[Account, event.UserEvent], Awaitable[Any]]]: ...
+    def register_on(self, event_type: Literal[EventType.FRIEND_REQUEST]) -> Callable[
+        [Callable[[Account, event.UserEvent], Awaitable[Any]]],
+        Callable[[Account, event.UserEvent], Awaitable[Any]],
+    ]: ...
 
     @overload
-    def register_on(self, event_type: Literal[EventType.GUILD_ADDED, EventType.GUILD_REMOVED, EventType.GUILD_REQUEST, EventType.GUILD_UPDATED]) -> Callable[[Callable[[Account, event.GuildEvent], Awaitable[Any]]], Callable[[Account, event.GuildEvent], Awaitable[Any]]]: ...
+    def register_on(
+        self,
+        event_type: Literal[
+            EventType.GUILD_ADDED, EventType.GUILD_REMOVED, EventType.GUILD_REQUEST, EventType.GUILD_UPDATED
+        ],
+    ) -> Callable[
+        [Callable[[Account, event.GuildEvent], Awaitable[Any]]],
+        Callable[[Account, event.GuildEvent], Awaitable[Any]],
+    ]: ...
 
     @overload
-    def register_on(self, event_type: Literal[EventType.GUILD_MEMBER_ADDED, EventType.GUILD_MEMBER_REMOVED, EventType.GUILD_MEMBER_UPDATED, EventType.GUILD_MEMBER_REQUEST]) -> Callable[[Callable[[Account, event.GuildMemberEvent], Awaitable[Any]]], Callable[[Account, event.GuildMemberEvent], Awaitable[Any]]]: ...
+    def register_on(
+        self,
+        event_type: Literal[
+            EventType.GUILD_MEMBER_ADDED,
+            EventType.GUILD_MEMBER_REMOVED,
+            EventType.GUILD_MEMBER_UPDATED,
+            EventType.GUILD_MEMBER_REQUEST,
+        ],
+    ) -> Callable[
+        [Callable[[Account, event.GuildMemberEvent], Awaitable[Any]]],
+        Callable[[Account, event.GuildMemberEvent], Awaitable[Any]],
+    ]: ...
 
     @overload
-    def register_on(self, event_type: Literal[EventType.GUILD_ROLE_CREATED, EventType.GUILD_ROLE_DELETED, EventType.GUILD_ROLE_UPDATED]) -> Callable[[Callable[[Account, event.GuildRoleEvent], Awaitable[Any]]], Callable[[Account, event.GuildRoleEvent], Awaitable[Any]]]: ...
+    def register_on(
+        self,
+        event_type: Literal[
+            EventType.GUILD_ROLE_CREATED, EventType.GUILD_ROLE_DELETED, EventType.GUILD_ROLE_UPDATED
+        ],
+    ) -> Callable[
+        [Callable[[Account, event.GuildRoleEvent], Awaitable[Any]]],
+        Callable[[Account, event.GuildRoleEvent], Awaitable[Any]],
+    ]: ...
 
     @overload
-    def register_on(self, event_type: Literal[EventType.LOGIN_ADDED, EventType.LOGIN_REMOVED, EventType.LOGIN_UPDATED]) -> Callable[[Callable[[Account, event.LoginEvent], Awaitable[Any]]], Callable[[Account, event.LoginEvent], Awaitable[Any]]]: ...
-    
-    @overload
-    def register_on(self, event_type: Literal[EventType.MESSAGE_CREATED, EventType.MESSAGE_DELETED, EventType.MESSAGE_UPDATED]) -> Callable[[Callable[[Account, event.MessageEvent], Awaitable[Any]]], Callable[[Account, event.MessageEvent], Awaitable[Any]]]: ...
+    def register_on(
+        self, event_type: Literal[EventType.LOGIN_ADDED, EventType.LOGIN_REMOVED, EventType.LOGIN_UPDATED]
+    ) -> Callable[
+        [Callable[[Account, event.LoginEvent], Awaitable[Any]]],
+        Callable[[Account, event.LoginEvent], Awaitable[Any]],
+    ]: ...
 
     @overload
-    def register_on(self, event_type: Literal[EventType.REACTION_ADDED, EventType.REACTION_REMOVED]) -> Callable[[Callable[[Account, event.ReactionEvent], Awaitable[Any]]], Callable[[Account, event.ReactionEvent], Awaitable[Any]]]: ...
+    def register_on(
+        self,
+        event_type: Literal[EventType.MESSAGE_CREATED, EventType.MESSAGE_DELETED, EventType.MESSAGE_UPDATED],
+    ) -> Callable[
+        [Callable[[Account, event.MessageEvent], Awaitable[Any]]],
+        Callable[[Account, event.MessageEvent], Awaitable[Any]],
+    ]: ...
 
     @overload
-    def register_on(self, event_type: Literal[EventType.INTERACTION_BUTTON]) -> Callable[[Callable[[Account, event.ButtonInteractionEvent], Awaitable[Any]]], Callable[[Account, event.ButtonInteractionEvent], Awaitable[Any]]]: ...
+    def register_on(
+        self, event_type: Literal[EventType.REACTION_ADDED, EventType.REACTION_REMOVED]
+    ) -> Callable[
+        [Callable[[Account, event.ReactionEvent], Awaitable[Any]]],
+        Callable[[Account, event.ReactionEvent], Awaitable[Any]],
+    ]: ...
 
     @overload
-    def register_on(self, event_type: Literal[EventType.INTERACTION_COMMAND]) -> Callable[[Callable[[Account, Union[event.ArgvInteractionEvent, event.MessageEvent]], Awaitable[Any]]], Callable[[Account, Union[event.ArgvInteractionEvent, event.MessageEvent]], Awaitable[Any]]]: ...
+    def register_on(self, event_type: Literal[EventType.INTERACTION_BUTTON]) -> Callable[
+        [Callable[[Account, event.ButtonInteractionEvent], Awaitable[Any]]],
+        Callable[[Account, event.ButtonInteractionEvent], Awaitable[Any]],
+    ]: ...
 
     @overload
-    def register_on(self, event_type: Literal[EventType.INTERNAL]) -> Callable[[Callable[[Account, event.InternalEvent], Awaitable[Any]]], Callable[[Account, event.InternalEvent], Awaitable[Any]]]: ...
+    def register_on(self, event_type: Literal[EventType.INTERACTION_COMMAND]) -> Callable[
+        [Callable[[Account, event.ArgvInteractionEvent | event.MessageEvent], Awaitable[Any]]],
+        Callable[[Account, event.ArgvInteractionEvent | event.MessageEvent], Awaitable[Any]],
+    ]: ...
+
+    @overload
+    def register_on(self, event_type: Literal[EventType.INTERNAL]) -> Callable[
+        [Callable[[Account, event.InternalEvent], Awaitable[Any]]],
+        Callable[[Account, event.InternalEvent], Awaitable[Any]],
+    ]: ...
 
     def register_on(self, event_type: EventType):
-        def decorator(func: Callable[[Account, Any], Awaitable[Any]], /) -> Callable[[Account, Any], Awaitable[Any]]:
+        def decorator(
+            func: Callable[[Account, Any], Awaitable[Any]], /
+        ) -> Callable[[Account, Any], Awaitable[Any]]:
             @wraps(func)
             async def wrapper(account: Account, event: Event) -> Any:
                 if event.type == event_type.value:
                     return await func(account, event)
+
             self.register(wrapper)
             return wrapper
 

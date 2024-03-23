@@ -27,12 +27,10 @@ class BaseNetwork(Generic[TConfig], Service):
         self.close_signal = asyncio.Event()
         self.sequence = -1
 
-    async def wait_for_available(self):
-        ...
+    async def wait_for_available(self): ...
 
     @property
-    def alive(self) -> bool:
-        ...
+    def alive(self) -> bool: ...
 
     async def connection_closed(self):
         self.close_signal.set()

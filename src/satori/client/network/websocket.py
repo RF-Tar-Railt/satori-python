@@ -101,9 +101,11 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
             else:
                 account = Account(platform, self_id, self.config)
                 logger.info(f"account registered: {account}")
-                account.connected.set() if login[
-                    "status"
-                ] == LoginStatus.ONLINE else account.connected.clear()
+                (
+                    account.connected.set()
+                    if login["status"] == LoginStatus.ONLINE
+                    else account.connected.clear()
+                )
                 self.app.accounts[identity] = account
                 self.accounts[identity] = account
                 await self.app.account_update(account, LoginStatus.ONLINE)
