@@ -75,6 +75,7 @@ extra_standard_library = ["typing_extensions"]
 [tool.ruff]
 line-length = 110
 target-version = "py38"
+exclude = ["exam.py"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "UP", "C", "T", "Q"]
