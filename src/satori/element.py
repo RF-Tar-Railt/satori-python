@@ -2,7 +2,7 @@ from base64 import b64encode
 from dataclasses import InitVar, dataclass, field, fields
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypeVar, Union
+from typing import Any, Dict, List, Optional, TypeVar, Union, get_args
 from typing_extensions import override
 
 from .parser import Element as RawElement
@@ -24,13 +24,14 @@ class Element:
         for f in fields(self):
             if f.name in ("_attrs", "_children"):
                 continue
-            if f.type is not str and isinstance(attr := getattr(self, f.name), str):
-                if f.type is bool:
+            _type = get_args(f.type)[0] if hasattr(f.type, "__origin__") else f.type
+            if _type is not str and isinstance(attr := getattr(self, f.name), str):
+                if _type is bool:
                     if attr.lower() not in ("true", "false"):
                         raise TypeError(f.name, attr)
                     setattr(self, f.name, attr.lower() == "true")
                 else:
-                    setattr(self, f.name, f.type(attr))
+                    setattr(self, f.name, _type(attr))
             self._attrs[f.name] = getattr(self, f.name)
         self._attrs = {k: v for k, v in self._attrs.items() if v is not None}
 
