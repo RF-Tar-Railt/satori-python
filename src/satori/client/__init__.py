@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import signal
+import threading
 from functools import wraps
 from typing import Any, Awaitable, Callable, Iterable, Literal, TypeVar, overload
 
@@ -211,8 +213,27 @@ class App(Service):
         manager.add_component(self)
         manager.launch_blocking(loop=loop, stop_signal=stop_signal)
 
-    async def run_async(self, manager: Launart | None = None):
+    async def run_async(
+        self,
+        manager: Launart | None = None,
+        stop_signal: Iterable[signal.Signals] = (signal.SIGINT,),
+    ):
         if manager is None:
             manager = it(Launart)
         manager.add_component(self)
-        await manager.launch()
+        handled_signals: dict[signal.Signals, Any] = {}
+        launch_task = asyncio.create_task(manager.launch(), name="amnesia-launch")
+        signal_handler = functools.partial(manager._on_sys_signal, main_task=launch_task)
+        if threading.current_thread() is threading.main_thread():  # pragma: worst case
+            try:
+                for sig in stop_signal:
+                    handled_signals[sig] = signal.getsignal(sig)
+                    signal.signal(sig, signal_handler)
+            except ValueError:  # pragma: no cover
+                # `signal.signal` may throw if `threading.main_thread` does
+                # not support signals
+                handled_signals.clear()
+        await launch_task
+        for sig, handler in handled_signals.items():
+            if signal.getsignal(sig) is signal_handler:
+                signal.signal(sig, handler)

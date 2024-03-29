@@ -333,7 +333,6 @@ class Message(Element):
         self.__call__(*content or [])
 
 
-@dataclass
 class Quote(Message):
     """<quote> 元素用于表示对消息引用。
 
