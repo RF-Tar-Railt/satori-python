@@ -1,5 +1,5 @@
 includes = ["src/satori/server"]
-raw-dependencies = ["satori-python-core >= 0.11.2"]
+raw-dependencies = ["satori-python-core >= 0.11.3"]
 
 [project]
 name = "satori-python-server"

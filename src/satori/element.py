@@ -2,7 +2,7 @@ from base64 import b64encode
 from dataclasses import InitVar, dataclass, field, fields
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypeVar, Union, get_args
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, TypeVar, Union, get_args
 from typing_extensions import override
 
 from .parser import Element as RawElement
@@ -11,14 +11,22 @@ from .parser import escape, param_case
 TE = TypeVar("TE", bound="Element")
 
 
-@dataclass
+@dataclass(repr=False)
 class Element:
-    _attrs: Dict[str, Any] = field(init=False, default_factory=dict, repr=False)
+    _attrs: Dict[str, Any] = field(init=False, default_factory=dict)
     _children: List["Element"] = field(init=False, default_factory=list)
+
+    __names__: ClassVar[Tuple[str, ...]]
 
     @property
     def tag(self) -> str:
         return self.__class__.__name__.lower()
+
+    @classmethod
+    def unpack(cls, attrs: Dict[str, Any]):
+        obj = cls(**{k: v for k, v in attrs.items() if k in cls.__names__})
+        obj._attrs.update({k: v for k, v in attrs.items() if k not in cls.__names__})
+        return obj
 
     def __post_init__(self):
         for f in fields(self):
@@ -62,6 +70,13 @@ class Element:
     def __str__(self) -> str:
         return self.dumps()
 
+    def __repr__(self) -> str:
+        args = {**self._attrs}
+        elem = f"{self.__class__.__name__}(" + ", ".join(f"{k}={v!r}" for k, v in args.items())
+        if self._children:
+            elem += ", { " + ", ".join(repr(i) for i in self._children) + " }"
+        return elem + ")"
+
     def __call__(self, *content: Union[str, "Element"]):
         self._children.extend(Text(i) if isinstance(i, str) else i for i in content)
         self.__post_call__()
@@ -69,8 +84,11 @@ class Element:
 
     def __post_call__(self): ...
 
+    def __getitem__(self, key: str) -> Any:
+        return self._attrs[key]
 
-@dataclass
+
+@dataclass(repr=False)
 class Text(Element):
     """一段纯文本。"""
 
@@ -80,8 +98,10 @@ class Text(Element):
     def dumps(self, strip: bool = False) -> str:
         return self.text if strip else escape(self.text)
 
+    __names__ = ("text",)
 
-@dataclass
+
+@dataclass(repr=False)
 class At(Element):
     """<at> 元素用于提及某个或某些用户。"""
 
@@ -101,8 +121,10 @@ class At(Element):
     def all(here: bool = False) -> "At":
         return At(type="here" if here else "all")
 
+    __names__ = ("id", "name", "role", "type")
 
-@dataclass
+
+@dataclass(repr=False)
 class Sharp(Element):
     """<sharp> 元素用于提及某个频道。"""
 
@@ -114,7 +136,9 @@ class Sharp(Element):
 class Link(Element):
     """<a> 元素用于显示一个链接。"""
 
-    url: str
+    href: str
+
+    __names__ = ("href",)
 
     def __post_call__(self):
         if not self._children:
@@ -128,17 +152,19 @@ class Link(Element):
     def tag(self) -> str:
         return "a"
 
-    @override
-    def attributes(self) -> str:
-        return f' href="{escape(self.url)}"'
+    @property
+    def url(self) -> str:
+        return self.href
 
 
-@dataclass
+@dataclass(repr=False)
 class Resource(Element):
     src: str
     extra: InitVar[Optional[Dict[str, Any]]] = None
     cache: Optional[bool] = None
     timeout: Optional[str] = None
+
+    __names__ = ("src",)
 
     @classmethod
     def of(
@@ -173,12 +199,14 @@ class Resource(Element):
             self._attrs.update(extra)
 
 
-@dataclass
+@dataclass(repr=False)
 class Image(Resource):
     """<img> 元素用于表示图片。"""
 
     width: Optional[int] = None
     height: Optional[int] = None
+
+    __names__ = ("src", "width", "height")
 
     @property
     @override
@@ -186,30 +214,42 @@ class Image(Resource):
         return "img"
 
 
-@dataclass
+@dataclass(repr=False)
 class Audio(Resource):
     """<audio> 元素用于表示语音。"""
 
-    pass
+    duration: Optional[int] = None
+    poster: Optional[str] = None
+
+    __names__ = ("src", "duration", "poster")
 
 
-@dataclass
+@dataclass(repr=False)
 class Video(Resource):
     """<video> 元素用于表示视频。"""
 
-    pass
+    width: Optional[int] = None
+    height: Optional[int] = None
+    duration: Optional[int] = None
+    poster: Optional[str] = None
+
+    __names__ = ("src", "width", "height", "duration", "poster")
 
 
-@dataclass
+@dataclass(repr=False)
 class File(Resource):
     """<file> 元素用于表示文件。"""
 
-    pass
+    poster: Optional[str] = None
+
+    __names__ = ("src", "poster")
 
 
-@dataclass(init=False)
+@dataclass(init=False, repr=False)
 class Style(Element):
     """样式元素的基类。"""
+
+    __names__ = ()
 
     def __init__(self, *text: Union[str, Text, "Style"]):
         super().__init__()
@@ -311,12 +351,14 @@ class Paragraph(Style):
         return "p"
 
 
-@dataclass(init=False)
+@dataclass(init=False, repr=False)
 class Message(Element):
     """<message> 元素的基本用法是表示一条消息。
 
     子元素对应于消息的内容。如果其没有子元素，则消息不会被发送。
     """
+
+    __names__ = ("id", "forward")
 
     id: Optional[str]
     forward: Optional[bool]
@@ -342,16 +384,18 @@ class Quote(Message):
     pass
 
 
-@dataclass
+@dataclass(repr=False)
 class Author(Element):
     """<author> 元素用于表示消息的作者。它的子元素会被渲染为作者的名字。"""
 
     id: str
-    nickname: Optional[str] = None
+    name: Optional[str] = None
     avatar: Optional[str] = None
 
+    __names__ = ("id", "name", "avatar")
 
-@dataclass
+
+@dataclass(repr=False)
 class Button(Element):
     """<button> 元素用于表示一个按钮。它的子元素会被渲染为按钮的文本。"""
 
@@ -360,6 +404,8 @@ class Button(Element):
     href: Optional[str] = None
     text: Optional[str] = None
     theme: Optional[str] = None
+
+    __names__ = ("type", "id", "href", "text", "theme")
 
     @classmethod
     def action(cls, button_id: str, theme: Optional[str] = None):
@@ -394,11 +440,13 @@ class Button(Element):
         raise ValueError("Button can only have one Text child")
 
 
-@dataclass(init=False)
+@dataclass(init=False, repr=False)
 class Custom(Element):
     """自定义元素用于构造标准元素以外的元素"""
 
     type: str
+
+    __names__ = ()
 
     def __init__(
         self,
@@ -423,11 +471,13 @@ class Custom(Element):
         return self.type
 
 
-@dataclass
+@dataclass(repr=False)
 class Raw(Element):
     """Raw 元素表示原始文本"""
 
     content: str
+
+    __names__ = ()
 
     @override
     def dumps(self, strip: bool = False):
@@ -479,25 +529,25 @@ def transform(elements: List[RawElement]) -> List[Element]:
         tag = elem.tag()
         if tag in ELEMENT_TYPE_MAP:
             seg_cls = ELEMENT_TYPE_MAP[tag]
-            msg.append(seg_cls(**elem.attrs))
+            msg.append(seg_cls.unpack(elem.attrs))
         elif tag in ("a", "link"):
-            link = Link(elem.attrs["href"])
+            link = Link.unpack(elem.attrs)
             if elem.children:
                 link(*transform(elem.children))
             msg.append(link)
         elif tag == "button":
-            button = Button(**elem.attrs)
+            button = Button.unpack(elem.attrs)
             if elem.children:
                 button(*transform(elem.children))
         elif tag in STYLE_TYPE_MAP:
             seg_cls = STYLE_TYPE_MAP[tag]
-            msg.append(seg_cls()(*transform(elem.children)))
+            msg.append(seg_cls.unpack(elem.attrs)(*transform(elem.children)))
         elif tag in ("br", "newline"):
             msg.append(Br())
         elif tag == "message":
-            msg.append(Message(**elem.attrs)(*transform(elem.children)))
+            msg.append(Message.unpack(elem.attrs)(*transform(elem.children)))
         elif tag == "quote":
-            msg.append(Quote(**elem.attrs)(*transform(elem.children)))
+            msg.append(Quote.unpack(elem.attrs)(*transform(elem.children)))
         else:
             msg.append(Custom(elem.type, elem.attrs)(*transform(elem.children)))
     return msg
