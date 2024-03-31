@@ -13,9 +13,11 @@ print(chl)
 print(link)
 print(link1)
 
-from satori import Image
+from satori import Image, Video
 
-image = Image.of(url="https://example.com/image.png")
+image = Image.of(url="https://example.com/image.png", name="image.png")
+print(image)
+print(Video.unpack({"src": "https://example.com/video.mp4", "title": "video.mp4", "width": 123, "height": 456, "poster": "https://example.com/poster.png"}))
 
 from satori import Bold, Italic, Underline, Paragraph
 

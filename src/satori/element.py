@@ -160,11 +160,12 @@ class Link(Element):
 @dataclass(repr=False)
 class Resource(Element):
     src: str
+    title: Optional[str] = None
     extra: InitVar[Optional[Dict[str, Any]]] = None
     cache: Optional[bool] = None
     timeout: Optional[str] = None
 
-    __names__ = ("src",)
+    __names__ = ("src", "title")
 
     @classmethod
     def of(
@@ -173,9 +174,12 @@ class Resource(Element):
         path: Optional[Union[str, Path]] = None,
         raw: Optional[Union[bytes, BytesIO]] = None,
         mime: Optional[str] = None,
+        name: Optional[str] = None,
+        poster: Optional[str] = None,
         extra: Optional[Dict[str, Any]] = None,
         cache: Optional[bool] = None,
         timeout: Optional[str] = None,
+        **kwargs,
     ):
         data: Dict[str, Any] = {"extra": extra}
         if url is not None:
@@ -187,6 +191,10 @@ class Resource(Element):
             data = {"src": f"data:{mime};base64,{b64encode(bd).decode()}"}
         else:
             raise ValueError(f"{cls} need at least one of url, path and raw")
+        if name is not None:
+            data["title"] = name
+        if poster is not None and cls in (Video, Audio, File):
+            data["poster"] = poster
         if cache is not None:
             data["cache"] = cache
         if timeout is not None:
@@ -206,7 +214,7 @@ class Image(Resource):
     width: Optional[int] = None
     height: Optional[int] = None
 
-    __names__ = ("src", "width", "height")
+    __names__ = ("src", "title", "width", "height")
 
     @property
     @override
@@ -221,7 +229,7 @@ class Audio(Resource):
     duration: Optional[int] = None
     poster: Optional[str] = None
 
-    __names__ = ("src", "duration", "poster")
+    __names__ = ("src", "title", "duration", "poster")
 
 
 @dataclass(repr=False)
@@ -233,7 +241,7 @@ class Video(Resource):
     duration: Optional[int] = None
     poster: Optional[str] = None
 
-    __names__ = ("src", "width", "height", "duration", "poster")
+    __names__ = ("src", "title", "width", "height", "duration", "poster")
 
 
 @dataclass(repr=False)
@@ -242,7 +250,7 @@ class File(Resource):
 
     poster: Optional[str] = None
 
-    __names__ = ("src", "poster")
+    __names__ = ("src", "title", "poster")
 
 
 @dataclass(init=False, repr=False)

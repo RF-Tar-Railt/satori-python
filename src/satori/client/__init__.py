@@ -152,13 +152,19 @@ class App(Service):
         Callable[[Account, event.InternalEvent], Awaitable[Any]],
     ]: ...
 
-    def register_on(self, event_type: EventType):
+    @overload
+    def register_on(self, event_type: str) -> Callable[
+        [Callable[[Account, Event], Awaitable[Any]]], 
+        Callable[[Account, Event], Awaitable[Any]]
+    ]: ...
+
+    def register_on(self, event_type: str | EventType):
         def decorator(
             func: Callable[[Account, Any], Awaitable[Any]], /
         ) -> Callable[[Account, Any], Awaitable[Any]]:
             @wraps(func)
             async def wrapper(account: Account, event: Event) -> Any:
-                if event.type == event_type.value:
+                if event.type == event_type:
                     return await func(account, event)
 
             self.register(wrapper)
