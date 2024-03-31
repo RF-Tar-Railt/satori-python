@@ -153,9 +153,10 @@ class App(Service):
     ]: ...
 
     @overload
-    def register_on(self, event_type: str) -> Callable[
-        [Callable[[Account, Event], Awaitable[Any]]], 
-        Callable[[Account, Event], Awaitable[Any]]
+    def register_on(
+        self, event_type: str
+    ) -> Callable[
+        [Callable[[Account, Event], Awaitable[Any]]], Callable[[Account, Event], Awaitable[Any]]
     ]: ...
 
     def register_on(self, event_type: str | EventType):
