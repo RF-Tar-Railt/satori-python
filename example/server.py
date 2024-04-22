@@ -12,7 +12,7 @@ class ExampleProvider:
         return True
 
     async def get_logins(self):
-        return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example")]
+        return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example", user=User("1234567890"))]
 
     async def publisher(self):
         seq = 0
@@ -26,7 +26,7 @@ class ExampleProvider:
                 datetime.now(),
                 channel=Channel("345678", ChannelType.TEXT),
                 user=User("9876543210"),
-                message=MessageObject(f"msg_{seq}", "test"),
+                message=MessageObject(f"msg_{seq}", ".hitokoto"),
             )
             seq += 1
 

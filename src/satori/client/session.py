@@ -197,6 +197,12 @@ class Session:
             {"channel_id": channel_id},
         )
 
+    async def channel_mute(self, channel_id: str, duration: float = 0) -> None:
+        await self.call_api(
+            Api.CHANNEL_MUTE,
+            {"channel_id": channel_id, "duration": duration},
+        )
+
     async def user_channel_create(self, user_id: str, guild_id: str | None = None) -> Channel:
         data = {"user_id": user_id}
         if guild_id is not None:
@@ -245,6 +251,12 @@ class Session:
         await self.call_api(
             Api.GUILD_MEMBER_KICK,
             {"guild_id": guild_id, "user_id": user_id, "permanent": permanent},
+        )
+
+    async def guild_member_mute(self, guild_id: str, user_id: str, duration: float = 0) -> None:
+        await self.call_api(
+            Api.GUILD_MEMBER_MUTE,
+            {"guild_id": guild_id, "user_id": user_id, "duration": duration},
         )
 
     async def guild_member_approve(self, request_id: str, approve: bool, comment: str) -> None:
