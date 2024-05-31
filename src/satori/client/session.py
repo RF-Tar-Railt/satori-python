@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any, Iterable, List, cast
 
-import aiohttp
+from graia.amnesia.builtins.aiohttp import AiohttpClientService
+from launart import Launart
 
 from satori.const import Api
 from satori.element import Element
@@ -46,29 +47,29 @@ class Session:
             "X-Platform": self.account.platform,
             "X-Self-ID": self.account.self_id,
         }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                endpoint,
-                json=params or {},
-                headers=headers,
-            ) as resp:
-                if 200 <= resp.status < 300:
-                    return json.loads(content) if (content := await resp.text()) else {}
-                elif resp.status == 400:
-                    raise BadRequestException(await resp.text())
-                elif resp.status == 401:
-                    raise UnauthorizedException(await resp.text())
-                elif resp.status == 403:
-                    raise ForbiddenException(await resp.text())
-                elif resp.status == 404:
-                    raise NotFoundException(await resp.text())
-                elif resp.status == 405:
-                    raise MethodNotAllowedException(await resp.text())
-                elif resp.status == 500:
-                    raise ApiNotImplementedException(await resp.text())
-                else:
-                    resp.raise_for_status()
-                    return json.loads(content) if (content := await resp.text()) else {}
+        aio = Launart.current().get_component(AiohttpClientService)
+        async with aio.session.post(
+            endpoint,
+            json=params or {},
+            headers=headers,
+        ) as resp:
+            if 200 <= resp.status < 300:
+                return json.loads(content) if (content := await resp.text()) else {}
+            elif resp.status == 400:
+                raise BadRequestException(await resp.text())
+            elif resp.status == 401:
+                raise UnauthorizedException(await resp.text())
+            elif resp.status == 403:
+                raise ForbiddenException(await resp.text())
+            elif resp.status == 404:
+                raise NotFoundException(await resp.text())
+            elif resp.status == 405:
+                raise MethodNotAllowedException(await resp.text())
+            elif resp.status == 500:
+                raise ApiNotImplementedException(await resp.text())
+            else:
+                resp.raise_for_status()
+                return json.loads(content) if (content := await resp.text()) else {}
 
     async def send(
         self,
@@ -422,3 +423,7 @@ class Session:
         **kwargs,
     ) -> Any:
         return await self.call_api(f"internal/{action}", kwargs)
+
+    async def admin_login_list(self) -> list[Login]:
+        res = await self.call_api("admin/login.list")
+        return [Login.parse(i) for i in res]

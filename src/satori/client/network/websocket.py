@@ -11,7 +11,7 @@ from launart.utilles import any_completed
 from loguru import logger
 
 from satori.config import WebsocketsInfo as WebsocketsInfo
-from satori.model import LoginStatus, Opcode
+from satori.model import LoginStatus, Opcode, User
 
 from ..account import Account
 from .base import BaseNetwork
@@ -99,7 +99,9 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                     account.connected.clear()
                 account.config = self.config
             else:
-                account = Account(platform, self_id, self.config)
+                account = Account(
+                    platform, self_id, User.parse(login.get("user", {"id": self_id})), self.config
+                )
                 logger.info(f"account registered: {account}")
                 (
                     account.connected.set()

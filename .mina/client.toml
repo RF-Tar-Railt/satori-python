@@ -10,6 +10,7 @@ authors = [
 dependencies = [
     "aiohttp",
     "launart",
+    "graia-amnesia",
 ]
 description = "Satori Protocol SDK for python, specify client part"
 license = {text = "MIT"}

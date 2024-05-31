@@ -8,6 +8,7 @@ from functools import wraps
 from typing import Any, Awaitable, Callable, Iterable, Literal, TypeVar, overload
 
 from creart import it
+from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart import Launart, Service, any_completed
 from loguru import logger
 
@@ -217,6 +218,7 @@ class App(Service):
     ):
         if manager is None:
             manager = it(Launart)
+        manager.add_component(AiohttpClientService())
         manager.add_component(self)
         manager.launch_blocking(loop=loop, stop_signal=stop_signal)
 
@@ -227,6 +229,7 @@ class App(Service):
     ):
         if manager is None:
             manager = it(Launart)
+        manager.add_component(AiohttpClientService())
         manager.add_component(self)
         handled_signals: dict[signal.Signals, Any] = {}
         launch_task = asyncio.create_task(manager.launch(), name="amnesia-launch")

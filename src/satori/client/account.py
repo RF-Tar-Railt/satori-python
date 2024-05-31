@@ -6,6 +6,8 @@ from typing import TypeVar
 
 from yarl import URL
 
+from satori.model import User
+
 from .session import Session
 
 TS = TypeVar("TS", bound="Session")
@@ -28,9 +30,17 @@ class ApiInfo:
 
 
 class Account:
-    def __init__(self, platform: str, self_id: str, config: ApiInfo, session_cls: type[Session] = Session):
+    def __init__(
+        self,
+        platform: str,
+        self_id: str,
+        self_info: User,
+        config: ApiInfo,
+        session_cls: type[Session] = Session,
+    ):
         self.platform = platform
         self.self_id = self_id
+        self.self_info = self_info
         self.config = config
         self.session = session_cls(self)  # type: ignore
         self.connected = asyncio.Event()

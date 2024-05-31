@@ -156,6 +156,12 @@ class Server(Service, RouterMixin):
         finally:
             self.connections.remove(connection)
 
+    async def admin_login_list_handler(self, request: StarletteRequest):
+        logins = []
+        for provider in self.providers:
+            logins.extend(await provider.get_logins())
+        return JSONResponse(content=[lo.dump() for lo in logins])
+
     async def http_server_handler(self, request: StarletteRequest):
         if not self.routers:
             return Response(status_code=404)
@@ -187,6 +193,11 @@ class Server(Service, RouterMixin):
             app = Starlette(
                 routes=[
                     WebSocketRoute(f"{self.path}/{self.version}/events", self.websocket_server_handler),
+                    Route(
+                        f"{self.path}/{self.version}/admin/login.list",
+                        self.admin_login_list_handler,
+                        methods=["POST"],
+                    ),
                     *self.routes,
                     Route(
                         f"{self.path}/{self.version}/{{method:path}}",

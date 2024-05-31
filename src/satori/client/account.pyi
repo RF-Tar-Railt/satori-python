@@ -37,11 +37,14 @@ class ApiInfo(Api):
 class Account:
     platform: str
     self_id: str
+    self_info: User
     config: Api
     session: Session
     connected: asyncio.Event
 
-    def __init__(self, platform: str, self_id: str, config: Api, session_cls: type[Session] = Session): ...
+    def __init__(
+        self, platform: str, self_id: str, self_info: User, config: Api, session_cls: type[Session] = Session
+    ): ...
     @property
     def identity(self) -> str: ...
     @overload
@@ -199,3 +202,4 @@ class Account:
         action: str,
         **kwargs,
     ) -> Any: ...
+    async def admin_login_list(self) -> list[Login]: ...
