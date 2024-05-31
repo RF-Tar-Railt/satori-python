@@ -1,12 +1,11 @@
 import asyncio
 from datetime import datetime
-from typing import Any
 
 from launart import Launart
 
-from satori import Channel, ChannelType, Event, Text, User
+from satori import Api, Channel, ChannelType, Event, User
 from satori.model import Login, LoginStatus, MessageObject
-from satori.server import Adapter, Request
+from satori.server import Adapter, Request, route
 
 
 class ExampleAdapter(Adapter):
@@ -30,12 +29,12 @@ class ExampleAdapter(Adapter):
     async def get_logins(self):
         return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example")]
 
-    async def call_api(self, req: Request) -> Any:
-        print(req)  # noqa: T201
-        return MessageObject.from_elements("1234", [Text("example")]).dump()
+    def __init__(self):
+        super().__init__()
 
-    async def call_internal_api(self, request: Request[dict]) -> Any:
-        return "example"
+        @self.route(Api.MESSAGE_CREATE)
+        async def _(request: Request[route.MessageParam]):
+            return [MessageObject("1234", request.params["content"])]
 
     async def publisher(self):
         seq = 0

@@ -4,7 +4,20 @@ from typing import Any, Iterable, Protocol, TypeVar, overload
 from yarl import URL
 
 from satori.element import Element
-from satori.model import Channel, Event, Guild, Login, Member, MessageObject, PageResult, Role, User
+from satori.model import (
+    Channel,
+    Direction,
+    Event,
+    Guild,
+    Login,
+    Member,
+    MessageObject,
+    Order,
+    PageDequeResult,
+    PageResult,
+    Role,
+    User,
+)
 
 from .session import Session
 
@@ -100,8 +113,13 @@ class Account:
         content: str,
     ) -> None: ...
     async def message_list(
-        self, *, channel_id: str, next_token: str | None = None
-    ) -> PageResult[MessageObject]: ...
+        self,
+        channel_id: str,
+        next_token: str | None = None,
+        direction: Direction = "before",
+        limit: int = 50,
+        order: Order = "asc",
+    ) -> PageDequeResult[MessageObject]: ...
     async def channel_get(self, *, channel_id: str) -> Channel: ...
     async def channel_list(self, *, guild_id: str, next_token: str | None = None) -> PageResult[Channel]: ...
     async def channel_create(self, *, guild_id: str, data: Channel) -> Channel: ...

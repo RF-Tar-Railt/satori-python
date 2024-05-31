@@ -6,6 +6,8 @@ from typing import Any, AsyncIterator, Generic, Protocol, TypeVar, Union, runtim
 from satori.const import Api
 from satori.model import Event, Login
 
+from .route import RouteCall
+
 JsonType = Union[list, dict, str, int, bool, float, None]
 TA = TypeVar("TA", str, Api)
 TP = TypeVar("TP")
@@ -29,8 +31,6 @@ class Provider(Protocol):
 
 @runtime_checkable
 class Router(Protocol):
+    routes: dict[str, RouteCall[Any, Any]]
+
     def validate_headers(self, headers: dict[str, Any]) -> bool: ...
-
-    async def call_api(self, request: Request[Any]) -> Any: ...
-
-    async def call_internal_api(self, request: Request[Any]) -> Any: ...

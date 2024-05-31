@@ -1,7 +1,8 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import IntEnum
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Literal, Optional, TypeVar
+from typing_extensions import TypeAlias
 
 from .element import Element, transform
 from .parser import parse
@@ -93,7 +94,6 @@ class User(ModelBase):
 class Member(ModelBase):
     user: Optional[User] = None
     nick: Optional[str] = None
-    name: Optional[str] = None
     avatar: Optional[str] = None
     joined_at: Optional[datetime] = None
 
@@ -102,6 +102,8 @@ class Member(ModelBase):
         data = raw.copy()
         if "user" in raw:
             data["user"] = User.parse(raw["user"])
+        if "name" in raw:
+            data["nick"] = data.pop("name")
         if "joined_at" in raw:
             data["joined_at"] = datetime.fromtimestamp(int(raw["joined_at"]) / 1000)
         return cls(**data)
@@ -110,8 +112,8 @@ class Member(ModelBase):
         res = {}
         if self.user:
             res["user"] = self.user.dump()
-        if self.nick or self.name:
-            res["nick"] = self.nick or self.name
+        if self.nick:
+            res["nick"] = self.nick
         if self.avatar:
             res["avatar"] = self.avatar
         if self.joined_at:
@@ -149,6 +151,8 @@ class Login(ModelBase):
     user: Optional[User] = None
     self_id: Optional[str] = None
     platform: Optional[str] = None
+    features: List[str] = field(default_factory=list)
+    proxy_urls: List[str] = field(default_factory=list)
 
     @classmethod
     def parse(cls, raw: dict):
@@ -159,7 +163,11 @@ class Login(ModelBase):
         return cls(**data)
 
     def dump(self):
-        res: Dict[str, Any] = {"status": self.status.value}
+        res: Dict[str, Any] = {
+            "status": self.status.value,
+            "features": self.features,
+            "proxy_urls": self.proxy_urls,
+        }
         if self.user:
             res["user"] = self.user.dump()
         if self.self_id:
@@ -380,8 +388,8 @@ class PageResult(ModelBase, Generic[T]):
     next: Optional[str] = None
 
     @classmethod
-    def parse(cls, raw: dict, parser: Callable[[dict], T]) -> "PageResult[T]":
-        data = [parser(item) for item in raw["data"]]
+    def parse(cls, raw: dict, parser: Optional[Callable[[dict], T]] = None) -> "PageResult[T]":
+        data = [(parser or ModelBase.parse)(item) for item in raw["data"]]
         return cls(data, raw.get("next"))
 
     def dump(self):
@@ -389,3 +397,25 @@ class PageResult(ModelBase, Generic[T]):
         if self.next:
             res["next"] = self.next
         return res
+
+
+@dataclass
+class PageDequeResult(PageResult[T]):
+    prev: Optional[str] = None
+
+    @classmethod
+    def parse(cls, raw: dict, parser: Optional[Callable[[dict], T]] = None) -> "PageDequeResult[T]":
+        data = [(parser or ModelBase.parse)(item) for item in raw["data"]]
+        return cls(data, raw.get("next"), raw.get("prev"))
+
+    def dump(self):
+        res: dict = {"data": [item.dump() for item in self.data]}
+        if self.next:
+            res["next"] = self.next
+        if self.prev:
+            res["prev"] = self.prev
+        return res
+
+
+Direction: TypeAlias = Literal["before", "after", "around"]
+Order: TypeAlias = Literal["asc", "desc"]

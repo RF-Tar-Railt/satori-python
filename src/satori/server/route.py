@@ -1,19 +1,34 @@
-from typing import Any, Awaitable, Dict, List, Protocol, TypeVar, Union
+from abc import ABCMeta, abstractmethod
+from typing import Any, Awaitable, Callable, Dict, List, Literal, Protocol, TypeVar, Union, overload
 from typing_extensions import NotRequired, TypeAlias, TypedDict
 
-from satori.model import Channel, Guild, Login, Member, MessageObject, ModelBase, PageResult, Role, User
+from satori.model import (
+    Channel,
+    Direction,
+    Guild,
+    Login,
+    Member,
+    MessageObject,
+    ModelBase,
+    Order,
+    PageDequeResult,
+    PageResult,
+    Role,
+    User,
+)
 
+from .. import Api
 from .model import Request
 
 T = TypeVar("T")
 R = TypeVar("R", covariant=True)
 
 
-class Router(Protocol[T, R]):
+class RouteCall(Protocol[T, R]):
     def __call__(self, request: Request[T]) -> Awaitable[R]: ...
 
 
-INTERAL: TypeAlias = Router[
+INTERAL: TypeAlias = RouteCall[
     Any, Union[ModelBase, List[ModelBase], Dict[str, Any], List[Dict[str, Any]], None]
 ]
 
@@ -23,9 +38,9 @@ class MessageParam(TypedDict):
     content: str
 
 
-MESSAGE_CREATE: TypeAlias = Router[MessageParam, Union[List[MessageObject], List[Dict[str, Any]]]]
-MESSAGE_GET: TypeAlias = Router[MessageParam, Union[MessageObject, Dict[str, Any]]]
-MESSAGE_DELETE: TypeAlias = Router[MessageParam, None]
+MESSAGE_CREATE: TypeAlias = RouteCall[MessageParam, Union[List[MessageObject], List[Dict[str, Any]]]]
+MESSAGE_GET: TypeAlias = RouteCall[MessageParam, Union[MessageObject, Dict[str, Any]]]
+MESSAGE_DELETE: TypeAlias = RouteCall[MessageParam, None]
 
 
 class MessageUpdateParam(TypedDict):
@@ -34,23 +49,26 @@ class MessageUpdateParam(TypedDict):
     content: str
 
 
-MESSAGE_UPDATE: TypeAlias = Router[MessageUpdateParam, None]
+MESSAGE_UPDATE: TypeAlias = RouteCall[MessageUpdateParam, None]
 
 
 class MessageListParam(TypedDict):
     channel_id: str
     next: NotRequired[str]
+    direction: NotRequired[Direction]
+    limit: NotRequired[int]
+    order: NotRequired[Order]
 
 
-MESSAGE_LIST: TypeAlias = Router[MessageListParam, Union[PageResult[MessageObject], Dict[str, Any]]]
+MESSAGE_LIST: TypeAlias = RouteCall[MessageListParam, Union[PageDequeResult[MessageObject], Dict[str, Any]]]
 
 
 class ChannelParam(TypedDict):
     channel_id: str
 
 
-CHANNEL_GET: TypeAlias = Router[ChannelParam, Union[Channel, Dict[str, Any]]]
-CHANNEL_DELETE: TypeAlias = Router[ChannelParam, None]
+CHANNEL_GET: TypeAlias = RouteCall[ChannelParam, Union[Channel, Dict[str, Any]]]
+CHANNEL_DELETE: TypeAlias = RouteCall[ChannelParam, None]
 
 
 class ChannelListParam(TypedDict):
@@ -58,7 +76,7 @@ class ChannelListParam(TypedDict):
     next: NotRequired[str]
 
 
-CHANNEL_LIST: TypeAlias = Router[ChannelListParam, Union[PageResult[Channel], Dict[str, Any]]]
+CHANNEL_LIST: TypeAlias = RouteCall[ChannelListParam, Union[PageResult[Channel], Dict[str, Any]]]
 
 
 class ChanneCreateParam(TypedDict):
@@ -66,7 +84,7 @@ class ChanneCreateParam(TypedDict):
     data: dict
 
 
-CHANNEL_CREATE: TypeAlias = Router[ChanneCreateParam, Union[Channel, Dict[str, Any]]]
+CHANNEL_CREATE: TypeAlias = RouteCall[ChanneCreateParam, Union[Channel, Dict[str, Any]]]
 
 
 class ChanneUpdateParam(TypedDict):
@@ -74,7 +92,7 @@ class ChanneUpdateParam(TypedDict):
     data: dict
 
 
-CHANNEL_UPDATE: TypeAlias = Router[ChanneUpdateParam, None]
+CHANNEL_UPDATE: TypeAlias = RouteCall[ChanneUpdateParam, None]
 
 
 class ChannelMuteParam(TypedDict):
@@ -82,7 +100,7 @@ class ChannelMuteParam(TypedDict):
     duration: float
 
 
-CHANNEL_MUTE: TypeAlias = Router[ChannelMuteParam, None]
+CHANNEL_MUTE: TypeAlias = RouteCall[ChannelMuteParam, None]
 
 
 class UserChannelCreateParam(TypedDict):
@@ -90,21 +108,21 @@ class UserChannelCreateParam(TypedDict):
     guild_id: NotRequired[str]
 
 
-ROUTE_USER_CHANNEL_CREATE: TypeAlias = Router[UserChannelCreateParam, Union[Channel, Dict[str, Any]]]
+ROUTE_USER_CHANNEL_CREATE: TypeAlias = RouteCall[UserChannelCreateParam, Union[Channel, Dict[str, Any]]]
 
 
 class GuildGetParam(TypedDict):
     guild_id: str
 
 
-GUILD_GET: TypeAlias = Router[GuildGetParam, Union[Guild, Dict[str, Any]]]
+GUILD_GET: TypeAlias = RouteCall[GuildGetParam, Union[Guild, Dict[str, Any]]]
 
 
 class GuildListParam(TypedDict):
     next: NotRequired[str]
 
 
-GUILD_LIST: TypeAlias = Router[GuildListParam, Union[PageResult[Guild], Dict[str, Any]]]
+GUILD_LIST: TypeAlias = RouteCall[GuildListParam, Union[PageResult[Guild], Dict[str, Any]]]
 
 
 class GuildMemberGetParam(TypedDict):
@@ -112,7 +130,7 @@ class GuildMemberGetParam(TypedDict):
     user_id: str
 
 
-GUILD_MEMBER_GET: TypeAlias = Router[GuildMemberGetParam, Union[Member, Dict[str, Any]]]
+GUILD_MEMBER_GET: TypeAlias = RouteCall[GuildMemberGetParam, Union[Member, Dict[str, Any]]]
 
 
 class GuildXXXListParam(TypedDict):
@@ -120,7 +138,7 @@ class GuildXXXListParam(TypedDict):
     next: NotRequired[str]
 
 
-GUILD_MEMBER_LIST: TypeAlias = Router[GuildXXXListParam, Union[PageResult[Member], Dict[str, Any]]]
+GUILD_MEMBER_LIST: TypeAlias = RouteCall[GuildXXXListParam, Union[PageResult[Member], Dict[str, Any]]]
 
 
 class GuildMemberKickParam(TypedDict):
@@ -129,7 +147,7 @@ class GuildMemberKickParam(TypedDict):
     permanent: NotRequired[bool]
 
 
-GUILD_MEMBER_KICK: TypeAlias = Router[GuildMemberKickParam, None]
+GUILD_MEMBER_KICK: TypeAlias = RouteCall[GuildMemberKickParam, None]
 
 
 class GuildMemberMuteParam(TypedDict):
@@ -138,7 +156,7 @@ class GuildMemberMuteParam(TypedDict):
     duration: float
 
 
-GUILD_MEMBER_MUTE: TypeAlias = Router[GuildMemberMuteParam, None]
+GUILD_MEMBER_MUTE: TypeAlias = RouteCall[GuildMemberMuteParam, None]
 
 
 class GuildMemberRoleParam(TypedDict):
@@ -147,10 +165,10 @@ class GuildMemberRoleParam(TypedDict):
     role_id: str
 
 
-GUILD_MEMBER_ROLE_SET: TypeAlias = Router[GuildMemberRoleParam, None]
-GUILD_MEMBER_ROLE_UNSET: TypeAlias = Router[GuildMemberRoleParam, None]
+GUILD_MEMBER_ROLE_SET: TypeAlias = RouteCall[GuildMemberRoleParam, None]
+GUILD_MEMBER_ROLE_UNSET: TypeAlias = RouteCall[GuildMemberRoleParam, None]
 
-GUILD_ROLE_LIST: TypeAlias = Router[GuildXXXListParam, Union[PageResult[Role], Dict[str, Any]]]
+GUILD_ROLE_LIST: TypeAlias = RouteCall[GuildXXXListParam, Union[PageResult[Role], Dict[str, Any]]]
 
 
 class GuildRoleCreateParam(TypedDict):
@@ -158,7 +176,7 @@ class GuildRoleCreateParam(TypedDict):
     role: dict
 
 
-GUILD_ROLE_CREATE: TypeAlias = Router[GuildRoleCreateParam, Union[Role, Dict[str, Any]]]
+GUILD_ROLE_CREATE: TypeAlias = RouteCall[GuildRoleCreateParam, Union[Role, Dict[str, Any]]]
 
 
 class GuildRoleUpdateParam(TypedDict):
@@ -167,7 +185,7 @@ class GuildRoleUpdateParam(TypedDict):
     role: dict
 
 
-GUILD_ROLE_UPDATE: TypeAlias = Router[GuildRoleUpdateParam, None]
+GUILD_ROLE_UPDATE: TypeAlias = RouteCall[GuildRoleUpdateParam, None]
 
 
 class GuildRoleDeleteParam(TypedDict):
@@ -175,7 +193,7 @@ class GuildRoleDeleteParam(TypedDict):
     role_id: str
 
 
-GUILD_ROLE_DELETE: TypeAlias = Router[GuildRoleDeleteParam, None]
+GUILD_ROLE_DELETE: TypeAlias = RouteCall[GuildRoleDeleteParam, None]
 
 
 class ReactionCreateParam(TypedDict):
@@ -184,7 +202,7 @@ class ReactionCreateParam(TypedDict):
     emoji: str
 
 
-REACTION_CREATE: TypeAlias = Router[ReactionCreateParam, None]
+REACTION_CREATE: TypeAlias = RouteCall[ReactionCreateParam, None]
 
 
 class ReactionDeleteParam(TypedDict):
@@ -194,7 +212,7 @@ class ReactionDeleteParam(TypedDict):
     user_id: NotRequired[str]
 
 
-REACTION_DELETE: TypeAlias = Router[ReactionDeleteParam, None]
+REACTION_DELETE: TypeAlias = RouteCall[ReactionDeleteParam, None]
 
 
 class ReactionClearParam(TypedDict):
@@ -203,7 +221,7 @@ class ReactionClearParam(TypedDict):
     emoji: NotRequired[str]
 
 
-REACTION_CLEAR: TypeAlias = Router[ReactionClearParam, None]
+REACTION_CLEAR: TypeAlias = RouteCall[ReactionClearParam, None]
 
 
 class ReactionListParam(TypedDict):
@@ -213,22 +231,22 @@ class ReactionListParam(TypedDict):
     next: NotRequired[str]
 
 
-REACTION_LIST: TypeAlias = Router[ReactionListParam, Union[PageResult[User], Dict[str, Any]]]
-LOGIN_GET: TypeAlias = Router[Any, Union[Login, Dict[str, Any]]]
+REACTION_LIST: TypeAlias = RouteCall[ReactionListParam, Union[PageResult[User], Dict[str, Any]]]
+LOGIN_GET: TypeAlias = RouteCall[Any, Union[Login, Dict[str, Any]]]
 
 
 class UserGetParam(TypedDict):
     user_id: str
 
 
-USER_GET: TypeAlias = Router[UserGetParam, Union[User, Dict[str, Any]]]
+USER_GET: TypeAlias = RouteCall[UserGetParam, Union[User, Dict[str, Any]]]
 
 
 class FriendListParam(TypedDict):
     next: NotRequired[str]
 
 
-FRIEND_LIST: TypeAlias = Router[FriendListParam, Union[PageResult[User], Dict[str, Any]]]
+FRIEND_LIST: TypeAlias = RouteCall[FriendListParam, Union[PageResult[User], Dict[str, Any]]]
 
 
 class ApproveParam(TypedDict):
@@ -237,4 +255,142 @@ class ApproveParam(TypedDict):
     comment: str
 
 
-APPROVE: TypeAlias = Router[ApproveParam, None]
+APPROVE: TypeAlias = RouteCall[ApproveParam, None]
+
+
+class RouterMixin(metaclass=ABCMeta):
+    @overload
+    def route(self, path: Literal[Api.MESSAGE_CREATE]) -> Callable[[MESSAGE_CREATE], MESSAGE_CREATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.MESSAGE_UPDATE]) -> Callable[[MESSAGE_UPDATE], MESSAGE_UPDATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.MESSAGE_GET]) -> Callable[[MESSAGE_GET], MESSAGE_GET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.MESSAGE_DELETE]) -> Callable[[MESSAGE_DELETE], MESSAGE_DELETE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.MESSAGE_LIST]) -> Callable[[MESSAGE_LIST], MESSAGE_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_GET]) -> Callable[[CHANNEL_GET], CHANNEL_GET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_LIST]) -> Callable[[CHANNEL_LIST], CHANNEL_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_CREATE]) -> Callable[[CHANNEL_CREATE], CHANNEL_CREATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_UPDATE]) -> Callable[[CHANNEL_UPDATE], CHANNEL_UPDATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_DELETE]) -> Callable[[CHANNEL_DELETE], CHANNEL_DELETE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.CHANNEL_MUTE]) -> Callable[[CHANNEL_MUTE], CHANNEL_MUTE]: ...
+
+    @overload
+    def route(
+        self, path: Literal[Api.USER_CHANNEL_CREATE]
+    ) -> Callable[[ROUTE_USER_CHANNEL_CREATE], ROUTE_USER_CHANNEL_CREATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_GET]) -> Callable[[GUILD_GET], GUILD_GET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_LIST]) -> Callable[[GUILD_LIST], GUILD_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_APPROVE]) -> Callable[[APPROVE], APPROVE]: ...
+
+    @overload
+    def route(
+        self, path: Literal[Api.GUILD_MEMBER_LIST]
+    ) -> Callable[[GUILD_MEMBER_LIST], GUILD_MEMBER_LIST]: ...
+
+    @overload
+    def route(
+        self, path: Literal[Api.GUILD_MEMBER_GET]
+    ) -> Callable[[GUILD_MEMBER_GET], GUILD_MEMBER_GET]: ...
+
+    @overload
+    def route(
+        self, path: Literal[Api.GUILD_MEMBER_KICK]
+    ) -> Callable[[GUILD_MEMBER_KICK], GUILD_MEMBER_KICK]: ...
+
+    @overload
+    def route(
+        self, path: Literal[Api.GUILD_MEMBER_MUTE]
+    ) -> Callable[[GUILD_MEMBER_MUTE], GUILD_MEMBER_MUTE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_MEMBER_APPROVE]) -> Callable[[APPROVE], APPROVE]: ...
+
+    @overload
+    def route(
+        self, path: Literal[Api.GUILD_MEMBER_ROLE_SET]
+    ) -> Callable[[GUILD_MEMBER_ROLE_SET], GUILD_MEMBER_ROLE_SET]: ...
+
+    @overload
+    def route(
+        self, path: Literal[Api.GUILD_MEMBER_ROLE_UNSET]
+    ) -> Callable[[GUILD_MEMBER_ROLE_UNSET], GUILD_MEMBER_ROLE_UNSET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.GUILD_ROLE_LIST]) -> Callable[[GUILD_ROLE_LIST], GUILD_ROLE_LIST]: ...
+
+    @overload
+    def route(
+        self, path: Literal[Api.GUILD_ROLE_CREATE]
+    ) -> Callable[[GUILD_ROLE_CREATE], GUILD_ROLE_CREATE]: ...
+
+    @overload
+    def route(
+        self, path: Literal[Api.GUILD_ROLE_UPDATE]
+    ) -> Callable[[GUILD_ROLE_UPDATE], GUILD_ROLE_UPDATE]: ...
+
+    @overload
+    def route(
+        self, path: Literal[Api.GUILD_ROLE_DELETE]
+    ) -> Callable[[GUILD_ROLE_DELETE], GUILD_ROLE_DELETE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.REACTION_CREATE]) -> Callable[[REACTION_CREATE], REACTION_CREATE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.REACTION_DELETE]) -> Callable[[REACTION_DELETE], REACTION_DELETE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.REACTION_CLEAR]) -> Callable[[REACTION_CLEAR], REACTION_CLEAR]: ...
+
+    @overload
+    def route(self, path: Literal[Api.REACTION_LIST]) -> Callable[[REACTION_LIST], REACTION_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.LOGIN_GET]) -> Callable[[LOGIN_GET], LOGIN_GET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.USER_GET]) -> Callable[[USER_GET], USER_GET]: ...
+
+    @overload
+    def route(self, path: Literal[Api.FRIEND_LIST]) -> Callable[[FRIEND_LIST], FRIEND_LIST]: ...
+
+    @overload
+    def route(self, path: Literal[Api.FRIEND_APPROVE]) -> Callable[[APPROVE], APPROVE]: ...
+
+    @overload
+    def route(self, path: str) -> Callable[[INTERAL], INTERAL]: ...
+
+    def route(self, path: Union[str, Api]) -> Callable[[RouteCall], RouteCall]:
+        """注册一个路由
+
+        Args:
+            path (str | Api): 路由路径；若 path 不属于 Api，则会被认为是内部接口
+        """
+        return self._route(path)
+
+    @abstractmethod
+    def _route(self, path: Union[str, Api]) -> Callable[[RouteCall], RouteCall]: ...

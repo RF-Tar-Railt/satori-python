@@ -15,7 +15,20 @@ from satori.exception import (
     NotFoundException,
     UnauthorizedException,
 )
-from satori.model import Channel, Event, Guild, Login, Member, MessageObject, PageResult, Role, User
+from satori.model import (
+    Channel,
+    Direction,
+    Event,
+    Guild,
+    Login,
+    Member,
+    MessageObject,
+    Order,
+    PageDequeResult,
+    PageResult,
+    Role,
+    User,
+)
 
 if TYPE_CHECKING:
     from .account import Account
@@ -153,12 +166,27 @@ class Session:
             {"channel_id": channel_id, "message_id": message_id, "content": content},
         )
 
-    async def message_list(self, channel_id: str, next_token: str | None = None) -> PageResult[MessageObject]:
+    async def message_list(
+        self,
+        channel_id: str,
+        next_token: str | None = None,
+        direction: Direction = "before",
+        limit: int = 50,
+        order: Order = "asc",
+    ) -> PageDequeResult[MessageObject]:
+        if not next_token and direction != "before":
+            raise ValueError("Invalid direction")
         res = await self.call_api(
             Api.MESSAGE_LIST,
-            {"channel_id": channel_id, "next": next_token},
+            {
+                "channel_id": channel_id,
+                "next": next_token,
+                "direction": direction,
+                "limit": limit,
+                "order": order,
+            },
         )
-        return PageResult.parse(res, MessageObject.parse)
+        return PageDequeResult.parse(res, MessageObject.parse)
 
     async def channel_get(self, channel_id: str) -> Channel:
         res = await self.call_api(
