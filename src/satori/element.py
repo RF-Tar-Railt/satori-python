@@ -19,12 +19,16 @@ class Element:
     __names__: ClassVar[Tuple[str, ...]]
 
     @property
+    def children(self) -> List["Element"]:
+        return self._children
+
+    @property
     def tag(self) -> str:
         return self.__class__.__name__.lower()
 
     @classmethod
     def unpack(cls, attrs: Dict[str, Any]):
-        obj = cls(**{k: v for k, v in attrs.items() if k in cls.__names__})
+        obj = cls(**{k: v for k, v in attrs.items() if k in cls.__names__})  # type: ignore
         obj._attrs.update({k: v for k, v in attrs.items() if k not in cls.__names__})
         return obj
 
@@ -132,7 +136,7 @@ class Sharp(Element):
     name: Optional[str] = None
 
 
-@dataclass
+@dataclass(repr=False)
 class Link(Element):
     """<a> 元素用于显示一个链接。"""
 
@@ -163,7 +167,7 @@ class Resource(Element):
     title: Optional[str] = None
     extra: InitVar[Optional[Dict[str, Any]]] = None
     cache: Optional[bool] = None
-    timeout: Optional[str] = None
+    timeout: Optional[int] = None
 
     __names__ = ("src", "title")
 
@@ -178,7 +182,7 @@ class Resource(Element):
         poster: Optional[str] = None,
         extra: Optional[Dict[str, Any]] = None,
         cache: Optional[bool] = None,
-        timeout: Optional[str] = None,
+        timeout: Optional[int] = None,
         **kwargs,
     ):
         data: Dict[str, Any] = {"extra": extra}
@@ -537,7 +541,7 @@ def transform(elements: List[RawElement]) -> List[Element]:
         tag = elem.tag()
         if tag in ELEMENT_TYPE_MAP:
             seg_cls = ELEMENT_TYPE_MAP[tag]
-            msg.append(seg_cls.unpack(elem.attrs))
+            msg.append(seg_cls.unpack(elem.attrs)(*transform(elem.children)))
         elif tag in ("a", "link"):
             link = Link.unpack(elem.attrs)
             if elem.children:
@@ -547,6 +551,7 @@ def transform(elements: List[RawElement]) -> List[Element]:
             button = Button.unpack(elem.attrs)
             if elem.children:
                 button(*transform(elem.children))
+            msg.append(button)
         elif tag in STYLE_TYPE_MAP:
             seg_cls = STYLE_TYPE_MAP[tag]
             msg.append(seg_cls.unpack(elem.attrs)(*transform(elem.children)))

@@ -26,10 +26,12 @@ from satori.model import Event, ModelBase, Opcode
 
 from .adapter import Adapter as Adapter
 from .conection import WebsocketConnection
-from .model import Provider
+from .model import Provider as Provider
 from .model import Request as Request
-from .model import Router
-from .route import INTERAL, RouteCall, RouterMixin
+from .model import Router as Router
+from .route import INTERAL
+from .route import RouteCall as RouteCall
+from .route import RouterMixin as RouterMixin
 
 
 class Server(Service, RouterMixin):
@@ -164,12 +166,12 @@ class Server(Service, RouterMixin):
 
     async def http_server_handler(self, request: StarletteRequest):
         if not self.routers:
-            return Response(status_code=404)
+            return Response(status_code=404, content=request.path_params["method"])
         for _router in self.routers:
             if _router.validate_headers(cast(dict, request.headers.mutablecopy())):
                 method = request.path_params["method"]
                 if method not in _router.routes:
-                    return Response(status_code=404)
+                    return Response(status_code=404, content=method)
                 res = await _router.routes[method](
                     Request(
                         cast(dict, request.headers.mutablecopy()),
@@ -182,7 +184,7 @@ class Server(Service, RouterMixin):
                 if res and isinstance(res, list) and isinstance(res[0], ModelBase):
                     return JSONResponse(content=[_.dump() for _ in res])
                 return res if isinstance(res, Response) else JSONResponse(content=res)
-        return Response(status_code=401)
+        return Response(status_code=401, content=request.path_params["method"])
 
     async def launch(self, manager: Launart):
         for _adapter in self._adapters:

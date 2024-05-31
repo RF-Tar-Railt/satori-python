@@ -28,10 +28,10 @@ class Adapter(Service, RouterMixin):
 
     def _route(self, path: Union[str, Api]) -> Callable[[RouteCall], RouteCall]:
         def wrapper(func: RouteCall):
-            if isinstance(path, str):
-                self.routes[f"internal/{path}"] = func
+            if isinstance(path, Api):
+                self.routes[path.value] = func
             else:
-                self.routes[str(path.value)] = func
+                self.routes[f"internal/{path}"] = func
             return func
 
         return wrapper

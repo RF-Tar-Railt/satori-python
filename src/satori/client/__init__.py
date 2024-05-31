@@ -34,7 +34,7 @@ MAPPING: dict[type[Config], type[BaseNetwork]] = {
 
 class App(Service):
     id = "satori-python.client"
-    required: set[str] = set()
+    required: set[str] = {"http.client/aiohttp"}
     stages: set[str] = {"preparing", "blocking", "cleanup"}
 
     accounts: dict[str, Account]

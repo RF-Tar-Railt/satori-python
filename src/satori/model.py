@@ -1,17 +1,28 @@
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from enum import IntEnum
-from typing import Any, Callable, Dict, Generic, List, Literal, Optional, TypeVar
+from typing import Any, Callable, ClassVar, Dict, Generic, List, Literal, Optional, TypeVar
 from typing_extensions import TypeAlias
 
 from .element import Element, transform
 from .parser import parse
 
 
+@dataclass
 class ModelBase:
+    __converter__: ClassVar[Dict[str, Callable[[Any], Any]]] = {}
+
     @classmethod
     def parse(cls, raw: dict):
-        raise NotImplementedError
+        fs = fields(cls)
+        data = {}
+        for fd in fs:
+            if fd.name in raw:
+                if fd.name in cls.__converter__:
+                    data[fd.name] = cls.__converter__[fd.name](raw[fd.name])
+                else:
+                    data[fd.name] = raw[fd.name]
+        return cls(**data)  # type: ignore
 
     def dump(self) -> dict:
         raise NotImplementedError
@@ -31,11 +42,7 @@ class Channel(ModelBase):
     name: Optional[str] = None
     parent_id: Optional[str] = None
 
-    @classmethod
-    def parse(cls, raw: dict):
-        data = raw.copy()
-        data["type"] = ChannelType(raw["type"])
-        return cls(**data)
+    __converter__ = {"type": ChannelType}
 
     def dump(self):
         res = {"id": self.id, "type": self.type.value}
@@ -51,10 +58,6 @@ class Guild(ModelBase):
     id: str
     name: Optional[str] = None
     avatar: Optional[str] = None
-
-    @classmethod
-    def parse(cls, raw: dict):
-        return cls(**raw)
 
     def dump(self):
         res = {"id": self.id}
@@ -72,10 +75,6 @@ class User(ModelBase):
     nick: Optional[str] = None
     avatar: Optional[str] = None
     is_bot: Optional[bool] = None
-
-    @classmethod
-    def parse(cls, raw: dict):
-        return cls(**raw)
 
     def dump(self):
         res: Dict[str, Any] = {"id": self.id}
@@ -97,16 +96,7 @@ class Member(ModelBase):
     avatar: Optional[str] = None
     joined_at: Optional[datetime] = None
 
-    @classmethod
-    def parse(cls, raw: dict):
-        data = raw.copy()
-        if "user" in raw:
-            data["user"] = User.parse(raw["user"])
-        if "name" in raw:
-            data["nick"] = data.pop("name")
-        if "joined_at" in raw:
-            data["joined_at"] = datetime.fromtimestamp(int(raw["joined_at"]) / 1000)
-        return cls(**data)
+    __converter__ = {"user": User.parse, "joined_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000)}
 
     def dump(self):
         res = {}
@@ -125,10 +115,6 @@ class Member(ModelBase):
 class Role(ModelBase):
     id: str
     name: Optional[str] = None
-
-    @classmethod
-    def parse(cls, raw: dict):
-        return cls(**raw)
 
     def dump(self):
         res = {"id": self.id}
@@ -154,13 +140,7 @@ class Login(ModelBase):
     features: List[str] = field(default_factory=list)
     proxy_urls: List[str] = field(default_factory=list)
 
-    @classmethod
-    def parse(cls, raw: dict):
-        data = raw.copy()
-        if "user" in raw:
-            data["user"] = User(**raw["user"])
-        data["status"] = LoginStatus(data["status"])
-        return cls(**data)
+    __converter__ = {"user": User.parse, "status": LoginStatus}
 
     def dump(self):
         res: Dict[str, Any] = {
@@ -183,10 +163,6 @@ class ArgvInteraction(ModelBase):
     arguments: list
     options: Any
 
-    @classmethod
-    def parse(cls, raw: dict):
-        return cls(**raw)
-
     def dump(self):
         return asdict(self)
 
@@ -194,10 +170,6 @@ class ArgvInteraction(ModelBase):
 @dataclass
 class ButtonInteraction(ModelBase):
     id: str
-
-    @classmethod
-    def parse(cls, raw: dict):
-        return cls(**raw)
 
     def dump(self):
         return asdict(self)
@@ -251,25 +223,14 @@ class MessageObject(ModelBase):
     def message(self) -> List[Element]:
         return transform(parse(self.content))
 
-    @classmethod
-    def parse(cls, raw: dict):
-        data = {
-            "id": raw["id"],
-            "content": raw["content"],
-        }
-        if "channel" in raw:
-            data["channel"] = Channel.parse(raw["channel"])
-        if "guild" in raw:
-            data["guild"] = Guild.parse(raw["guild"])
-        if "member" in raw:
-            data["member"] = Member.parse(raw["member"])
-        if "user" in raw:
-            data["user"] = User.parse(raw["user"])
-        if "created_at" in raw:
-            data["created_at"] = datetime.fromtimestamp(int(raw["created_at"]) / 1000)
-        if "updated_at" in raw:
-            data["updated_at"] = datetime.fromtimestamp(int(raw["updated_at"]) / 1000)
-        return cls(**data)
+    __converter__ = {
+        "channel": Channel.parse,
+        "guild": Guild.parse,
+        "member": Member.parse,
+        "user": User.parse,
+        "created_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000),
+        "updated_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000),
+    }
 
     def dump(self):
         res: Dict[str, Any] = {"id": self.id, "content": self.content}
@@ -289,7 +250,7 @@ class MessageObject(ModelBase):
 
 
 @dataclass
-class Event:
+class Event(ModelBase):
     id: int
     type: str
     platform: str
@@ -309,40 +270,19 @@ class Event:
     _type: Optional[str] = None
     _data: Optional[dict] = None
 
-    @classmethod
-    def parse(cls, raw: dict):
-        data = {
-            "id": raw["id"],
-            "type": raw["type"],
-            "platform": raw["platform"],
-            "self_id": raw["self_id"],
-            "timestamp": datetime.fromtimestamp(int(raw["timestamp"]) / 1000),
-        }
-        if "argv" in raw:
-            data["argv"] = ArgvInteraction.parse(raw["argv"])
-        if "button" in raw:
-            data["button"] = ButtonInteraction.parse(raw["button"])
-        if "channel" in raw:
-            data["channel"] = Channel.parse(raw["channel"])
-        if "guild" in raw:
-            data["guild"] = Guild.parse(raw["guild"])
-        if "login" in raw:
-            data["login"] = Login.parse(raw["login"])
-        if "member" in raw:
-            data["member"] = Member.parse(raw["member"])
-        if "message" in raw:
-            data["message"] = MessageObject.parse(raw["message"])
-        if "operator" in raw:
-            data["operator"] = User.parse(raw["operator"])
-        if "role" in raw:
-            data["role"] = Role.parse(raw["role"])
-        if "user" in raw:
-            data["user"] = User.parse(raw["user"])
-        if "_type" in raw:
-            data["_type"] = raw["_type"]
-        if "_data" in raw:
-            data["_data"] = raw["_data"]
-        return cls(**data)
+    __converter__ = {
+        "timestamp": lambda ts: datetime.fromtimestamp(int(ts) / 1000),
+        "argv": ArgvInteraction.parse,
+        "button": ButtonInteraction.parse,
+        "channel": Channel.parse,
+        "guild": Guild.parse,
+        "login": Login.parse,
+        "member": Member.parse,
+        "message": MessageObject.parse,
+        "operator": User.parse,
+        "role": Role.parse,
+        "user": User.parse,
+    }
 
     def dump(self):
         res = {

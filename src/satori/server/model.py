@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Generic, Protocol, TypeVar, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, AsyncIterator, Generic, Protocol, TypeVar, Union, runtime_checkable
 
 from satori.const import Api
 from satori.model import Event, Login
 
-from .route import RouteCall
+if TYPE_CHECKING:
+    from .route import RouteCall
 
 JsonType = Union[list, dict, str, int, bool, float, None]
 TA = TypeVar("TA", str, Api)
