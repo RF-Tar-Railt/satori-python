@@ -21,9 +21,14 @@ jobs:
         with:
           python-version: '3.x'
           architecture: 'x64'
-      - name: Ensure PDM & twine
+
+      - name: Ensure PDM
         run: |
-          python3 -m pip install pdm pdm-mina mina-build
+          python3 -m pip install pdm
+
+      - name: Install Dependencies
+        run: |
+          pdm sync -G:all --no-isolation
 
       - name: Build Package
         run: |
