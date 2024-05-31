@@ -37,13 +37,13 @@ class ApiInfo(Api):
 class Account:
     platform: str
     self_id: str
-    self_info: User
+    self_info: Login
     config: Api
     session: Session
     connected: asyncio.Event
 
     def __init__(
-        self, platform: str, self_id: str, self_info: User, config: Api, session_cls: type[Session] = Session
+        self, platform: str, self_id: str, self_info: Login, config: Api, session_cls: type[Session] = Session
     ): ...
     @property
     def identity(self) -> str: ...

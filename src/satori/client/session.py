@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any, Iterable, List, cast
 
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
@@ -8,14 +7,6 @@ from launart import Launart
 
 from satori.const import Api
 from satori.element import Element
-from satori.exception import (
-    ApiNotImplementedException,
-    BadRequestException,
-    ForbiddenException,
-    MethodNotAllowedException,
-    NotFoundException,
-    UnauthorizedException,
-)
 from satori.model import (
     Channel,
     Direction,
@@ -30,6 +21,8 @@ from satori.model import (
     Role,
     User,
 )
+
+from .network.util import validate_response
 
 if TYPE_CHECKING:
     from .account import Account
@@ -53,23 +46,7 @@ class Session:
             json=params or {},
             headers=headers,
         ) as resp:
-            if 200 <= resp.status < 300:
-                return json.loads(content) if (content := await resp.text()) else {}
-            elif resp.status == 400:
-                raise BadRequestException(await resp.text())
-            elif resp.status == 401:
-                raise UnauthorizedException(await resp.text())
-            elif resp.status == 403:
-                raise ForbiddenException(await resp.text())
-            elif resp.status == 404:
-                raise NotFoundException(await resp.text())
-            elif resp.status == 405:
-                raise MethodNotAllowedException(await resp.text())
-            elif resp.status == 500:
-                raise ApiNotImplementedException(await resp.text())
-            else:
-                resp.raise_for_status()
-                return json.loads(content) if (content := await resp.text()) else {}
+            return await validate_response(resp)
 
     async def send(
         self,

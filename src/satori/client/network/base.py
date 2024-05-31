@@ -43,6 +43,6 @@ class BaseNetwork(Generic[TConfig], Service):
                 logger.warning(f"Failed to parse event: {raw}\nCaused by {e!r}")
             else:
                 self.sequence = event.id
-                await self.app.post(event)
+                await self.app.post(event, self)
 
         return asyncio.create_task(event_parse_task(body))

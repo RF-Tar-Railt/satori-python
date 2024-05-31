@@ -3,15 +3,17 @@ from __future__ import annotations
 import asyncio
 
 from aiohttp import web
+from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart.manager import Launart
 from launart.utilles import any_completed
 from loguru import logger
 
 from satori.config import WebhookInfo as WebhookInfo
-from satori.model import LoginStatus, Opcode, User
+from satori.model import Login, LoginStatus, Opcode
 
 from ..account import Account
 from .base import BaseNetwork
+from .util import validate_response
 
 
 class WebhookNetwork(BaseNetwork[WebhookInfo]):
@@ -40,12 +42,21 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
             account.connected.set()
             account.config = self.config
         else:
-            account = Account(platform, self_id, User(self_id), self.config)
+            assert self.manager
+            aio = self.manager.get_component(AiohttpClientService)
+            async with aio.session.post(self.config.api_base / "admin/login.list") as resp:
+                logins = [Login.parse(i) for i in await validate_response(resp)]
+            login = next(
+                (i for i in logins if i.self_id == self_id and i.platform == platform),
+                Login(LoginStatus.CONNECT, self_id=self_id, platform=platform),
+            )
+            account = Account(platform, self_id, login, self.config)
             logger.info(f"account registered: {account}")
             account.connected.set()
             self.app.accounts[identity] = account
             self.accounts[identity] = account
             await self.app.account_update(account, LoginStatus.ONLINE)
+            await self.app.account_update(account, LoginStatus.CONNECT)
         data = await req.json()
         op = data["op"]
         if op != Opcode.EVENT:

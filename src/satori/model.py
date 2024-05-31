@@ -5,6 +5,7 @@ from typing import Any, Callable, ClassVar, Dict, Generic, List, Literal, Option
 from typing_extensions import TypeAlias
 
 from .element import Element, transform
+from .parser import Element as RawElement
 from .parser import parse
 
 
@@ -222,6 +223,13 @@ class MessageObject(ModelBase):
     @property
     def message(self) -> List[Element]:
         return transform(parse(self.content))
+
+    @classmethod
+    def parse(cls, raw: dict):
+        if "elements" in raw and "content" not in raw:
+            content = [RawElement(*item.values()) for item in raw["elements"]]
+            raw["content"] = "".join(str(i) for i in content)
+        return super().parse(raw)
 
     __converter__ = {
         "channel": Channel.parse,

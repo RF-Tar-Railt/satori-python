@@ -6,7 +6,7 @@ from typing import TypeVar
 
 from yarl import URL
 
-from satori.model import User
+from satori.model import Login
 
 from .session import Session
 
@@ -34,7 +34,7 @@ class Account:
         self,
         platform: str,
         self_id: str,
-        self_info: User,
+        self_info: Login,
         config: ApiInfo,
         session_cls: type[Session] = Session,
     ):

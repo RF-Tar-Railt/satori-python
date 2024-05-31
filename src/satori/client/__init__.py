@@ -5,14 +5,14 @@ import functools
 import signal
 import threading
 from functools import wraps
-from typing import Any, Awaitable, Callable, Iterable, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterable, Literal, TypeVar, overload
 
 from creart import it
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart import Launart, Service, any_completed
 from loguru import logger
 
-from satori import event
+from satori import event as events
 from satori.config import Config, WebhookInfo, WebsocketsInfo
 from satori.const import EventType
 from satori.model import Event, LoginStatus
@@ -70,8 +70,8 @@ class App(Service):
 
     @overload
     def register_on(self, event_type: Literal[EventType.FRIEND_REQUEST]) -> Callable[
-        [Callable[[Account, event.UserEvent], Awaitable[Any]]],
-        Callable[[Account, event.UserEvent], Awaitable[Any]],
+        [Callable[[Account, events.UserEvent], Awaitable[Any]]],
+        Callable[[Account, events.UserEvent], Awaitable[Any]],
     ]: ...
 
     @overload
@@ -81,8 +81,8 @@ class App(Service):
             EventType.GUILD_ADDED, EventType.GUILD_REMOVED, EventType.GUILD_REQUEST, EventType.GUILD_UPDATED
         ],
     ) -> Callable[
-        [Callable[[Account, event.GuildEvent], Awaitable[Any]]],
-        Callable[[Account, event.GuildEvent], Awaitable[Any]],
+        [Callable[[Account, events.GuildEvent], Awaitable[Any]]],
+        Callable[[Account, events.GuildEvent], Awaitable[Any]],
     ]: ...
 
     @overload
@@ -95,8 +95,8 @@ class App(Service):
             EventType.GUILD_MEMBER_REQUEST,
         ],
     ) -> Callable[
-        [Callable[[Account, event.GuildMemberEvent], Awaitable[Any]]],
-        Callable[[Account, event.GuildMemberEvent], Awaitable[Any]],
+        [Callable[[Account, events.GuildMemberEvent], Awaitable[Any]]],
+        Callable[[Account, events.GuildMemberEvent], Awaitable[Any]],
     ]: ...
 
     @overload
@@ -106,16 +106,16 @@ class App(Service):
             EventType.GUILD_ROLE_CREATED, EventType.GUILD_ROLE_DELETED, EventType.GUILD_ROLE_UPDATED
         ],
     ) -> Callable[
-        [Callable[[Account, event.GuildRoleEvent], Awaitable[Any]]],
-        Callable[[Account, event.GuildRoleEvent], Awaitable[Any]],
+        [Callable[[Account, events.GuildRoleEvent], Awaitable[Any]]],
+        Callable[[Account, events.GuildRoleEvent], Awaitable[Any]],
     ]: ...
 
     @overload
     def register_on(
         self, event_type: Literal[EventType.LOGIN_ADDED, EventType.LOGIN_REMOVED, EventType.LOGIN_UPDATED]
     ) -> Callable[
-        [Callable[[Account, event.LoginEvent], Awaitable[Any]]],
-        Callable[[Account, event.LoginEvent], Awaitable[Any]],
+        [Callable[[Account, events.LoginEvent], Awaitable[Any]]],
+        Callable[[Account, events.LoginEvent], Awaitable[Any]],
     ]: ...
 
     @overload
@@ -123,34 +123,34 @@ class App(Service):
         self,
         event_type: Literal[EventType.MESSAGE_CREATED, EventType.MESSAGE_DELETED, EventType.MESSAGE_UPDATED],
     ) -> Callable[
-        [Callable[[Account, event.MessageEvent], Awaitable[Any]]],
-        Callable[[Account, event.MessageEvent], Awaitable[Any]],
+        [Callable[[Account, events.MessageEvent], Awaitable[Any]]],
+        Callable[[Account, events.MessageEvent], Awaitable[Any]],
     ]: ...
 
     @overload
     def register_on(
         self, event_type: Literal[EventType.REACTION_ADDED, EventType.REACTION_REMOVED]
     ) -> Callable[
-        [Callable[[Account, event.ReactionEvent], Awaitable[Any]]],
-        Callable[[Account, event.ReactionEvent], Awaitable[Any]],
+        [Callable[[Account, events.ReactionEvent], Awaitable[Any]]],
+        Callable[[Account, events.ReactionEvent], Awaitable[Any]],
     ]: ...
 
     @overload
     def register_on(self, event_type: Literal[EventType.INTERACTION_BUTTON]) -> Callable[
-        [Callable[[Account, event.ButtonInteractionEvent], Awaitable[Any]]],
-        Callable[[Account, event.ButtonInteractionEvent], Awaitable[Any]],
+        [Callable[[Account, events.ButtonInteractionEvent], Awaitable[Any]]],
+        Callable[[Account, events.ButtonInteractionEvent], Awaitable[Any]],
     ]: ...
 
     @overload
     def register_on(self, event_type: Literal[EventType.INTERACTION_COMMAND]) -> Callable[
-        [Callable[[Account, event.ArgvInteractionEvent | event.MessageEvent], Awaitable[Any]]],
-        Callable[[Account, event.ArgvInteractionEvent | event.MessageEvent], Awaitable[Any]],
+        [Callable[[Account, events.ArgvInteractionEvent | events.MessageEvent], Awaitable[Any]]],
+        Callable[[Account, events.ArgvInteractionEvent | events.MessageEvent], Awaitable[Any]],
     ]: ...
 
     @overload
     def register_on(self, event_type: Literal[EventType.INTERNAL]) -> Callable[
-        [Callable[[Account, event.InternalEvent], Awaitable[Any]]],
-        Callable[[Account, event.InternalEvent], Awaitable[Any]],
+        [Callable[[Account, events.InternalEvent], Awaitable[Any]]],
+        Callable[[Account, events.InternalEvent], Awaitable[Any]],
     ]: ...
 
     @overload
@@ -181,15 +181,55 @@ class App(Service):
         if self.lifecycle_callbacks:
             await asyncio.gather(*(callback(account, state) for callback in self.lifecycle_callbacks))
 
-    async def post(self, event: Event):
+    async def post(self, event: Event, conn: BaseNetwork):
         if not self.event_callbacks:
             return
         identity = f"{event.platform}/{event.self_id}"
         if identity not in self.accounts:
-            logger.warning(f"Received event for unknown account: {event}")
-            return
-        account = self.accounts[identity]
+            if event.type == EventType.LOGIN_ADDED:
+                if TYPE_CHECKING:
+                    assert isinstance(event, events.LoginEvent)
+                account = Account(
+                    event.platform,
+                    event.self_id,
+                    event.login,
+                    conn.config,
+                )
+                logger.info(f"account added: {account}")
+                (
+                    account.connected.set()
+                    if event.login.status == LoginStatus.ONLINE
+                    else account.connected.clear()
+                )
+                self.accounts[identity] = account
+                conn.accounts[identity] = account
+                await self.account_update(account, LoginStatus.ONLINE)
+                await self.account_update(account, LoginStatus.CONNECT)
+            else:
+                logger.warning(f"Received event for unknown account: {event}")
+                return
+        else:
+            account = self.accounts[identity]
+        if event.type == EventType.LOGIN_UPDATED:
+            if TYPE_CHECKING:
+                assert isinstance(event, events.LoginEvent)
+            logger.info(f"account updated: {account}")
+            (
+                account.connected.set()
+                if event.login.status in (LoginStatus.ONLINE, LoginStatus.CONNECT)
+                else account.connected.clear()
+            )
+
         await asyncio.gather(*(callback(account, event) for callback in self.event_callbacks))
+
+        if event.type == EventType.LOGIN_REMOVED:
+            if TYPE_CHECKING:
+                assert isinstance(event, events.LoginEvent)
+            logger.info(f"account removed: {account}")
+            account.connected.clear()
+            await self.account_update(account, LoginStatus.DISCONNECT)
+            del self.accounts[identity]
+            del conn.accounts[identity]
 
     async def launch(self, manager: Launart):
         for conn in self.connections:
