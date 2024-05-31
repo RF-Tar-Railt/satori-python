@@ -24,7 +24,7 @@ jobs:
 
       - name: Ensure PDM
         run: |
-          python3 -m pip install pdm
+          python3 -m pip install pdm==2.13.2
 
       - name: Install Dependencies
         run: |
