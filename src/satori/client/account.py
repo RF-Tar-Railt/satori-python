@@ -8,7 +8,7 @@ from yarl import URL
 
 from satori.model import Login
 
-from .session import Session
+from .protocol import Protocol
 
 TS = TypeVar("TS", bound="Session")
 
@@ -36,7 +36,7 @@ class Account:
         self_id: str,
         self_info: Login,
         config: ApiInfo,
-        session_cls: type[Session] = Session,
+        session_cls: type[Protocol] = Protocol,
     ):
         self.platform = platform
         self.self_id = self_id
@@ -45,7 +45,7 @@ class Account:
         self.session = session_cls(self)  # type: ignore
         self.connected = asyncio.Event()
 
-    def custom(self, config: ApiInfo | None = None, session_cls: type[TS] = Session, **kwargs) -> TS:
+    def custom(self, config: ApiInfo | None = None, session_cls: type[TS] = Protocol, **kwargs) -> TS:
         return Account(self.platform, self.self_id, config or ApiInfo(**kwargs), session_cls).session  # type: ignore
 
     @property

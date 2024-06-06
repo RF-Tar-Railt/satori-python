@@ -11,6 +11,12 @@ class ExampleProvider:
     def authenticate(self, token: str) -> bool:
         return True
 
+    def proxy_urls(self):
+        return []
+
+    async def download(self, url: str) -> bytes:
+        raise NotImplementedError
+
     async def get_logins(self):
         return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example", user=User("1234567890"))]
 

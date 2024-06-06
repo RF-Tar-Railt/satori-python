@@ -1,4 +1,5 @@
 import json
+from typing import Literal, overload
 
 from aiohttp import ClientResponse
 
@@ -12,7 +13,15 @@ from satori.exception import (
 )
 
 
-async def validate_response(resp: ClientResponse):
+@overload
+async def validate_response(resp: ClientResponse) -> dict: ...
+
+
+@overload
+async def validate_response(resp: ClientResponse, noreturn: Literal[True]) -> None: ...
+
+
+async def validate_response(resp: ClientResponse, noreturn=False):
     if 200 <= resp.status < 300:
         return json.loads(content) if (content := await resp.text()) else {}
     elif resp.status == 400:
@@ -29,4 +38,6 @@ async def validate_response(resp: ClientResponse):
         raise ApiNotImplementedException(await resp.text())
     else:
         resp.raise_for_status()
+        if not noreturn:
+            return
         return json.loads(content) if (content := await resp.text()) else {}

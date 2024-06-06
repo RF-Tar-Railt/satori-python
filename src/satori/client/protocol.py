@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, List, cast
+from typing import TYPE_CHECKING, Any, Iterable, cast, overload
 
+from aiohttp import FormData
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart import Launart
-
 from satori.const import Api
 from satori.element import Element
 from satori.model import (
@@ -19,6 +19,7 @@ from satori.model import (
     PageDequeResult,
     PageResult,
     Role,
+    Upload,
     User,
 )
 
@@ -28,11 +29,18 @@ if TYPE_CHECKING:
     from .account import Account
 
 
-class Session:
+class Protocol:
     def __init__(self, account: Account):
         self.account = account
 
-    async def call_api(self, action: str | Api, params: dict | None = None) -> dict:
+    async def download(self, url: str):
+        endpoint = self.account.config.api_base / "proxy" / url.lstrip("/")
+        aio = Launart.current().get_component(AiohttpClientService)
+        async with aio.session.get(endpoint) as resp:
+            await validate_response(resp, noreturn=True)
+            return await resp.read()
+
+    async def call_api(self, action: str | Api, params: dict | None = None, multipart: bool = False) -> dict:
         endpoint = self.account.config.api_base / (action.value if isinstance(action, Api) else action)
         headers = {
             "Content-Type": "application/json",
@@ -41,6 +49,22 @@ class Session:
             "X-Self-ID": self.account.self_id,
         }
         aio = Launart.current().get_component(AiohttpClientService)
+        if multipart:
+            data = FormData(quote_fields=False)
+            if params is None:
+                raise TypeError("multipart requires params")
+            headers.pop("Content-Type")
+            for k, v in params.items():
+                if isinstance(v, dict):
+                    data.add_field(k, v["value"], filename=v.get("filename"), content_type=v["content_type"])
+                else:
+                    data.add_field(k, v)
+            async with aio.session.post(
+                endpoint,
+                data=data,
+                headers=headers,
+            ) as resp:
+                return await validate_response(resp)
         async with aio.session.post(
             endpoint,
             json=params or {},
@@ -117,7 +141,7 @@ class Session:
             Api.MESSAGE_CREATE,
             {"channel_id": channel_id, "content": content},
         )
-        res = cast(List[dict], res)
+        res = cast("list[dict]", res)
         return [MessageObject.parse(i) for i in res]
 
     async def message_get(self, channel_id: str, message_id: str) -> MessageObject:
@@ -404,3 +428,26 @@ class Session:
     async def admin_login_list(self) -> list[Login]:
         res = await self.call_api("admin/login.list")
         return [Login.parse(i) for i in res]
+
+    @overload
+    async def upload_create(self, *uploads: Upload) -> list[str]: ...
+
+    @overload
+    async def upload_create(self, **uploads: Upload) -> dict[str, str]: ...
+
+    async def upload_create(self, *args: Upload, **kwargs: Upload):
+        if args and kwargs:
+            raise RuntimeError("upload can't accept both args and kwargs")
+        if args:
+            ids = []
+            for upload in args:
+                ids.append(str(id(upload)))
+            resp = await self.call_api(
+                Api.UPLOAD_CREATE, {name: upload.dump() for name, upload in zip(ids, args)}, multipart=True
+            )
+            return list(resp.values())
+        return await self.call_api(
+            Api.UPLOAD_CREATE, {k: upload.dump() for k, upload in kwargs.items()}, multipart=True
+        )
+
+    upload = upload_create

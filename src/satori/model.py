@@ -1,7 +1,10 @@
+import mimetypes
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from enum import IntEnum
-from typing import Any, Callable, ClassVar, Dict, Generic, List, Literal, Optional, TypeVar
+from os import PathLike
+from pathlib import Path
+from typing import IO, Any, Callable, ClassVar, Dict, Generic, List, Literal, Optional, TypeVar, Union
 from typing_extensions import TypeAlias
 
 from .element import Element, transform
@@ -367,3 +370,23 @@ class PageDequeResult(PageResult[T]):
 
 Direction: TypeAlias = Literal["before", "after", "around"]
 Order: TypeAlias = Literal["asc", "desc"]
+
+
+@dataclass
+class Upload:
+    file: Union[bytes, IO[bytes], PathLike]
+    mimetype: str = "image/png"
+    name: Optional[str] = None
+
+    def __post_init__(self):
+        if isinstance(self.file, PathLike):
+            self.mimetype = mimetypes.guess_type(str(self.file))[0] or self.mimetype
+            self.name = Path(self.file).name
+
+    def dump(self):
+        file = self.file
+
+        if isinstance(file, PathLike):
+            file = open(file, "rb")
+
+        return {"value": file, "filename": self.name, "content_type": self.mimetype}

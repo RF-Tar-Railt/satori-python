@@ -2,6 +2,8 @@ from abc import ABCMeta, abstractmethod
 from typing import Any, Awaitable, Callable, Dict, List, Literal, Protocol, TypeVar, Union, overload
 from typing_extensions import NotRequired, TypeAlias, TypedDict
 
+from starlette.datastructures import FormData
+
 from satori.model import (
     Channel,
     Direction,
@@ -258,6 +260,9 @@ class ApproveParam(TypedDict):
 APPROVE: TypeAlias = RouteCall[ApproveParam, None]
 
 
+UPLOAD_CREATE: TypeAlias = RouteCall[FormData, Dict[str, str]]
+
+
 class RouterMixin(metaclass=ABCMeta):
     @overload
     def route(self, path: Literal[Api.MESSAGE_CREATE]) -> Callable[[MESSAGE_CREATE], MESSAGE_CREATE]: ...
@@ -380,6 +385,9 @@ class RouterMixin(metaclass=ABCMeta):
 
     @overload
     def route(self, path: Literal[Api.FRIEND_APPROVE]) -> Callable[[APPROVE], APPROVE]: ...
+
+    @overload
+    def route(self, path: Literal[Api.UPLOAD_CREATE]) -> Callable[[UPLOAD_CREATE], UPLOAD_CREATE]: ...
 
     @overload
     def route(self, path: str) -> Callable[[INTERAL], INTERAL]: ...

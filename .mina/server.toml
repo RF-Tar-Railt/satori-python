@@ -13,6 +13,7 @@ dependencies = [
     "graia-amnesia",
     "starlette",
     "uvicorn[standard]",
+    "python-multipart",
 ]
 description = "Satori Protocol SDK for python, specify server part"
 license = {text = "MIT"}

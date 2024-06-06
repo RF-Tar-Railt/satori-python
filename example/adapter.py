@@ -9,6 +9,9 @@ from satori.server import Adapter, Request, route
 
 
 class ExampleAdapter(Adapter):
+    async def download(self, url: str) -> bytes:
+        raise NotImplementedError
+
     @property
     def required(self):
         return set()

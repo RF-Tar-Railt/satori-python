@@ -44,6 +44,8 @@ class Api(str, Enum):
     FRIEND_LIST = "friend.list"
     FRIEND_APPROVE = "friend.approve"
 
+    UPLOAD_CREATE = "upload.create"
+
 
 class EventType(str, Enum):
     FRIEND_REQUEST = "friend-request"

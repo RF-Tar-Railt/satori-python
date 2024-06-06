@@ -16,10 +16,11 @@ from satori.model import (
     PageDequeResult,
     PageResult,
     Role,
+    Upload,
     User,
 )
 
-from .session import Session
+from .protocol import Protocol
 
 TS = TypeVar("TS", bound="Session")
 
@@ -39,19 +40,19 @@ class Account:
     self_id: str
     self_info: Login
     config: Api
-    session: Session
+    session: Protocol
     connected: asyncio.Event
 
     def __init__(
-        self, platform: str, self_id: str, self_info: Login, config: Api, session_cls: type[Session] = Session
+        self, platform: str, self_id: str, self_info: Login, config: Api, session_cls: type[Protocol] = Protocol
     ): ...
     @property
     def identity(self) -> str: ...
     @overload
-    def custom(self, config: Api, session_cls: type[TS] = Session) -> TS: ...
+    def custom(self, config: Api, session_cls: type[TS] = Protocol) -> TS: ...
     @overload
     def custom(
-        self, *, session_cls: type[TS] = Session, host: str, port: int, token: str | None = None
+        self, *, session_cls: type[TS] = Protocol, host: str, port: int, token: str | None = None
     ) -> TS: ...
     async def send(
         self,
@@ -203,3 +204,9 @@ class Account:
         **kwargs,
     ) -> Any: ...
     async def admin_login_list(self) -> list[Login]: ...
+    @overload
+    async def upload_create(self, *uploads: Upload) -> list[str]: ...
+    @overload
+    async def upload_create(self, **uploads: Upload) -> dict[str, str]: ...
+
+    upload = upload_create

@@ -23,6 +23,12 @@ class Adapter(Service, RouterMixin):
     @abstractmethod
     def authenticate(self, token: str) -> bool: ...
 
+    def proxy_urls(self) -> List[str]:
+        return []
+
+    @abstractmethod
+    async def download(self, url: str) -> bytes: ...
+
     @abstractmethod
     async def get_logins(self) -> List[Login]: ...
 

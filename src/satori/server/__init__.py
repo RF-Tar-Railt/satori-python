@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import mimetypes
+import secrets
 import signal
 import threading
+import urllib.parse
 from contextlib import suppress
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from traceback import print_exc
 from typing import Any, Callable, Iterable, cast
-
+from urllib.parse import unquote
 import aiohttp
 from creart import it
 from graia.amnesia.builtins.asgi import UvicornASGIService
@@ -26,6 +31,7 @@ from satori.model import Event, ModelBase, Opcode
 
 from .adapter import Adapter as Adapter
 from .conection import WebsocketConnection
+from .formdata import parse_content_disposition
 from .model import Provider as Provider
 from .model import Request as Request
 from .model import Router as Router
@@ -63,9 +69,10 @@ class Server(Service, RouterMixin):
         self._adapters = []
         self.providers = []
         self.routers = []
-        self.routes = []
+        self.routes = {}
         self.webhooks = webhooks or []
         self.session = aiohttp.ClientSession()
+        self._tempdir = TemporaryDirectory()
         super().__init__()
 
     def apply(self, item: Provider | Router | Adapter):
@@ -103,13 +110,24 @@ class Server(Service, RouterMixin):
                 return res if isinstance(res, Response) else JSONResponse(content=res)
 
             if isinstance(path, Api):
-                self.routes.append(
-                    Route(f"{self.path}/{self.version}/{path.value}", handler, methods=["POST"])
-                )
+                if path == Api.UPLOAD_CREATE:
+
+                    async def upload_create_handler(request: StarletteRequest):
+                        async with request.form() as form:
+                            res = await func(
+                                Request(
+                                    cast(dict, request.headers.mutablecopy()),
+                                    str(path),
+                                    form,
+                                )
+                            )
+                            return JSONResponse(content=res)
+
+                    self.routes[f"{self.path}/{self.version}/{path.value}"] = upload_create_handler
+                else:
+                    self.routes[f"{self.path}/{self.version}/{path.value}"] = handler
             else:
-                self.routes.append(
-                    Route(f"{self.path}/{self.version}/internal/{path}", handler, methods=["POST"])
-                )
+                self.routes[f"{self.path}/{self.version}/internal/{path}"] = handler
             return func
 
         return wrapper
@@ -186,9 +204,79 @@ class Server(Service, RouterMixin):
                 return res if isinstance(res, Response) else JSONResponse(content=res)
         return Response(status_code=401, content=request.path_params["method"])
 
+    async def proxy_url_handler(self, request: StarletteRequest):
+        url = request.path_params["upload_url"]
+        try:
+            return Response(content=await self.download(url))
+        except Exception as e:
+            return Response(status_code=404, content=str(e))
+
+    async def download(self, url: str):
+        pr = urllib.parse.urlparse(
+            url.replace(":/", "://", 1)
+            .replace(":///", "://", 1)
+        )
+        if pr.scheme == "upload":
+            if pr.netloc == "temp":
+                _, inst, filename = pr.path.split("/")
+                if inst == f"{self.id}:{id(self)}":
+                    file = Path(self._tempdir.name) / filename
+                    if file.exists():
+                        return file.read_bytes()
+                raise FileNotFoundError(f"{filename} not found")
+            # return await self.download(url)
+        for provider in self.providers:
+            for proxy_url_pf in provider.proxy_urls():
+                if url.startswith(proxy_url_pf):
+                    return await provider.download(url)
+        async with self.session.get(url) as resp:
+            return await resp.read()
+
+    def get_local_file(self, url: str):
+        url = url.split("/")[-1]
+        file = Path(self._tempdir.name) / url
+        if file.exists():
+            return file.read_bytes()
+
+    async def _temp_upload_handler(self, request: StarletteRequest):
+        filename = request.path_params["filename"]
+        file = Path(self._tempdir.name) / filename
+        if file.exists():
+            return Response(content=file.read_bytes())
+        return Response(status_code=404, content=f"{filename} not found")
+
+    async def _default_upload_create_handler(self, request: StarletteRequest):
+        async with request.form() as form:
+            res = {}
+            root = Path(self._tempdir.name)
+            for _, data in form.items():
+                if isinstance(data, str):
+                    continue
+                ext = data.headers["content-type"]
+                disp = parse_content_disposition(data.headers["content-disposition"])
+                fid = secrets.token_urlsafe(16)
+                if "filename" in disp:
+                    filename = f"{fid}-{disp['filename']}"
+                else:
+                    filename = f"{fid}-{disp['name']}{mimetypes.guess_extension(ext) or '.png'}"
+                file = root / filename
+                with file.resolve().open("wb+") as f:
+                    f.write(await data.read())
+
+                res[disp["name"]] = f"upload://temp/{self.id}:{id(self)}/{filename}"
+
+                loop = asyncio.get_running_loop()
+                loop.call_later(600, file.unlink, True)
+            return JSONResponse(content=res)
+
     async def launch(self, manager: Launart):
         for _adapter in self._adapters:
             manager.add_component(_adapter)
+
+        if Api.UPLOAD_CREATE.value not in self.routes and not self.routers:
+            self.routes[f"{self.path}/{self.version}/{Api.UPLOAD_CREATE.value}"] = (
+                self._default_upload_create_handler
+            )
 
         async with self.stage("preparing"):
             asgi_service = manager.get_component(UvicornASGIService)
@@ -200,7 +288,12 @@ class Server(Service, RouterMixin):
                         self.admin_login_list_handler,
                         methods=["POST"],
                     ),
-                    *self.routes,
+                    Route(
+                        f"{self.path}/{self.version}/proxy/{{upload_url:path}}",
+                        self.proxy_url_handler,
+                        methods=["GET"],
+                    ),
+                    *(Route(path, handler, methods=["POST"]) for path, handler in self.routes.items()),
                     Route(
                         f"{self.path}/{self.version}/{{method:path}}",
                         self.http_server_handler,
@@ -225,6 +318,7 @@ class Server(Service, RouterMixin):
             with suppress(KeyError):
                 del asgi_service.middleware.mounts[""]
             await self.session.close()
+            self._tempdir.cleanup()
 
     def run(
         self,

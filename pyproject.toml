@@ -11,9 +11,10 @@ dependencies = [
     "launart>=0.8.2",
     "typing-extensions>=4.7.0",
     "graia-amnesia>=0.9.0",
-    "starlette>=0.37.2",
+    "starlette[python-multipart]>=0.37.2",
     "uvicorn[standard]>=0.28.0",
     "yarl>=1.9.4",
+    "python-multipart>=0.0.9",
 ]
 requires-python = ">=3.9"
 readme = "README.md"

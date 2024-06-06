@@ -36,7 +36,10 @@ from .model import Login as Login
 from .model import LoginStatus as LoginStatus
 from .model import Member as Member
 from .model import MessageObject as MessageObject
+from .model import PageDequeResult as PageDequeResult
+from .model import PageResult as PageResult
 from .model import Role as Role
+from .model import Upload as Upload
 from .model import User as User
 
 __version__ = "0.12.0"
