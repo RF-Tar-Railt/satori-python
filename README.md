@@ -18,6 +18,10 @@
 - [Chronocat](https://chronocat.vercel.app)
 - Koishi （搭配 `@koishijs/plugin-server`）
 
+### 使用该 SDK 的框架
+
+- [`Entari`](https://github.com/ArcletProject/Entari)
+
 ## 安装
 
 安装完整体：
