@@ -192,7 +192,7 @@ class Resource(Element):
             data = {"src": Path(path).as_uri()}
         elif raw and mime:
             bd = raw.getvalue() if isinstance(raw, BytesIO) else raw
-            data = {"src": f"data:{mime};base64,{b64encode(bd).decode()}"}
+            data = {"src": f"data:{mime};base64,{b64encode(bd).decode('utf-8')}"}
         else:
             raise ValueError(f"{cls} need at least one of url, path and raw")
         if name is not None:

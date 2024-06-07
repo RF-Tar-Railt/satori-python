@@ -142,7 +142,7 @@ async def main():
 
 ## 调用接口
 
-如前所述，`Account` 对象代表了一个 Satori 平台账号，你可以通过其 `session` 属性来调用 API：
+如前所述，`Account` 对象代表了一个 Satori 平台账号，你可以通过其 `protocol` 属性来调用 API：
 
 ```python
 from satori.client import App, Account
@@ -153,23 +153,24 @@ app = App()
 @app.register
 async def listen(account: Account, event: Event):
     if event.user.id == "xxxxxx":
-        await account.session.send_message(
+        await account.protocol.send_message(
             event.channel.id,
             "Hello, world!",
         )
 ```
 
-`Account.session` 拥有现在 `satori` 支持的所有 API 方法。
+`Account.protocol` 拥有现在 `satori` 支持的所有 API 方法。
 
 ### 无连接主动发送
 
 `Account` 允许自主创建并请求 api：
 
 ```python
+from satori import Login
 from satori.client import Account, ApiInfo
 
 async def main():
-    account = Account("kook", "xxxxxxxxxxxxx", ApiInfo(token="xxxx"))
+    account = Account("kook", "xxxxxxxxxxxxx", Login(...), ApiInfo(token="xxxx"))
     await account.send_message("xxxxxxxx", "Hello, World!")
 
 ```
@@ -179,7 +180,8 @@ async def main():
 `Account` 可以临时切换 api：
 
 ```python
-from satori.client import App, Account, Session
+from satori.client import App, Account
+from satori.client.protocol import ApiProtocol
 from satori.model import Event
 
 app = App()
@@ -188,12 +190,12 @@ app = App()
 async def listen(account: Account, event: Event):
     await account.custom(host="123.456.789.012", port=5140).send(event, "Hello, World!")
 
-class MySession(Session):
+class MyProtocol(ApiProtocol):
     async def my_api(self, *args): ...
 
 @app.register
 async def listen(account: Account, event: Event):
-    await account.custom(session_cls=MySession).my_api(event, "Hello, World!")
+    await account.custom(account.config, protocol_cls=MyProtocol).my_api(event, "Hello, World!")
 ```
 
 # 服务端
@@ -252,24 +254,22 @@ route 填入的若不属于 `Api` 中的枚举值，会被视为是[内部接口
 
 route 装饰的函数的返回值既可以是 satori 中的模型，也可以是原始数据。
 
-同时，你也可以通过 `server.apply` 传入一个满足 `Router` 协议的对象:
+同时，你也可以通过 `server.apply` 传入一个满足 `Router` 协议的对象，这里推荐继承 `RouterMixin` 类来实现路由:
 
 ```python
+from satori import MessageObject
 from satori.const import Api
-from satori.server import Server, Request
+from satori.server import Server, Request, RouterMixin, route
 
 server = Server()
 
-class MyRouter:
-    def validate_headers(self, headers: dict[str, Any]) -> bool:
-        return True
-
-    async def call_api(self, request: Request[dict]):
-        if request.action == Api.MESSAGE_CREATE:
-            return [{"id": "123456789", "content": "Hello, world!"}]
-
-    async def call_internal_api(self, request: Request[Any]):
-        ...
+class MyRouter(RouterMixin):
+    def __init__(self):
+        self.routes = {}
+        
+        @self.route(Api.MESSAGE_CREATE)
+        async def on_message_create(request: Request[route.MESSAGE_CREATE]):
+            return [MessageObject(id="123456789", content="Hello, world!")]
 
 server.apply(MyRouter())
 ```
@@ -296,7 +296,8 @@ class Provider(Protocol):
 import asyncio
 from datetime import datetime
 
-from satori import Channel, ChannelType, Event, Login, LoginStatus, Server, User
+from satori import Channel, ChannelType, Event, Login, LoginStatus, User
+from satori.server import Server
 
 server = Server()
 
@@ -334,11 +335,9 @@ server.apply(Adapter(...))
 
 - `get_platform`: 返回适配器所适配的平台名称.
 - `publisher`: 用于推送平台事件.
-- `validate_headers`: 验证客户端请求的头部信息.
+- `ensure`: 验证客户端请求的`platform` 和 `self-id`.
 - `authenticate`: 验证客户端请求的身份信息 (如果平台需要)
 - `get_logins`: 获取平台上的登录信息.
-- `call_api`: 处理客户端请求的 API 调用.
-- `call_internal_api`: 处理客户端请求的内部 API 调用.
 - `launch`: 调度逻辑.
 
 ## 启动
