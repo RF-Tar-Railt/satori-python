@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Iterable, cast, overload
 from aiohttp import FormData
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart import Launart
+
 from satori.const import Api
 from satori.element import Element
 from satori.model import (
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
     from .account import Account
 
 
-class Protocol:
+class ApiProtocol:
     def __init__(self, account: Account):
         self.account = account
 

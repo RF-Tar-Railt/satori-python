@@ -20,9 +20,9 @@ from satori.model import (
     User,
 )
 
-from .protocol import Protocol
+from .protocol import ApiProtocol
 
-TS = TypeVar("TS", bound="Session")
+TP = TypeVar("TP", bound="ApiProtocol")
 
 class Api(Protocol):
     token: str | None = None
@@ -40,20 +40,25 @@ class Account:
     self_id: str
     self_info: Login
     config: Api
-    session: Protocol
+    protocol: ApiProtocol
     connected: asyncio.Event
 
     def __init__(
-        self, platform: str, self_id: str, self_info: Login, config: Api, session_cls: type[Protocol] = Protocol
+        self,
+        platform: str,
+        self_id: str,
+        self_info: Login,
+        config: Api,
+        protocol_cls: type[ApiProtocol] = ApiProtocol,
     ): ...
     @property
     def identity(self) -> str: ...
     @overload
-    def custom(self, config: Api, session_cls: type[TS] = Protocol) -> TS: ...
+    def custom(self, config: Api, protocol_cls: type[TP] = ApiProtocol) -> TP: ...
     @overload
     def custom(
-        self, *, session_cls: type[TS] = Protocol, host: str, port: int, token: str | None = None
-    ) -> TS: ...
+        self, *, protocol_cls: type[TP] = ApiProtocol, host: str, port: int, token: str | None = None
+    ) -> TP: ...
     async def send(
         self,
         event: Event,

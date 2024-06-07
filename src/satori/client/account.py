@@ -8,9 +8,9 @@ from yarl import URL
 
 from satori.model import Login
 
-from .protocol import Protocol
+from .protocol import ApiProtocol
 
-TS = TypeVar("TS", bound="Session")
+TP = TypeVar("TP", bound="ApiProtocol")
 
 
 @dataclass
@@ -36,17 +36,23 @@ class Account:
         self_id: str,
         self_info: Login,
         config: ApiInfo,
-        session_cls: type[Protocol] = Protocol,
+        protocol_cls: type[ApiProtocol] = ApiProtocol,
     ):
         self.platform = platform
         self.self_id = self_id
         self.self_info = self_info
         self.config = config
-        self.session = session_cls(self)  # type: ignore
+        self.protocol = protocol_cls(self)  # type: ignore
         self.connected = asyncio.Event()
 
-    def custom(self, config: ApiInfo | None = None, session_cls: type[TS] = Protocol, **kwargs) -> TS:
-        return Account(self.platform, self.self_id, config or ApiInfo(**kwargs), session_cls).session  # type: ignore
+    def custom(self, config: ApiInfo | None = None, protocol_cls: type[TP] = ApiProtocol, **kwargs) -> TP:
+        return Account(
+            self.platform,
+            self.self_id,
+            self.self_info,
+            config or ApiInfo(**kwargs),
+            protocol_cls,  # type: ignore
+        ).protocol
 
     @property
     def identity(self):
@@ -56,4 +62,4 @@ class Account:
         return f"<Account {self.self_id} ({self.platform})>"
 
     def __getattr__(self, item):
-        return getattr(self.session, item)
+        return getattr(self.protocol, item)

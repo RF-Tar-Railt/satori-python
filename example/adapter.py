@@ -9,7 +9,7 @@ from satori.server import Adapter, Request, route
 
 
 class ExampleAdapter(Adapter):
-    async def download(self, url: str) -> bytes:
+    async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes:
         raise NotImplementedError
 
     @property
@@ -23,8 +23,11 @@ class ExampleAdapter(Adapter):
     def get_platform(self) -> str:
         return "example"
 
-    def validate_headers(self, headers: dict) -> bool:
-        return headers["X-Platform"] == self.get_platform()
+    # def validate_headers(self, headers: dict) -> bool:
+    #     return headers["X-Platform"] == self.get_platform()
+
+    def ensure(self, platform: str, self_id: str) -> bool:
+        return platform == self.get_platform() and self_id == "1234567890"
 
     def authenticate(self, token: str) -> bool:
         return True

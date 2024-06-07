@@ -1,4 +1,3 @@
-from abc import ABCMeta, abstractmethod
 from typing import Any, Awaitable, Callable, Dict, List, Literal, Protocol, TypeVar, Union, overload
 from typing_extensions import NotRequired, TypeAlias, TypedDict
 
@@ -263,7 +262,9 @@ APPROVE: TypeAlias = RouteCall[ApproveParam, None]
 UPLOAD_CREATE: TypeAlias = RouteCall[FormData, Dict[str, str]]
 
 
-class RouterMixin(metaclass=ABCMeta):
+class RouterMixin:
+    routes: Dict[str, RouteCall[Any, Any]]
+
     @overload
     def route(self, path: Literal[Api.MESSAGE_CREATE]) -> Callable[[MESSAGE_CREATE], MESSAGE_CREATE]: ...
 
@@ -398,7 +399,12 @@ class RouterMixin(metaclass=ABCMeta):
         Args:
             path (str | Api): 路由路径；若 path 不属于 Api，则会被认为是内部接口
         """
-        return self._route(path)
 
-    @abstractmethod
-    def _route(self, path: Union[str, Api]) -> Callable[[RouteCall], RouteCall]: ...
+        def wrapper(func: RouteCall):
+            if isinstance(path, Api):
+                self.routes[path.value] = func
+            else:
+                self.routes[f"internal/{path}"] = func
+            return func
+
+        return wrapper

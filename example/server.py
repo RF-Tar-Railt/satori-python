@@ -11,10 +11,14 @@ class ExampleProvider:
     def authenticate(self, token: str) -> bool:
         return True
 
-    def proxy_urls(self):
+    @staticmethod
+    def proxy_urls():
         return []
 
-    async def download(self, url: str) -> bytes:
+    def ensure(self, platform: str, self_id: str) -> bool:
+        return platform == "example" and self_id == "1234567890"
+
+    async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes:
         raise NotImplementedError
 
     async def get_logins(self):
