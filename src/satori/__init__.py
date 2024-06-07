@@ -42,4 +42,4 @@ from .model import Role as Role
 from .model import Upload as Upload
 from .model import User as User
 
-__version__ = "0.12.0"
+__version__ = "0.13.0"
