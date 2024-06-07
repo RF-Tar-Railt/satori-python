@@ -49,14 +49,15 @@ pip install satori-python-server
 客户端：
 
 ```python
-from satori import Event, WebsocketsInfo
+from satori import EventType, WebsocketsInfo
+from satori.event import MessageEvent
 from satori.client import Account, App
 
 app = App(WebsocketsInfo(port=5140))
 
-@app.register
-async def on_message(account: Account, event: Event):
-    if event.user and event.user.id == "xxxxxxxxxxx":
+@app.register_on(EventType.MESSAGE_CREATED)
+async def on_message(account: Account, event: MessageEvent):
+    if event.user.id == "xxxxxxxxxxx":
         await account.send(event, "Hello, World!")
 
 app.run()
