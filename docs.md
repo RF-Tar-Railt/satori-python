@@ -475,3 +475,14 @@ message = Message(forward=True)(
 
 - `Custom`: 用来构造 Satori 标准外的消息元素。
 - `Raw`: 用来构造 Satori 标准外的消息元素，直接传入文本。
+
+## 特殊方法
+
+`satori-python` 提供了一个方法 `select`, 用来递归地从消息中遍历提取特定类型的元素:
+
+```python
+from satori import Quote, Author, Text, select
+
+msg = [Quote(id="12345678")(Author(id="987654321"), Text("Hello, World!")), Text("Hello, World!")]
+authors = select(msg, Author)
+```

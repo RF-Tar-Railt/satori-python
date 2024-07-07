@@ -23,6 +23,8 @@ async def validate_response(resp: ClientResponse, noreturn: Literal[True]) -> No
 
 async def validate_response(resp: ClientResponse, noreturn=False):
     if 200 <= resp.status < 300:
+        if noreturn:
+            return
         return json.loads(content) if (content := await resp.text()) else {}
     elif resp.status == 400:
         raise BadRequestException(await resp.text())
@@ -38,6 +40,3 @@ async def validate_response(resp: ClientResponse, noreturn=False):
         raise ApiNotImplementedException(await resp.text())
     else:
         resp.raise_for_status()
-        if not noreturn:
-            return
-        return json.loads(content) if (content := await resp.text()) else {}

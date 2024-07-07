@@ -2,11 +2,12 @@ from base64 import b64encode
 from dataclasses import InitVar, dataclass, field, fields
 from io import BytesIO
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, TypeVar, Union, get_args
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, TypeVar, Union, get_args, overload
 from typing_extensions import override
 
 from .parser import Element as RawElement
 from .parser import escape, param_case
+from .parser import select as select_raw
 
 TE = TypeVar("TE", bound="Element")
 
@@ -566,6 +567,32 @@ def transform(elements: List[RawElement]) -> List[Element]:
     return msg
 
 
+@overload
+def select(elements: Union[Element, List[Element]], query: Type[TE]) -> List[TE]: ...
+
+
+@overload
+def select(elements: Union[Element, List[Element]], query: str) -> List[Element]: ...
+
+
+def select(elements: Union[Element, List[Element]], query: Union[Type[TE], str]):
+    if not elements:
+        return []
+    if isinstance(elements, Element):
+        elements = [elements]
+    if isinstance(query, str):
+        return transform(select_raw("".join(map(str, elements)), query))
+    if query is Element:
+        return elements
+    results = []
+    for elem in elements:
+        if isinstance(elem, query):
+            results.append(elem)
+        if elem.children:
+            results.extend(select(elem.children, query))
+    return results
+
+
 class E:
     text = Text
     at = At
@@ -597,6 +624,8 @@ class E:
     action_button = Button.action
     link_button = Button.link
     input_button = Button.input
+
+    select = select
 
     def __new__(cls, *args, **kwargs):
         raise TypeError("E is not instantiable")

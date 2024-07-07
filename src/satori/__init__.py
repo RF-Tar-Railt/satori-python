@@ -25,6 +25,7 @@ from .element import Superscript as Superscript
 from .element import Text as Text
 from .element import Underline as Underline
 from .element import Video as Video
+from .element import select as select
 from .element import transform as transform
 from .model import ArgvInteraction as ArgvInteraction
 from .model import ButtonInteraction as ButtonInteraction
@@ -42,4 +43,4 @@ from .model import Role as Role
 from .model import Upload as Upload
 from .model import User as User
 
-__version__ = "0.13.0"
+__version__ = "0.13.1"
