@@ -40,8 +40,15 @@ class MessageParam(TypedDict):
 
 
 MESSAGE_CREATE: TypeAlias = RouteCall[MessageParam, Union[List[MessageObject], List[Dict[str, Any]]]]
-MESSAGE_GET: TypeAlias = RouteCall[MessageParam, Union[MessageObject, Dict[str, Any]]]
-MESSAGE_DELETE: TypeAlias = RouteCall[MessageParam, None]
+
+
+class MessageOpParam(TypedDict):
+    channel_id: str
+    message_id: str
+
+
+MESSAGE_GET: TypeAlias = RouteCall[MessageOpParam, Union[MessageObject, Dict[str, Any]]]
+MESSAGE_DELETE: TypeAlias = RouteCall[MessageOpParam, None]
 
 
 class MessageUpdateParam(TypedDict):
