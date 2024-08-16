@@ -37,6 +37,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                 return
             elif msg.type == aiohttp.WSMsgType.TEXT:
                 data: dict = json.loads(cast(str, msg.data))
+                logger.trace(f"Received payload: {data}")
                 if data["op"] == Opcode.EVENT:
                     self.post_event(data["body"])
                 elif data["op"] > 4:

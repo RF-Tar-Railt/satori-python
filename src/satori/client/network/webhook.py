@@ -61,7 +61,7 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
         op = data["op"]
         if op != Opcode.EVENT:
             return web.Response(status=202)
-        logger.debug(f"Received payload: {data}")
+        logger.trace(f"Received payload: {data}")
         self.post_event(data["body"])
         return web.Response()
 

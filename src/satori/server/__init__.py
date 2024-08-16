@@ -75,6 +75,7 @@ class Server(Service, RouterMixin):
     routers: list[Router]
     _adapters: list[Adapter]
     connections: list[WebsocketConnection]
+    session: aiohttp.ClientSession
 
     def __init__(
         self,
@@ -96,7 +97,6 @@ class Server(Service, RouterMixin):
         self.routers = []
         self.routes = {}
         self.webhooks = webhooks or []
-        self.session = aiohttp.ClientSession()
         self._tempdir = TemporaryDirectory()
         self.proxy_url_mapping = {}
         super().__init__()
@@ -253,6 +253,7 @@ class Server(Service, RouterMixin):
         return res
 
     async def launch(self, manager: Launart):
+        self.session = aiohttp.ClientSession()
         for _adapter in self._adapters:
             manager.add_component(_adapter)
 
