@@ -97,8 +97,11 @@ class Element:
             self.attrs["is"] = type
         else:
             self.type = type
-        if self.tag() == "text" and "content" in self.attrs:
-            self.attrs["text"] = self.attrs.pop("content")
+        if self.tag() == "text":
+            if "content" in self.attrs:
+                self.attrs["text"] = self.attrs.pop("content")
+            elif not self.attrs:
+                self.attrs["text"] = ""
 
     def tag(self):
         if self.type == "component":
