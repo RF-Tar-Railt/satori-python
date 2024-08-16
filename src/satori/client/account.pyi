@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Iterable, Protocol, TypeVar, overload
+from typing import Any, Generic, Iterable, Protocol, TypeVar, overload
 
 from yarl import URL
 
@@ -23,6 +23,7 @@ from satori.model import (
 from .protocol import ApiProtocol
 
 TP = TypeVar("TP", bound="ApiProtocol")
+TP1 = TypeVar("TP1", bound="ApiProtocol")
 
 class Api(Protocol):
     token: str | None = None
@@ -35,12 +36,12 @@ class ApiInfo(Api):
         self, host: str = "localhost", port: int = 5140, path: str = "", token: str | None = None
     ): ...
 
-class Account:
+class Account(Generic[TP]):
     platform: str
     self_id: str
     self_info: Login
     config: Api
-    protocol: ApiProtocol
+    protocol: TP
     connected: asyncio.Event
 
     def __init__(
@@ -49,16 +50,18 @@ class Account:
         self_id: str,
         self_info: Login,
         config: Api,
-        protocol_cls: type[ApiProtocol] = ApiProtocol,
+        protocol_cls: type[TP] = ApiProtocol,
     ): ...
     @property
     def identity(self) -> str: ...
     @overload
-    def custom(self, config: Api, protocol_cls: type[TP] = ApiProtocol) -> TP: ...
+    def custom(self, config: Api, protocol_cls: type[TP1] = ApiProtocol) -> Account[TP1]: ...
+    @overload
+    def custom(self, *, protocol_cls: type[TP1]) -> Account[TP1]: ...
     @overload
     def custom(
-        self, *, protocol_cls: type[TP] = ApiProtocol, host: str, port: int, token: str | None = None
-    ) -> TP: ...
+        self, *, protocol_cls: type[TP1] = ApiProtocol, host: str, port: int, token: str | None = None
+    ) -> Account[TP1]: ...
     async def send(self, event: Event, message: str | Iterable[str | Element]) -> list[MessageObject]:
         """发送消息。返回一个 `MessageObject` 对象构成的数组。
 

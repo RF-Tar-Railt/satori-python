@@ -191,11 +191,12 @@ async def listen(account: Account, event: Event):
     await account.custom(host="123.456.789.012", port=5140).send(event, "Hello, World!")
 
 class MyProtocol(ApiProtocol):
-    async def my_api(self, *args): ...
+    async def my_api(self, event, *args): ...
 
 @app.register
 async def listen(account: Account, event: Event):
-    await account.custom(account.config, protocol_cls=MyProtocol).my_api(event, "Hello, World!")
+    my_account = account.custom(protocol_cls=MyProtocol)
+    await my_account.protocol.my_api(event, "Hello, World!")
 ```
 
 # 服务端

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 from yarl import URL
 
@@ -11,6 +11,7 @@ from satori.model import Login
 from .protocol import ApiProtocol
 
 TP = TypeVar("TP", bound="ApiProtocol")
+TP1 = TypeVar("TP1", bound="ApiProtocol")
 
 
 @dataclass
@@ -29,14 +30,14 @@ class ApiInfo:
         return URL(f"http://{self.host}:{self.port}{self.path}") / "v1"
 
 
-class Account:
+class Account(Generic[TP]):
     def __init__(
         self,
         platform: str,
         self_id: str,
         self_info: Login,
         config: ApiInfo,
-        protocol_cls: type[ApiProtocol] = ApiProtocol,
+        protocol_cls: type[TP] = ApiProtocol,
     ):
         self.platform = platform
         self.self_id = self_id
@@ -45,14 +46,16 @@ class Account:
         self.protocol = protocol_cls(self)  # type: ignore
         self.connected = asyncio.Event()
 
-    def custom(self, config: ApiInfo | None = None, protocol_cls: type[TP] = ApiProtocol, **kwargs) -> TP:
+    def custom(
+        self, config: ApiInfo | None = None, protocol_cls: type[TP1] = ApiProtocol, **kwargs
+    ) -> "Account[TP1]":
         return Account(
             self.platform,
             self.self_id,
             self.self_info,
-            config or ApiInfo(**kwargs),
+            config or (ApiInfo(**kwargs) if kwargs else self.config),
             protocol_cls,  # type: ignore
-        ).protocol
+        )
 
     @property
     def identity(self):
