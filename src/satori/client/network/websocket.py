@@ -119,9 +119,8 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
     async def _heartbeat(self):
         """心跳"""
         while True:
-            if self.sequence:
-                with suppress(Exception):
-                    await self.send({"op": 1})
+            with suppress(Exception):
+                await self.send({"op": 1})
             await asyncio.sleep(9)
 
     async def daemon(self, manager: Launart, session: aiohttp.ClientSession):
