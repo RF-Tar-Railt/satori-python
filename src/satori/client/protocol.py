@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, cast, overload
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, cast, overload
 
 from aiohttp import FormData
 from graia.amnesia.builtins.aiohttp import AiohttpClientService

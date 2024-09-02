@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import IntEnum
 from os import PathLike
 from pathlib import Path
-from typing import IO, Any, Callable, ClassVar, Dict, Generic, List, Literal, Optional, TypeVar, Union
+from typing import IO, Any, Callable, ClassVar, Generic, Literal, Optional, TypeVar, Union
 from typing_extensions import TypeAlias
 
 from .element import Element, transform
@@ -14,7 +14,7 @@ from .parser import parse
 
 @dataclass
 class ModelBase:
-    __converter__: ClassVar[Dict[str, Callable[[Any], Any]]] = {}
+    __converter__: ClassVar[dict[str, Callable[[Any], Any]]] = {}
 
     @classmethod
     def parse(cls, raw: dict):
@@ -81,7 +81,7 @@ class User(ModelBase):
     is_bot: Optional[bool] = None
 
     def dump(self):
-        res: Dict[str, Any] = {"id": self.id}
+        res: dict[str, Any] = {"id": self.id}
         if self.name:
             res["name"] = self.name
         if self.nick:
@@ -141,13 +141,13 @@ class Login(ModelBase):
     user: Optional[User] = None
     self_id: Optional[str] = None
     platform: Optional[str] = None
-    features: List[str] = field(default_factory=list)
-    proxy_urls: List[str] = field(default_factory=list)
+    features: list[str] = field(default_factory=list)
+    proxy_urls: list[str] = field(default_factory=list)
 
     __converter__ = {"user": User.parse, "status": LoginStatus}
 
     def dump(self):
-        res: Dict[str, Any] = {
+        res: dict[str, Any] = {
             "status": self.status.value,
             "features": self.features,
             "proxy_urls": self.proxy_urls,
@@ -195,7 +195,7 @@ class Identify(ModelBase):
 
 @dataclass
 class Ready(ModelBase):
-    logins: List[Login]
+    logins: list[Login]
 
 
 @dataclass
@@ -213,7 +213,7 @@ class MessageObject(ModelBase):
     def from_elements(
         cls,
         id: str,
-        content: List[Element],
+        content: list[Element],
         channel: Optional[Channel] = None,
         guild: Optional[Guild] = None,
         member: Optional[Member] = None,
@@ -224,7 +224,7 @@ class MessageObject(ModelBase):
         return cls(id, "".join(str(i) for i in content), channel, guild, member, user, created_at, updated_at)
 
     @property
-    def message(self) -> List[Element]:
+    def message(self) -> list[Element]:
         return transform(parse(self.content))
 
     @classmethod
@@ -244,7 +244,7 @@ class MessageObject(ModelBase):
     }
 
     def dump(self):
-        res: Dict[str, Any] = {"id": self.id, "content": self.content}
+        res: dict[str, Any] = {"id": self.id, "content": self.content}
         if self.channel:
             res["channel"] = self.channel.dump()
         if self.guild:
@@ -335,7 +335,7 @@ T = TypeVar("T", bound=ModelBase)
 
 @dataclass
 class PageResult(ModelBase, Generic[T]):
-    data: List[T]
+    data: list[T]
     next: Optional[str] = None
 
     @classmethod

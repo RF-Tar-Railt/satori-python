@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import AsyncIterator, List, Optional
+from collections.abc import AsyncIterator
+from typing import Optional
 
 from launart import Service
 
@@ -21,14 +22,14 @@ class Adapter(Service, RouterMixin):
     def authenticate(self, token: Optional[str]) -> bool: ...
 
     @staticmethod
-    def proxy_urls() -> List[str]:
+    def proxy_urls() -> list[str]:
         return []
 
     @abstractmethod
     async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes: ...
 
     @abstractmethod
-    async def get_logins(self) -> List[Login]: ...
+    async def get_logins(self) -> list[Login]: ...
 
     def __init__(self):
         super().__init__()

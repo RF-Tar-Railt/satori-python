@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 import asyncio
 import functools
 import mimetypes
@@ -8,11 +7,12 @@ import secrets
 import signal
 import threading
 import urllib.parse
+from collections.abc import Iterable
 from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from traceback import print_exc
-from typing import Any, Iterable, cast
+from typing import Any, cast
 
 import aiohttp
 from creart import it
@@ -33,13 +33,13 @@ from satori.model import Event, ModelBase, Opcode
 
 from .adapter import Adapter as Adapter
 from .conection import WebsocketConnection
+from .deque import Deque
 from .formdata import parse_content_disposition
 from .model import Provider as Provider
 from .model import Request as Request
 from .model import Router as Router
 from .route import RouteCall as RouteCall
 from .route import RouterMixin as RouterMixin
-from .deque import Deque
 
 
 async def _request_handler(method: str, request: StarletteRequest, func: RouteCall):

@@ -1,5 +1,6 @@
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, AsyncIterator, Generic, Protocol, TypeVar, Optional, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, Generic, Optional, Protocol, TypeVar, Union, runtime_checkable
 
 from satori.const import Api
 from satori.model import Event, Login

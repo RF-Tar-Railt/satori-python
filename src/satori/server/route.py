@@ -1,4 +1,5 @@
-from typing import Any, Awaitable, Callable, Dict, List, Literal, Protocol, TypeVar, Union, overload
+from collections.abc import Awaitable
+from typing import Any, Callable, Literal, Protocol, TypeVar, Union, overload
 from typing_extensions import NotRequired, TypeAlias, TypedDict
 
 from starlette.datastructures import FormData
@@ -30,7 +31,7 @@ class RouteCall(Protocol[T, R]):
 
 
 INTERAL: TypeAlias = RouteCall[
-    Any, Union[ModelBase, List[ModelBase], Dict[str, Any], List[Dict[str, Any]], None]
+    Any, Union[ModelBase, list[ModelBase], dict[str, Any], list[dict[str, Any]], None]
 ]
 
 
@@ -39,7 +40,7 @@ class MessageParam(TypedDict):
     content: str
 
 
-MESSAGE_CREATE: TypeAlias = RouteCall[MessageParam, Union[List[MessageObject], List[Dict[str, Any]]]]
+MESSAGE_CREATE: TypeAlias = RouteCall[MessageParam, Union[list[MessageObject], list[dict[str, Any]]]]
 
 
 class MessageOpParam(TypedDict):
@@ -47,7 +48,7 @@ class MessageOpParam(TypedDict):
     message_id: str
 
 
-MESSAGE_GET: TypeAlias = RouteCall[MessageOpParam, Union[MessageObject, Dict[str, Any]]]
+MESSAGE_GET: TypeAlias = RouteCall[MessageOpParam, Union[MessageObject, dict[str, Any]]]
 MESSAGE_DELETE: TypeAlias = RouteCall[MessageOpParam, None]
 
 
@@ -68,14 +69,14 @@ class MessageListParam(TypedDict):
     order: NotRequired[Order]
 
 
-MESSAGE_LIST: TypeAlias = RouteCall[MessageListParam, Union[PageDequeResult[MessageObject], Dict[str, Any]]]
+MESSAGE_LIST: TypeAlias = RouteCall[MessageListParam, Union[PageDequeResult[MessageObject], dict[str, Any]]]
 
 
 class ChannelParam(TypedDict):
     channel_id: str
 
 
-CHANNEL_GET: TypeAlias = RouteCall[ChannelParam, Union[Channel, Dict[str, Any]]]
+CHANNEL_GET: TypeAlias = RouteCall[ChannelParam, Union[Channel, dict[str, Any]]]
 CHANNEL_DELETE: TypeAlias = RouteCall[ChannelParam, None]
 
 
@@ -84,7 +85,7 @@ class ChannelListParam(TypedDict):
     next: NotRequired[str]
 
 
-CHANNEL_LIST: TypeAlias = RouteCall[ChannelListParam, Union[PageResult[Channel], Dict[str, Any]]]
+CHANNEL_LIST: TypeAlias = RouteCall[ChannelListParam, Union[PageResult[Channel], dict[str, Any]]]
 
 
 class ChanneCreateParam(TypedDict):
@@ -92,7 +93,7 @@ class ChanneCreateParam(TypedDict):
     data: dict
 
 
-CHANNEL_CREATE: TypeAlias = RouteCall[ChanneCreateParam, Union[Channel, Dict[str, Any]]]
+CHANNEL_CREATE: TypeAlias = RouteCall[ChanneCreateParam, Union[Channel, dict[str, Any]]]
 
 
 class ChanneUpdateParam(TypedDict):
@@ -116,21 +117,21 @@ class UserChannelCreateParam(TypedDict):
     guild_id: NotRequired[str]
 
 
-ROUTE_USER_CHANNEL_CREATE: TypeAlias = RouteCall[UserChannelCreateParam, Union[Channel, Dict[str, Any]]]
+ROUTE_USER_CHANNEL_CREATE: TypeAlias = RouteCall[UserChannelCreateParam, Union[Channel, dict[str, Any]]]
 
 
 class GuildGetParam(TypedDict):
     guild_id: str
 
 
-GUILD_GET: TypeAlias = RouteCall[GuildGetParam, Union[Guild, Dict[str, Any]]]
+GUILD_GET: TypeAlias = RouteCall[GuildGetParam, Union[Guild, dict[str, Any]]]
 
 
 class GuildListParam(TypedDict):
     next: NotRequired[str]
 
 
-GUILD_LIST: TypeAlias = RouteCall[GuildListParam, Union[PageResult[Guild], Dict[str, Any]]]
+GUILD_LIST: TypeAlias = RouteCall[GuildListParam, Union[PageResult[Guild], dict[str, Any]]]
 
 
 class GuildMemberGetParam(TypedDict):
@@ -138,7 +139,7 @@ class GuildMemberGetParam(TypedDict):
     user_id: str
 
 
-GUILD_MEMBER_GET: TypeAlias = RouteCall[GuildMemberGetParam, Union[Member, Dict[str, Any]]]
+GUILD_MEMBER_GET: TypeAlias = RouteCall[GuildMemberGetParam, Union[Member, dict[str, Any]]]
 
 
 class GuildXXXListParam(TypedDict):
@@ -146,7 +147,7 @@ class GuildXXXListParam(TypedDict):
     next: NotRequired[str]
 
 
-GUILD_MEMBER_LIST: TypeAlias = RouteCall[GuildXXXListParam, Union[PageResult[Member], Dict[str, Any]]]
+GUILD_MEMBER_LIST: TypeAlias = RouteCall[GuildXXXListParam, Union[PageResult[Member], dict[str, Any]]]
 
 
 class GuildMemberKickParam(TypedDict):
@@ -176,7 +177,7 @@ class GuildMemberRoleParam(TypedDict):
 GUILD_MEMBER_ROLE_SET: TypeAlias = RouteCall[GuildMemberRoleParam, None]
 GUILD_MEMBER_ROLE_UNSET: TypeAlias = RouteCall[GuildMemberRoleParam, None]
 
-GUILD_ROLE_LIST: TypeAlias = RouteCall[GuildXXXListParam, Union[PageResult[Role], Dict[str, Any]]]
+GUILD_ROLE_LIST: TypeAlias = RouteCall[GuildXXXListParam, Union[PageResult[Role], dict[str, Any]]]
 
 
 class GuildRoleCreateParam(TypedDict):
@@ -184,7 +185,7 @@ class GuildRoleCreateParam(TypedDict):
     role: dict
 
 
-GUILD_ROLE_CREATE: TypeAlias = RouteCall[GuildRoleCreateParam, Union[Role, Dict[str, Any]]]
+GUILD_ROLE_CREATE: TypeAlias = RouteCall[GuildRoleCreateParam, Union[Role, dict[str, Any]]]
 
 
 class GuildRoleUpdateParam(TypedDict):
@@ -239,22 +240,22 @@ class ReactionListParam(TypedDict):
     next: NotRequired[str]
 
 
-REACTION_LIST: TypeAlias = RouteCall[ReactionListParam, Union[PageResult[User], Dict[str, Any]]]
-LOGIN_GET: TypeAlias = RouteCall[Any, Union[Login, Dict[str, Any]]]
+REACTION_LIST: TypeAlias = RouteCall[ReactionListParam, Union[PageResult[User], dict[str, Any]]]
+LOGIN_GET: TypeAlias = RouteCall[Any, Union[Login, dict[str, Any]]]
 
 
 class UserGetParam(TypedDict):
     user_id: str
 
 
-USER_GET: TypeAlias = RouteCall[UserGetParam, Union[User, Dict[str, Any]]]
+USER_GET: TypeAlias = RouteCall[UserGetParam, Union[User, dict[str, Any]]]
 
 
 class FriendListParam(TypedDict):
     next: NotRequired[str]
 
 
-FRIEND_LIST: TypeAlias = RouteCall[FriendListParam, Union[PageResult[User], Dict[str, Any]]]
+FRIEND_LIST: TypeAlias = RouteCall[FriendListParam, Union[PageResult[User], dict[str, Any]]]
 
 
 class ApproveParam(TypedDict):
@@ -266,11 +267,11 @@ class ApproveParam(TypedDict):
 APPROVE: TypeAlias = RouteCall[ApproveParam, None]
 
 
-UPLOAD_CREATE: TypeAlias = RouteCall[FormData, Dict[str, str]]
+UPLOAD_CREATE: TypeAlias = RouteCall[FormData, dict[str, str]]
 
 
 class RouterMixin:
-    routes: Dict[str, RouteCall[Any, Any]]
+    routes: dict[str, RouteCall[Any, Any]]
 
     @overload
     def route(self, path: Literal[Api.MESSAGE_CREATE]) -> Callable[[MESSAGE_CREATE], MESSAGE_CREATE]: ...

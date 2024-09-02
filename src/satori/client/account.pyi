@@ -1,5 +1,6 @@
 import asyncio
-from typing import Any, Generic, Iterable, Protocol, TypeVar, overload
+from collections.abc import Iterable
+from typing import Any, Generic, Protocol, TypeVar, overload
 
 from yarl import URL
 

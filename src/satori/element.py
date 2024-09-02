@@ -2,7 +2,7 @@ from base64 import b64encode
 from dataclasses import InitVar, dataclass, field, fields
 from io import BytesIO
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, TypeVar, Union, get_args, overload
+from typing import Any, ClassVar, Optional, TypeVar, Union, get_args, overload
 from typing_extensions import override
 
 from .parser import Element as RawElement
@@ -14,13 +14,13 @@ TE = TypeVar("TE", bound="Element")
 
 @dataclass(repr=False)
 class Element:
-    _attrs: Dict[str, Any] = field(init=False, default_factory=dict)
-    _children: List["Element"] = field(init=False, default_factory=list)
+    _attrs: dict[str, Any] = field(init=False, default_factory=dict)
+    _children: list["Element"] = field(init=False, default_factory=list)
 
-    __names__: ClassVar[Tuple[str, ...]]
+    __names__: ClassVar[tuple[str, ...]]
 
     @property
-    def children(self) -> List["Element"]:
+    def children(self) -> list["Element"]:
         return self._children
 
     @property
@@ -28,7 +28,7 @@ class Element:
         return self.__class__.__name__.lower()
 
     @classmethod
-    def unpack(cls, attrs: Dict[str, Any]):
+    def unpack(cls, attrs: dict[str, Any]):
         obj = cls(**{k: v for k, v in attrs.items() if k in cls.__names__})  # type: ignore
         obj._attrs.update({k: v for k, v in attrs.items() if k not in cls.__names__})
         return obj
@@ -166,7 +166,7 @@ class Link(Element):
 class Resource(Element):
     src: str
     title: Optional[str] = None
-    extra: InitVar[Optional[Dict[str, Any]]] = None
+    extra: InitVar[Optional[dict[str, Any]]] = None
     cache: Optional[bool] = None
     timeout: Optional[int] = None
 
@@ -181,19 +181,19 @@ class Resource(Element):
         mime: Optional[str] = None,
         name: Optional[str] = None,
         poster: Optional[str] = None,
-        extra: Optional[Dict[str, Any]] = None,
+        extra: Optional[dict[str, Any]] = None,
         cache: Optional[bool] = None,
         timeout: Optional[int] = None,
         **kwargs,
     ):
-        data: Dict[str, Any] = {"extra": extra}
+        data: dict[str, Any] = {"extra": extra or kwargs}
         if url is not None:
-            data = {"src": url}
+            data |= {"src": url}
         elif path:
-            data = {"src": Path(path).as_uri()}
+            data |= {"src": Path(path).as_uri()}
         elif raw and mime:
             bd = raw.getvalue() if isinstance(raw, BytesIO) else raw
-            data = {"src": f"data:{mime};base64,{b64encode(bd).decode('utf-8')}"}
+            data |= {"src": f"data:{mime};base64,{b64encode(bd).decode('utf-8')}"}
         else:
             raise ValueError(f"{cls} need at least one of url, path and raw")
         if name is not None:
@@ -206,7 +206,7 @@ class Resource(Element):
             data["timeout"] = timeout
         return cls(**data)
 
-    def __post_init__(self, extra: Optional[Dict[str, Any]] = None):
+    def __post_init__(self, extra: Optional[dict[str, Any]] = None):
         super().__post_init__()
         if extra:
             self._attrs.update(extra)
@@ -380,7 +380,7 @@ class Message(Element):
         self,
         id: Optional[str] = None,
         forward: Optional[bool] = None,
-        content: Optional[List[Union[str, Element]]] = None,
+        content: Optional[list[Union[str, Element]]] = None,
     ):
         self.id = id
         self.forward = forward
@@ -464,8 +464,8 @@ class Custom(Element):
     def __init__(
         self,
         type: str,
-        attrs: Optional[Dict[str, Any]] = None,
-        children: Optional[List[Union[str, Element]]] = None,
+        attrs: Optional[dict[str, Any]] = None,
+        children: Optional[list[Union[str, Element]]] = None,
     ):
         self.type = type
         super().__init__()
@@ -536,7 +536,7 @@ STYLE_TYPE_MAP = {
 }
 
 
-def transform(elements: List[RawElement]) -> List[Element]:
+def transform(elements: list[RawElement]) -> list[Element]:
     msg = []
     for elem in elements:
         tag = elem.tag()
@@ -568,14 +568,14 @@ def transform(elements: List[RawElement]) -> List[Element]:
 
 
 @overload
-def select(elements: Union[Element, List[Element]], query: Type[TE]) -> List[TE]: ...
+def select(elements: Union[Element, list[Element]], query: type[TE]) -> list[TE]: ...
 
 
 @overload
-def select(elements: Union[Element, List[Element]], query: str) -> List[Element]: ...
+def select(elements: Union[Element, list[Element]], query: str) -> list[Element]: ...
 
 
-def select(elements: Union[Element, List[Element]], query: Union[Type[TE], str]):
+def select(elements: Union[Element, list[Element]], query: Union[type[TE], str]):
     if not elements:
         return []
     if isinstance(elements, Element):

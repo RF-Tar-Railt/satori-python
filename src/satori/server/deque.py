@@ -20,19 +20,14 @@ class Deque:
     def after(self, i: int):
         if i < self.offset:
             i = self.offset - 1
-        return list(self.data)[i + 1 - self.offset:]
+        return list(self.data)[i + 1 - self.offset :]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     d = Deque(3)
     d.append(0)
     d.append(1)
     d.append(2)
     d.append(3)
-    print(d[3])
     d.append(4)
     d.append(5)
-    print(d[2])
-    print(d[3])
-    print(d[4])
-    print(d.after(4))
