@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import AsyncIterator, List
+from typing import AsyncIterator, List, Optional
 
 from launart import Service
 
@@ -18,7 +18,7 @@ class Adapter(Service, RouterMixin):
     def ensure(self, platform: str, self_id: str) -> bool: ...
 
     @abstractmethod
-    def authenticate(self, token: str) -> bool: ...
+    def authenticate(self, token: Optional[str]) -> bool: ...
 
     @staticmethod
     def proxy_urls() -> List[str]:

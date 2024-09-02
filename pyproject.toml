@@ -75,7 +75,7 @@ extra_standard_library = ["typing_extensions"]
 
 [tool.ruff]
 line-length = 110
-target-version = "py38"
+target-version = "py39"
 exclude = ["exam.py"]
 
 [tool.ruff.lint]
@@ -84,7 +84,7 @@ ignore = ["E402", "F403", "F405", "C901", "UP037"]
 
 [tool.pyright]
 pythonPlatform = "All"
-pythonVersion = "3.8"
+pythonVersion = "3.9"
 typeCheckingMode = "basic"
 reportShadowedImports = false
 disableBytesTypePromotions = true

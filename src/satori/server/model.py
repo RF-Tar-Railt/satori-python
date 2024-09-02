@@ -1,7 +1,5 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, AsyncIterator, Generic, Protocol, TypeVar, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, AsyncIterator, Generic, Protocol, TypeVar, Optional, Union, runtime_checkable
 
 from satori.const import Api
 from satori.model import Event, Login
@@ -25,7 +23,7 @@ class Request(Generic[TP]):
 class Provider(Protocol):
     def publisher(self) -> AsyncIterator[Event]: ...
 
-    def authenticate(self, token: str) -> bool: ...
+    def authenticate(self, token: Optional[str]) -> bool: ...
 
     async def get_logins(self) -> list[Login]: ...
 
@@ -39,4 +37,4 @@ class Provider(Protocol):
 
 @runtime_checkable
 class Router(Protocol):
-    routes: dict[str, RouteCall[Any, Any]]
+    routes: dict[str, "RouteCall[Any, Any]"]

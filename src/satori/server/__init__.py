@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import asyncio
 import functools
 import mimetypes
@@ -38,6 +39,7 @@ from .model import Request as Request
 from .model import Router as Router
 from .route import RouteCall as RouteCall
 from .route import RouterMixin as RouterMixin
+from .deque import Deque
 
 
 async def _request_handler(method: str, request: StarletteRequest, func: RouteCall):
@@ -99,6 +101,8 @@ class Server(Service, RouterMixin):
         self.webhooks = webhooks or []
         self._tempdir = TemporaryDirectory()
         self.proxy_url_mapping = {}
+        self._sequence = 0
+        self._event_cache = Deque(maxlen=100)
         super().__init__()
 
     def apply(self, item: Provider | Router | Adapter):
@@ -117,6 +121,9 @@ class Server(Service, RouterMixin):
             raise TypeError(f"Unknown config type: {item}")
 
     async def event_callback(self, event: Event):
+        event.id = self._sequence
+        self._event_cache.append(event)
+        self._sequence += 1
         for connection in self.connections:
             try:
                 await connection.send({"op": Opcode.EVENT, "body": event.dump()})
@@ -146,16 +153,20 @@ class Server(Service, RouterMixin):
         identity = await ws.receive_json()
         if not isinstance(identity, dict) or identity.get("op") != Opcode.IDENTIFY:
             return await ws.close(code=3000, reason="Unauthorized")
-        token = identity["body"]["token"]
+        body = identity["body"]
+        token = identity["body"].get("token")
         logins = []
         for provider in self.providers:
             if not provider.authenticate(token):
                 return await ws.close(code=3000, reason="Unauthorized")
             logins.extend(await provider.get_logins())
+        sequence = body.get("sequence", -1)
         await connection.send({"op": Opcode.READY, "body": {"logins": [lo.dump() for lo in logins]}})
         self.connections.append(connection)
-
         try:
+            if sequence > -1:
+                for event in self._event_cache.after(sequence):
+                    await connection.send({"op": Opcode.EVENT, "body": event.dump()})
             await any_completed(connection.heartbeat(), connection.close_signal.wait())
         finally:
             self.connections.remove(connection)
