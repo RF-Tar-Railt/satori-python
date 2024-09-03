@@ -8,7 +8,7 @@ server = Server(host="localhost", port=12345, path="foo")
 
 
 class ExampleProvider:
-    def authenticate(self, token: str) -> bool:
+    def authenticate(self, token) -> bool:
         return True
 
     @staticmethod
@@ -43,9 +43,20 @@ class ExampleProvider:
 
 server.apply(ExampleProvider())
 
+sent = True
+
 
 @server.route(Api.CHANNEL_GET)
 async def handle1(request: Request[route.ChannelParam]):
+    global sent
+
+    async def _():
+        await asyncio.sleep(5)
+        await server.connections[0].connection.close()
+
+    if not sent:
+        _t = asyncio.create_task(_())
+        sent = True
     return Channel("1234567890", ChannelType.TEXT, "test").dump()
 
 

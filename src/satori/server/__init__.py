@@ -163,10 +163,12 @@ class Server(Service, RouterMixin):
         sequence = body.get("sequence", -1)
         await connection.send({"op": Opcode.READY, "body": {"logins": [lo.dump() for lo in logins]}})
         self.connections.append(connection)
+        logger.debug(f"New connection: {id(connection)}")
         try:
             if sequence > -1:
                 for event in self._event_cache.after(sequence):
                     await connection.send({"op": Opcode.EVENT, "body": event.dump()})
+                    await asyncio.sleep(0.1)
             await any_completed(connection.heartbeat(), connection.close_signal.wait())
         finally:
             self.connections.remove(connection)
