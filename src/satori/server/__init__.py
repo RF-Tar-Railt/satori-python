@@ -160,7 +160,9 @@ class Server(Service, RouterMixin):
             if not provider.authenticate(token):
                 return await ws.close(code=3000, reason="Unauthorized")
             logins.extend(await provider.get_logins())
-        sequence = body.get("sequence", -1)
+        sequence = body.get("sequence")
+        if sequence is None:
+            sequence = -1
         await connection.send({"op": Opcode.READY, "body": {"logins": [lo.dump() for lo in logins]}})
         self.connections.append(connection)
         logger.debug(f"New connection: {id(connection)}")
