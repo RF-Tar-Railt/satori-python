@@ -9,6 +9,8 @@ from .route import RouterMixin
 
 
 class Adapter(Service, RouterMixin):
+    server_url: str
+
     @abstractmethod
     def get_platform(self) -> str: ...
 
@@ -38,3 +40,6 @@ class Adapter(Service, RouterMixin):
     @property
     def id(self):
         return f"satori-python.adapter.{self.get_platform()}#{id(self)}"
+
+    def ensure_net(self, url: str):
+        self.server_url = url

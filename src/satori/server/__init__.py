@@ -94,6 +94,7 @@ class Server(Service, RouterMixin):
         self.path = path
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
+        self._url = f"http://{host}:{port}{self.path}/{version}"
         self._adapters = []
         self.providers = []
         self.routers = []
@@ -107,6 +108,7 @@ class Server(Service, RouterMixin):
 
     def apply(self, item: Provider | Router | Adapter):
         if isinstance(item, Adapter):
+            item.ensure_net(self._url)
             self._adapters.append(item)
             self.providers.append(item)
             for proxy_url_pf in item.proxy_urls():
