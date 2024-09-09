@@ -20,7 +20,7 @@ from graia.amnesia.builtins.asgi import UvicornASGIService
 from launart import Launart, Service, any_completed
 from loguru import logger
 from starlette.applications import Starlette
-from starlette.datastructures import FormData
+from starlette.datastructures import FormData as FormData
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, WebSocketRoute
@@ -34,7 +34,7 @@ from satori.model import Event, ModelBase, Opcode
 from .adapter import Adapter as Adapter
 from .conection import WebsocketConnection
 from .deque import Deque
-from .formdata import parse_content_disposition
+from .formdata import parse_content_disposition as parse_content_disposition
 from .model import Provider as Provider
 from .model import Request as Request
 from .model import Router as Router

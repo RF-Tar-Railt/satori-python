@@ -8,6 +8,10 @@ server = Server(host="localhost", port=12345, path="foo")
 
 
 class ExampleProvider:
+    @property
+    def id(self):
+        return "example"
+
     def authenticate(self, token) -> bool:
         return True
 

@@ -281,6 +281,9 @@ server.apply(MyRouter())
 
 ```python
 class Provider(Protocol):
+    @property
+    def id(self): ...
+    
     def publisher(self) -> AsyncIterator[Event]:
         ...
 
@@ -303,6 +306,10 @@ from satori.server import Server
 server = Server()
 
 class MyProvider:
+    @property
+    def id(self):
+        return "example"
+
     def authenticate(self, token: str) -> bool:
         return True
 
@@ -486,4 +493,101 @@ from satori import Quote, Author, Text, select
 
 msg = [Quote(id="12345678")(Author(id="987654321"), Text("Hello, World!")), Text("Hello, World!")]
 authors = select(msg, Author)
+```
+
+
+# 资源链接
+
+参考：[`资源链接(实验性)`](https://satori.js.org/zh-CN/advanced/resource.html)
+
+## 上传
+
+对于客户端，你可以使用 `Account.upload` 方法来上传资源:
+
+```python
+from pathlib import Path
+from satori.client import App, Account, Event
+from satori.model import Upload
+
+
+app = App()
+
+@app.register
+async def _(account: Account, event: Event):
+    # 直接构造 Upload 对象并传入，返回`资源链接`的列表
+    resp: list[str] = await account.upload(
+        Upload(file=b'...'),
+        Upload(file=Path("path/to/file")),
+    )
+    # 或者构造 Upload 对象并使用关键字传入，返回`资源链接`的字典，键为传入的关键字
+    resp: dict[str, str] = await account.upload(
+        foo=Upload(file=b'...'),
+        bar=Upload(file=Path("path/to/file")),
+    )
+```
+
+对于服务端，你可以通过注册 `upload.create` 路由来处理上传请求:
+
+```python
+from satori.const import Api
+from satori.server import Server, Request, FormData, parse_content_disposition
+
+server = Server()
+
+@server.route(Api.UPLOAD_CREATE)
+async def on_upload_create(request: Request[FormData]):
+    # 上传的文件在 `request.params` 中
+    res = {}
+    for _, data in request.params.items():
+        if isinstance(data, str):
+            continue
+        ext = data.headers["content-type"]
+        disp = parse_content_disposition(data.headers["content-disposition"])
+        res[disp["name"]] = ...  # 处理后的资源链接
+    return res
+```
+
+## 下载
+
+对于客户端，推荐使用 `Account.protocol.download` 方法来下载资源:
+
+```python
+from satori.client import App, Account, Event
+from satori import Image, Upload
+
+
+app = App()
+
+@app.register
+async def _(account: Account, event: Event):
+    # 假设你获取到了一个 Image 对象, 你想要下载这个资源
+    img: Image = ...
+    # 那么你可以传入 `Image.src` 来下载资源
+    data: bytes = await account.protocol.download(img.src)
+    # 或者你想下载你通过 `Account.upload` 上传的资源
+    url = (await account.upload(Upload(file=b'...')))[0]
+    data: bytes = await account.protocol.download(url)
+    # 或者你直接传入一个合法的 url
+    data: bytes = await account.protocol.download("https://example.com/image.png")
+```
+
+若链接符合以下条件之一，则返回链接的代理形式 ({host}/{path}/{version}/proxy/{url})：
+- 链接以 "upload://" 开头
+- 链接开头出现在 account.self_info.proxy_urls 中的某一项
+
+对于服务端：
+- 如果 url 不是合法的 URL，会直接返回 400；
+- 如果 url 不以任何一个 login.proxy_urls 中的前缀开头，会直接返回 403；
+- 如果 url 是一个内部链接，会由该内部链接的实现决定如何提供此资源 (可能的方式包括返回数据、重定向以及资源无法访问的报错)；
+- 如果 url 是一个外部链接 (即不以 upload:// 开头的链接)，会在 SDK 侧下载该资源并返回 (通常使用流式传输)
+
+你可以通过实现 `download_uploaded` 方法来处理内部链接的下载请求:
+
+```python
+from satori.server import Server, Provider
+
+class MyProvider(Provider):
+    async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes:
+        # 处理下载请求
+        return b"..."
 ```
