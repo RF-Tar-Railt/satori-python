@@ -22,6 +22,9 @@ class Request(Generic[TP]):
 
 @runtime_checkable
 class Provider(Protocol):
+    @property
+    def id(self) -> str: ...
+
     def publisher(self) -> AsyncIterator[Event]: ...
 
     def authenticate(self, token: Optional[str]) -> bool: ...

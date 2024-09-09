@@ -63,6 +63,14 @@ class Account(Generic[TP]):
     def custom(
         self, *, protocol_cls: type[TP1] = ApiProtocol, host: str, port: int, token: str | None = None
     ) -> Account[TP1]: ...
+    def ensure_url(self, url: str) -> URL:
+        """确定链接形式。
+
+        若链接符合以下条件之一，则返回链接的代理形式 ({host}/{path}/{version}/proxy/{url})：
+            - 链接以 "upload://" 开头
+            - 链接开头出现在 self_info.proxy_urls 中的某一项
+        """
+
     async def send(self, event: Event, message: str | Iterable[str | Element]) -> list[MessageObject]:
         """发送消息。返回一个 `MessageObject` 对象构成的数组。
 

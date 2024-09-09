@@ -37,7 +37,7 @@ class ApiProtocol:
 
     async def download(self, url: str):
         """访问内部链接。"""
-        endpoint = self.account.config.api_base / "proxy" / url.lstrip("/")
+        endpoint = self.account.ensure_url(url)
         aio = Launart.current().get_component(AiohttpClientService)
         async with aio.session.get(endpoint) as resp:
             await validate_response(resp, noreturn=True)

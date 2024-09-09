@@ -111,12 +111,10 @@ class Server(Service, RouterMixin):
             item.ensure_net(self._url)
             self._adapters.append(item)
             self.providers.append(item)
-            for proxy_url_pf in item.proxy_urls():
-                self.proxy_url_mapping[proxy_url_pf] = item
+            self.proxy_url_mapping[item.id] = item.proxy_urls()
         elif isinstance(item, Provider):
             self.providers.append(item)
-            for proxy_url_pf in item.proxy_urls():
-                self.proxy_url_mapping[proxy_url_pf] = item
+            self.proxy_url_mapping[item.id] = item.proxy_urls()
         elif isinstance(item, Router):
             self.routers.append(item)
         else:
@@ -234,10 +232,11 @@ class Server(Service, RouterMixin):
             for provider in self.providers:
                 if provider.ensure(platform, self_id):
                     return await provider.download_uploaded(platform, self_id, path)
-        for proxy_url_pf, provider in self.proxy_url_mapping.items():
-            if url.startswith(proxy_url_pf):
-                async with self.session.get(url) as resp:
-                    return await resp.read()
+        for provider in self.providers:
+            for proxy_url_pf in self.proxy_url_mapping[provider.id]:
+                if url.startswith(proxy_url_pf):
+                    async with self.session.get(url) as resp:
+                        return await resp.read()
         raise ValueError(f"Unknown proxy url: {url}")
 
     def get_local_file(self, url: str):
