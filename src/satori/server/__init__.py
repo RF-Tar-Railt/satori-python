@@ -94,7 +94,7 @@ class Server(Service, RouterMixin):
         self.path = path
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
-        self._url = f"http://{host}:{port}{self.path}/{version}"
+        self.url_base = f"http://{host}:{port}{self.path}/{version}"
         self._adapters = []
         self.providers = []
         self.routers = []
@@ -108,7 +108,7 @@ class Server(Service, RouterMixin):
 
     def apply(self, item: Provider | Router | Adapter):
         if isinstance(item, Adapter):
-            item.ensure_net(self._url)
+            item.ensure_server(self)
             self._adapters.append(item)
             self.providers.append(item)
             self.proxy_url_mapping[item.id] = item.proxy_urls()
@@ -159,20 +159,29 @@ class Server(Service, RouterMixin):
         for provider in self.providers:
             if not provider.authenticate(token):
                 return await ws.close(code=3000, reason="Unauthorized")
-            logins.extend(await provider.get_logins())
+            _logins = await provider.get_logins()
+            for _login in _logins:
+                _login.proxy_urls = provider.proxy_urls() or _login.proxy_urls
+            logins.extend(_logins)
         sequence = body.get("sequence")
         if sequence is None:
             sequence = -1
         await connection.send({"op": Opcode.READY, "body": {"logins": [lo.dump() for lo in logins]}})
         self.connections.append(connection)
         logger.debug(f"New connection: {id(connection)}")
+        heartbeat_task = asyncio.create_task(connection.heartbeat())
+        close_task = asyncio.create_task(connection.close_signal.wait())
         try:
             if sequence > -1:
                 for event in self._event_cache.after(sequence):
                     await connection.send({"op": Opcode.EVENT, "body": event.dump()})
                     await asyncio.sleep(0.1)
-            await any_completed(connection.heartbeat(), connection.close_signal.wait())
+            await any_completed(heartbeat_task, close_task)
         finally:
+            await connection.connection_closed()
+            logger.debug(f"Connection closed: {id(connection)}")
+            heartbeat_task.cancel()
+            close_task.cancel()
             self.connections.remove(connection)
 
     async def admin_login_list_handler(self, request: StarletteRequest):

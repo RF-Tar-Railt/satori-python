@@ -1,15 +1,18 @@
 from abc import abstractmethod
 from collections.abc import AsyncIterator
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from launart import Service
 
 from ..model import Event, Login
 from .route import RouterMixin
 
+if TYPE_CHECKING:
+    from . import Server
+
 
 class Adapter(Service, RouterMixin):
-    server_url: str
+    server: "Server"
 
     @abstractmethod
     def get_platform(self) -> str: ...
@@ -41,5 +44,5 @@ class Adapter(Service, RouterMixin):
     def id(self):
         return f"satori-python.adapter.{self.get_platform()}#{id(self)}"
 
-    def ensure_net(self, url: str):
-        self.server_url = url
+    def ensure_server(self, server: "Server"):
+        self.server = server

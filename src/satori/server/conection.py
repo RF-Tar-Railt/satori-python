@@ -22,7 +22,7 @@ class WebsocketConnection:
     async def heartbeat(self):
         while True:
             try:
-                msg = await asyncio.wait_for(self.connection.receive_json(), timeout=10)
+                msg = await asyncio.wait_for(self.connection.receive_json(), timeout=11)
                 if not isinstance(msg, dict) or msg.get("op") != Opcode.PING:
                     continue
                 await self.connection.send_json({"op": Opcode.PONG})
