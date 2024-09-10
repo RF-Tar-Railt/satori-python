@@ -577,7 +577,7 @@ async def _(account: Account, event: Event):
 
 对于服务端：
 - 如果 url 不是合法的 URL，会直接返回 400；
-- 如果 url 不以任何一个 login.proxy_urls 中的前缀开头，会直接返回 403；
+- 如果 url 不以任何一个 Adapter.proxy_urls 中的前缀开头，会直接返回 403；
 - 如果 url 是一个内部链接，会由该内部链接的实现决定如何提供此资源 (可能的方式包括返回数据、重定向以及资源无法访问的报错)；
 - 如果 url 是一个外部链接 (即不以 upload:// 开头的链接)，会在 SDK 侧下载该资源并返回 (通常使用流式传输)
 
@@ -587,6 +587,11 @@ async def _(account: Account, event: Event):
 from satori.server import Server, Provider
 
 class MyProvider(Provider):
+    # 此处声明的 `proxy_urls` 会同步到 Login.proxy_urls 中
+    @staticmethod
+    def proxy_urls() -> list[str]:
+        return ["https://example.com"]
+
     async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes:
         # 处理下载请求
         return b"..."

@@ -161,7 +161,7 @@ class Server(Service, RouterMixin):
                 return await ws.close(code=3000, reason="Unauthorized")
             _logins = await provider.get_logins()
             for _login in _logins:
-                _login.proxy_urls = provider.proxy_urls() or _login.proxy_urls
+                _login.proxy_urls.extend(provider.proxy_urls())
             logins.extend(_logins)
         sequence = body.get("sequence")
         if sequence is None:
