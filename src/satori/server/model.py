@@ -38,6 +38,8 @@ class Provider(Protocol):
 
     async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes: ...
 
+    async def download_proxied(self, prefix: str, url: str) -> bytes: ...
+
 
 @runtime_checkable
 class Router(Protocol):

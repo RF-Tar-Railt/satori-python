@@ -22,7 +22,7 @@ from loguru import logger
 from starlette.applications import Starlette
 from starlette.datastructures import FormData as FormData
 from starlette.requests import Request as StarletteRequest
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 from yarl import URL
@@ -86,6 +86,7 @@ class Server(Service, RouterMixin):
         path: str = "",
         version: str = "v1",
         webhooks: list[WebhookInfo] | None = None,
+        stream_limit: int = 16 * 1024 * 1024,
     ):
         self.connections = []
         manager = it(Launart)
@@ -104,6 +105,7 @@ class Server(Service, RouterMixin):
         self.proxy_url_mapping = {}
         self._sequence = 0
         self._event_cache = Deque(maxlen=100)
+        self.stream_limit = stream_limit
         super().__init__()
 
     def apply(self, item: Provider | Router | Adapter):
@@ -218,7 +220,16 @@ class Server(Service, RouterMixin):
     async def proxy_url_handler(self, request: StarletteRequest):
         url = request.path_params["upload_url"]
         try:
-            return Response(content=await self.download(url))
+            content = await self.download(url)
+            # if content size > stream_limit, use streaming response
+            if len(content) > self.stream_limit:
+
+                async def iter_content(body: bytes):
+                    for i in range(0, len(body), 1024):
+                        yield body[i : i + 1024]
+
+                return StreamingResponse(content=iter_content(content))
+            return Response(content=content)
         except FileNotFoundError as e404:
             return Response(status_code=404, content=str(e404))
         except ValueError as e403:
@@ -244,8 +255,7 @@ class Server(Service, RouterMixin):
         for provider in self.providers:
             for proxy_url_pf in self.proxy_url_mapping[provider.id]:
                 if url.startswith(proxy_url_pf):
-                    async with self.session.get(url) as resp:
-                        return await resp.read()
+                    return await provider.download_proxied(proxy_url_pf, url)
         raise ValueError(f"Unknown proxy url: {url}")
 
     def get_local_file(self, url: str):

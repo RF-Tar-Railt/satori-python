@@ -25,6 +25,9 @@ class ExampleProvider:
     async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes:
         raise NotImplementedError
 
+    async def download_proxied(self, prefix: str, url: str) -> bytes:
+        raise NotImplementedError
+
     async def get_logins(self):
         return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example", user=User("1234567890"))]
 
