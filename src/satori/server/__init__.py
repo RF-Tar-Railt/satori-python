@@ -86,7 +86,8 @@ class Server(Service, RouterMixin):
         path: str = "",
         version: str = "v1",
         webhooks: list[WebhookInfo] | None = None,
-        stream_limit: int = 16 * 1024 * 1024,
+        stream_threshold: int = 16 * 1024 * 1024,
+        stream_chunk_size: int = 64 * 1024,
     ):
         self.connections = []
         manager = it(Launart)
@@ -105,7 +106,8 @@ class Server(Service, RouterMixin):
         self.proxy_url_mapping = {}
         self._sequence = 0
         self._event_cache = Deque(maxlen=100)
-        self.stream_limit = stream_limit
+        self.stream_threshold = stream_threshold
+        self.stream_chunk_size = stream_chunk_size
         super().__init__()
 
     def apply(self, item: Provider | Router | Adapter):
@@ -222,11 +224,11 @@ class Server(Service, RouterMixin):
         try:
             content = await self.download(url)
             # if content size > stream_limit, use streaming response
-            if len(content) > self.stream_limit:
+            if len(content) > self.stream_threshold:
 
                 async def iter_content(body: bytes):
-                    for i in range(0, len(body), 1024):
-                        yield body[i : i + 1024]
+                    for i in range(0, len(body), self.stream_chunk_size):
+                        yield body[i : i + self.stream_chunk_size]
 
                 return StreamingResponse(content=iter_content(content))
             return Response(content=content)
@@ -234,8 +236,11 @@ class Server(Service, RouterMixin):
             return Response(status_code=404, content=str(e404))
         except ValueError as e403:
             return Response(status_code=403, content=str(e403))
+        except TypeError as e400:
+            return Response(status_code=400, content=str(e400))
         except Exception as e:
-            return Response(status_code=400, content=str(e))
+            logger.error(repr(e))
+            return Response(status_code=500, content=repr(e))
 
     async def download(self, url: str):
         pr = urllib.parse.urlparse(url.replace(":/", "://", 1).replace(":///", "://", 1))

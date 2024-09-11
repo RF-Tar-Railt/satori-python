@@ -602,8 +602,9 @@ class MyProvider(Provider):
         # 处理下载请求
         return b"..."
 
-# 当 download 返回值的大小超过 stream_limit 时，会启用流式传输。默认为 16MB
-server = Server(stream_limit=4 * 1024 * 1024)
+# 当 download 返回值的大小超过 stream_threshold 时，会启用流式传输。默认为 16MB
+# 你可以通过传入 stream_chunk_size 来设置流式传输的块大小, 默认为 64KB
+server = Server(stream_threshold=4 * 1024 * 1024)
 
 server.apply(MyProvider())
 
