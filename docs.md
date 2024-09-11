@@ -581,7 +581,7 @@ async def _(account: Account, event: Event):
 - 如果 url 是一个内部链接，会由该内部链接的实现决定如何提供此资源 (可能的方式包括返回数据、重定向以及资源无法访问的报错)；
 - 如果 url 是一个外部链接 (即不以 upload:// 开头的链接)，会在 SDK 侧下载该资源并返回 (通常使用流式传输)
 
-你可以通过实现 `download_uploaded` 方法来处理内部链接的下载请求:
+你可以通过实现 `download_uploaded` 方法和 `download_proxied` 方法来处理内部链接和外部链接的下载请求:
 
 ```python
 from satori.server import Server, Provider
@@ -595,4 +595,17 @@ class MyProvider(Provider):
     async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes:
         # 处理下载请求
         return b"..."
+    
+    # prefix 为 Adapter.proxy_urls 中的某一项
+    # Adapter 类下 download_proxied 已有默认实现，你可以选择自己重写实现
+    async def download_proxied(self, prefix: str, url: str) -> bytes:
+        # 处理下载请求
+        return b"..."
+
+# 当 download 返回值的大小超过 stream_limit 时，会启用流式传输。默认为 16MB
+server = Server(stream_limit=4 * 1024 * 1024)
+
+server.apply(MyProvider())
+
+server.run()
 ```
