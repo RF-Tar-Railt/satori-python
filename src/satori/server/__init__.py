@@ -22,7 +22,7 @@ from loguru import logger
 from starlette.applications import Starlette
 from starlette.datastructures import FormData as FormData
 from starlette.requests import Request as StarletteRequest
-from starlette.responses import JSONResponse, Response, StreamingResponse
+from starlette.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket
 from yarl import URL
@@ -223,6 +223,8 @@ class Server(Service, RouterMixin):
         url = request.path_params["upload_url"]
         try:
             content = await self.download(url)
+            if isinstance(content, Path):
+                return FileResponse(path=content)
             # if content size > stream_limit, use streaming response
             if len(content) > self.stream_threshold:
 
@@ -250,7 +252,7 @@ class Server(Service, RouterMixin):
                 if inst == f"{self.id}:{id(self)}":
                     file = Path(self._tempdir.name) / filename
                     if file.exists():
-                        return file.read_bytes()
+                        return file
                 raise FileNotFoundError(f"{filename} not found")
             platform = pr.netloc
             _, self_id, path = pr.path.split("/", 2)
