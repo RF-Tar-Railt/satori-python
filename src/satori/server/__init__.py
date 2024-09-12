@@ -103,7 +103,6 @@ class Server(Service, RouterMixin):
         self.routes = {}
         self.webhooks = webhooks or []
         self._tempdir = TemporaryDirectory()
-        self.proxy_url_mapping = {}
         self._sequence = 0
         self._event_cache = Deque(maxlen=100)
         self.stream_threshold = stream_threshold
@@ -115,10 +114,8 @@ class Server(Service, RouterMixin):
             item.ensure_server(self)
             self._adapters.append(item)
             self.providers.append(item)
-            self.proxy_url_mapping[item.id] = item.proxy_urls()
         elif isinstance(item, Provider):
             self.providers.append(item)
-            self.proxy_url_mapping[item.id] = item.proxy_urls()
         elif isinstance(item, Router):
             self.routers.append(item)
         else:
@@ -254,15 +251,20 @@ class Server(Service, RouterMixin):
                     if file.exists():
                         return file
                 raise FileNotFoundError(f"{filename} not found")
-            platform = pr.netloc
-            _, self_id, path = pr.path.split("/", 2)
-            for provider in self.providers:
+        for provider in self.providers:
+            if pr.scheme == "upload":
+                platform = pr.netloc
+                _, self_id, path = pr.path.split("/", 2)
                 if provider.ensure(platform, self_id):
                     return await provider.download_uploaded(platform, self_id, path)
-        for provider in self.providers:
-            for proxy_url_pf in self.proxy_url_mapping[provider.id]:
-                if url.startswith(proxy_url_pf):
-                    return await provider.download_proxied(proxy_url_pf, url)
+
+            for proxy_url_pf in provider.proxy_urls():
+                if not url.startswith(proxy_url_pf):
+                    continue
+                resp = await provider.download_proxied(proxy_url_pf, url)
+                if resp is None:
+                    continue
+                return resp
         raise ValueError(f"Unknown proxy url: {url}")
 
     def get_local_file(self, url: str):

@@ -281,9 +281,6 @@ server.apply(MyRouter())
 
 ```python
 class Provider(Protocol):
-    @property
-    def id(self): ...
-    
     def publisher(self) -> AsyncIterator[Event]:
         ...
 
@@ -306,10 +303,6 @@ from satori.server import Server
 server = Server()
 
 class MyProvider:
-    @property
-    def id(self):
-        return "example"
-
     def authenticate(self, token: str) -> bool:
         return True
 
@@ -598,7 +591,8 @@ class MyProvider(Provider):
     
     # prefix 为 Adapter.proxy_urls 中的某一项
     # Adapter 类下 download_proxied 已有默认实现，你可以选择自己重写实现
-    async def download_proxied(self, prefix: str, url: str) -> bytes:
+    # 若处理下载请求失败，可不做更改抛出异常或返回 None
+    async def download_proxied(self, prefix: str, url: str) -> Optional[bytes]:
         # 处理下载请求
         return b"..."
 
