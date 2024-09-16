@@ -24,7 +24,7 @@ from starlette.datastructures import FormData as FormData
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route, WebSocketRoute
-from starlette.websockets import WebSocket
+from starlette.websockets import WebSocket, WebSocketDisconnect
 from yarl import URL
 
 from satori.config import WebhookInfo
@@ -128,6 +128,8 @@ class Server(Service, RouterMixin):
         for connection in self.connections:
             try:
                 await connection.send({"op": Opcode.EVENT, "body": event.dump()})
+            except WebSocketDisconnect:
+                break
             except Exception as e:
                 print_exc()
                 logger.error(e)
@@ -138,8 +140,10 @@ class Server(Service, RouterMixin):
                     headers={
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {hook.token or ''}",
-                        "X-Platform": event.platform,
-                        "X-Self-ID": event.self_id,
+                        "X-Platform": event.platform_,
+                        "Satori-Platform": event.platform_,
+                        "X-Self-ID": event.self_id_,
+                        "Satori-Login-ID": event.self_id_,
                     },
                     json={"op": Opcode.EVENT, "body": event.dump()},
                 ) as resp:
@@ -195,12 +199,12 @@ class Server(Service, RouterMixin):
         if not self._adapters and not self.routes:
             return Response(status_code=404, content=request.path_params["method"])
         method = request.path_params["method"]
-        if "X-Platform" not in request.headers:
-            return Response(status_code=401, content="Missing X-Platform header")
-        platform = request.headers["X-Platform"]
-        if "X-Self-ID" not in request.headers:
-            return Response(status_code=401, content="Missing X-Self-ID header")
-        self_id = request.headers["X-Self-ID"]
+        if "X-Platform" not in request.headers and "Satori-Platform" not in request.headers:
+            return Response(status_code=401, content="Missing header X-Platform or Satori-Platform")
+        platform: str = request.headers.get("X-Platform") or request.headers.get("Satori-Platform")  # type: ignore
+        if "X-Self-ID" not in request.headers and "Satori-Login-ID" not in request.headers:
+            return Response(status_code=401, content="Missing header X-Self-ID or Satori-Login-ID")
+        self_id: str = request.headers.get("X-Self-ID") or request.headers.get("Satori-Login-ID")  # type: ignore
 
         for _router in self._adapters:
             if method not in _router.routes:

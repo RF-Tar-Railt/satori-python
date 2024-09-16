@@ -38,9 +38,9 @@ class ExampleProvider:
             yield Event(
                 seq,
                 "message-created",
+                datetime.now(),
                 "example",
                 "1234567890",
-                datetime.now(),
                 channel=Channel("345678", ChannelType.TEXT),
                 user=User("9876543210"),
                 message=MessageObject(f"msg_{seq}", "/hitokoto"),

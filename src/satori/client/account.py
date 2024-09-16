@@ -6,7 +6,7 @@ from typing import Generic, TypeVar
 
 from yarl import URL
 
-from satori.model import Login
+from satori.model import LoginType
 
 from .protocol import ApiProtocol
 
@@ -35,7 +35,7 @@ class Account(Generic[TP]):
         self,
         platform: str,
         self_id: str,
-        self_info: Login,
+        self_info: LoginType,
         config: ApiInfo,
         protocol_cls: type[TP] = ApiProtocol,
     ):

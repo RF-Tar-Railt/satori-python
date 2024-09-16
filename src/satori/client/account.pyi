@@ -10,7 +10,7 @@ from satori.model import (
     Direction,
     Event,
     Guild,
-    Login,
+    LoginType,
     Member,
     MessageObject,
     Order,
@@ -40,7 +40,7 @@ class ApiInfo(Api):
 class Account(Generic[TP]):
     platform: str
     self_id: str
-    self_info: Login
+    self_info: LoginType
     config: Api
     protocol: TP
     connected: asyncio.Event
@@ -49,7 +49,7 @@ class Account(Generic[TP]):
         self,
         platform: str,
         self_id: str,
-        self_info: Login,
+        self_info: LoginType,
         config: Api,
         protocol_cls: type[TP] = ApiProtocol,
     ): ...
@@ -495,7 +495,7 @@ class Account(Generic[TP]):
             PageResult[User]: `User` 的分页列表
         """
 
-    async def login_get(self) -> Login:
+    async def login_get(self) -> LoginType:
         """获取当前登录信息。返回一个 `Login` 对象。
 
         Returns:
@@ -542,7 +542,7 @@ class Account(Generic[TP]):
             **kwargs: 参数
         """
 
-    async def admin_login_list(self) -> list[Login]:
+    async def admin_login_list(self) -> list[LoginType]:
         """获取登录信息列表。返回一个 `Login` 对象构成的数组。
 
         Returns:

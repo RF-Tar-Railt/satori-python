@@ -23,9 +23,6 @@ class ExampleAdapter(Adapter):
     def get_platform(self) -> str:
         return "example"
 
-    # def validate_headers(self, headers: dict) -> bool:
-    #     return headers["X-Platform"] == self.get_platform()
-
     def ensure(self, platform: str, self_id: str) -> bool:
         return platform == self.get_platform() and self_id == "1234567890"
 
@@ -49,9 +46,9 @@ class ExampleAdapter(Adapter):
             yield Event(
                 seq,
                 "message-created",
+                datetime.now(),
                 self.get_platform(),
                 "1234567890",
-                datetime.now(),
                 channel=Channel("345678", ChannelType.TEXT),
                 user=User("9876543210"),
                 message=MessageObject(f"msg_{seq}", "test"),

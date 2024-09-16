@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Optional, Protocol, TypeVar, Union, runtime_checkable
 
 from satori.const import Api
-from satori.model import Event, Login
+from satori.model import Event, Login, LoginPreview, LoginType
 
 if TYPE_CHECKING:
     from .route import RouteCall
@@ -26,7 +26,7 @@ class Provider(Protocol):
 
     def authenticate(self, token: Optional[str]) -> bool: ...
 
-    async def get_logins(self) -> list[Login]: ...
+    async def get_logins(self) -> Union[list[Login], list[LoginPreview], list[LoginType]]: ...
 
     @staticmethod
     def proxy_urls() -> list[str]: ...

@@ -11,7 +11,7 @@ from launart.utilles import any_completed
 from loguru import logger
 
 from satori.config import WebsocketsInfo as WebsocketsInfo
-from satori.model import Login, LoginStatus, Opcode
+from satori.model import Login, LoginPreview, LoginStatus, Opcode
 
 from ..account import Account
 from .base import BaseNetwork
@@ -86,25 +86,26 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
             logger.error(f"Received unexpected payload: {data}")
             return False
         for login in data["body"]["logins"]:
-            if "self_id" not in login:
+            obj = LoginPreview.parse(login) if "user" in login else Login.parse(login)
+            if obj.id is None:
                 continue
-            platform = login.get("platform", "satori")
-            self_id = login["self_id"]
+            platform = obj.platform or "satori"
+            self_id = obj.id
             identity = f"{platform}/{self_id}"
             if identity in self.app.accounts:
                 account = self.app.accounts[identity]
                 self.accounts[identity] = account
-                if login["status"] == LoginStatus.ONLINE:
+                if not obj.status or obj.status == LoginStatus.ONLINE:
                     account.connected.set()
                 else:
                     account.connected.clear()
                 account.config = self.config
             else:
-                account = Account(platform, self_id, Login.parse(login), self.config)
+                account = Account(platform, self_id, obj, self.config)
                 logger.info(f"account registered: {account}")
                 (
                     account.connected.set()
-                    if login["status"] == LoginStatus.ONLINE
+                    if not obj.status or obj.status == LoginStatus.ONLINE
                     else account.connected.clear()
                 )
                 self.app.accounts[identity] = account
