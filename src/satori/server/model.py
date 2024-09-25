@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Optional, Protocol, TypeVar, Union, runtime_checkable
 
 from satori.const import Api
-from satori.model import Event, Login
+from satori.model import Event, Login, LoginPreview, LoginType
 
 if TYPE_CHECKING:
     from .route import RouteCall
@@ -22,14 +22,11 @@ class Request(Generic[TP]):
 
 @runtime_checkable
 class Provider(Protocol):
-    @property
-    def id(self) -> str: ...
-
     def publisher(self) -> AsyncIterator[Event]: ...
 
     def authenticate(self, token: Optional[str]) -> bool: ...
 
-    async def get_logins(self) -> list[Login]: ...
+    async def get_logins(self) -> Union[list[Login], list[LoginPreview], list[LoginType]]: ...
 
     @staticmethod
     def proxy_urls() -> list[str]: ...
@@ -38,7 +35,7 @@ class Provider(Protocol):
 
     async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes: ...
 
-    async def download_proxied(self, prefix: str, url: str) -> bytes: ...
+    async def download_proxied(self, prefix: str, url: str) -> Optional[bytes]: ...
 
 
 @runtime_checkable

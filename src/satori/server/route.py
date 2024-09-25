@@ -8,7 +8,7 @@ from satori.model import (
     Channel,
     Direction,
     Guild,
-    Login,
+    LoginType,
     Member,
     MessageObject,
     ModelBase,
@@ -241,7 +241,7 @@ class ReactionListParam(TypedDict):
 
 
 REACTION_LIST: TypeAlias = RouteCall[ReactionListParam, Union[PageResult[User], dict[str, Any]]]
-LOGIN_GET: TypeAlias = RouteCall[Any, Union[Login, dict[str, Any]]]
+LOGIN_GET: TypeAlias = RouteCall[Any, Union[LoginType, dict[str, Any]]]
 
 
 class UserGetParam(TypedDict):

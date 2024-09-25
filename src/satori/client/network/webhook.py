@@ -9,7 +9,7 @@ from launart.utilles import any_completed
 from loguru import logger
 
 from satori.config import WebhookInfo as WebhookInfo
-from satori.model import Login, LoginStatus, Opcode
+from satori.model import Login, LoginPreview, LoginStatus, Opcode
 
 from ..account import Account
 from .base import BaseNetwork
@@ -33,8 +33,14 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
         token = auth.split(" ", 1)[1]
         if self.config.token and self.config.token != token:
             return web.Response(status=401)
-        platform = header["X-Platform"]
-        self_id = header["X-Self-ID"]
+        if "X-Platform" in header and "X-Self-ID" in header:
+            platform = header["X-Platform"]
+            self_id = header["X-Self-ID"]
+        elif "Satori-Platform" in header and "Satori-Login-ID" in header:
+            platform = header["Satori-Platform"]
+            self_id = header["Satori-Login-ID"]
+        else:
+            return web.Response(status=400)
         identity = f"{platform}/{self_id}"
         if identity in self.app.accounts:
             account = self.app.accounts[identity]
@@ -45,9 +51,12 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
             assert self.manager
             aio = self.manager.get_component(AiohttpClientService)
             async with aio.session.post(self.config.api_base / "admin/login.list") as resp:
-                logins = [Login.parse(i) for i in await validate_response(resp)]
+                logins = [
+                    LoginPreview.parse(i) if "user" in i else Login.parse(i)
+                    for i in await validate_response(resp)
+                ]
             login = next(
-                (i for i in logins if i.self_id == self_id and i.platform == platform),
+                (i for i in logins if i.id == self_id and i.platform == platform),
                 Login(LoginStatus.CONNECT, self_id=self_id, platform=platform),
             )
             account = Account(platform, self_id, login, self.config)

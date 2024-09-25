@@ -185,14 +185,14 @@ class App(Service):
     async def post(self, event: Event, conn: BaseNetwork):
         if not self.event_callbacks:
             return
-        identity = f"{event.platform}/{event.self_id}"
+        identity = f"{event.platform_}/{event.self_id_}"
         if identity not in self.accounts:
             if event.type == EventType.LOGIN_ADDED:
                 if TYPE_CHECKING:
                     assert isinstance(event, events.LoginEvent)
                 account = Account(
-                    event.platform,
-                    event.self_id,
+                    event.platform_,
+                    event.self_id_,
                     event.login,
                     conn.config,
                 )

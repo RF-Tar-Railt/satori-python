@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 
 from launart import Service
 
-from ..model import Event, Login
+from ..model import Event, LoginType
 from .route import RouterMixin
 from .utils import ctx
 
@@ -39,7 +39,7 @@ class Adapter(Service, RouterMixin):
             return await resp.read()
 
     @abstractmethod
-    async def get_logins(self) -> list[Login]: ...
+    async def get_logins(self) -> list[LoginType]: ...
 
     def __init__(self):
         super().__init__()

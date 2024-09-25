@@ -160,6 +160,39 @@ class Login(ModelBase):
             res["platform"] = self.platform
         return res
 
+    @property
+    def id(self) -> Optional[str]:
+        return self.self_id or (self.user.id if self.user else None)
+
+
+@dataclass
+class LoginPreview(ModelBase):
+    user: User
+    platform: str
+    status: Optional[LoginStatus] = None
+    features: list[str] = field(default_factory=list)
+    proxy_urls: list[str] = field(default_factory=list)
+
+    __converter__ = {"user": User.parse, "status": LoginStatus}
+
+    def dump(self):
+        res: dict[str, Any] = {
+            "user": self.user.dump(),
+            "platform": self.platform,
+            "features": self.features,
+            "proxy_urls": self.proxy_urls,
+        }
+        if self.status:
+            res["status"] = self.status.value
+        return res
+
+    @property
+    def id(self) -> str:
+        return self.user.id
+
+
+LoginType = Union[Login, LoginPreview]
+
 
 @dataclass
 class ArgvInteraction(ModelBase):
@@ -264,14 +297,14 @@ class MessageObject(ModelBase):
 class Event(ModelBase):
     id: int
     type: str
-    platform: str
-    self_id: str
     timestamp: datetime
+    platform: Optional[str] = None
+    self_id: Optional[str] = None
     argv: Optional[ArgvInteraction] = None
     button: Optional[ButtonInteraction] = None
     channel: Optional[Channel] = None
     guild: Optional[Guild] = None
-    login: Optional[Login] = None
+    login: Optional[LoginType] = None
     member: Optional[Member] = None
     message: Optional[MessageObject] = None
     operator: Optional[User] = None
@@ -287,7 +320,7 @@ class Event(ModelBase):
         "button": ButtonInteraction.parse,
         "channel": Channel.parse,
         "guild": Guild.parse,
-        "login": Login.parse,
+        "login": lambda raw: LoginPreview.parse(raw) if "user" in raw else Login.parse(raw),
         "member": Member.parse,
         "message": MessageObject.parse,
         "operator": User.parse,
@@ -295,12 +328,32 @@ class Event(ModelBase):
         "user": User.parse,
     }
 
+    @property
+    def platform_(self):
+        if self.platform:
+            return self.platform
+        if self.login and self.login.platform:
+            return self.login.platform
+        raise ValueError("platform not found")
+
+    @property
+    def self_id_(self):
+        if self.self_id:
+            return self.self_id
+        if self.login and self.login.id:
+            return self.login.id
+        raise ValueError("self_id not found")
+
+    def __post_init__(self):
+        _ = self.platform_
+        _ = self.self_id_
+
     def dump(self):
         res = {
             "id": self.id,
             "type": self.type,
-            "platform": self.platform,
-            "self_id": self.self_id,
+            "platform": self.platform_,
+            "self_id": self.self_id_,
             "timestamp": int(self.timestamp.timestamp() * 1000),
         }
         if self.argv:

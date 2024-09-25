@@ -22,9 +22,9 @@ from loguru import logger
 from starlette.applications import Starlette
 from starlette.datastructures import FormData as FormData
 from starlette.requests import Request as StarletteRequest
-from starlette.responses import JSONResponse, Response, StreamingResponse
+from starlette.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route, WebSocketRoute
-from starlette.websockets import WebSocket
+from starlette.websockets import WebSocket, WebSocketDisconnect
 from yarl import URL
 
 from satori.config import WebhookInfo
@@ -103,7 +103,6 @@ class Server(Service, RouterMixin):
         self.routes = {}
         self.webhooks = webhooks or []
         self._tempdir = TemporaryDirectory()
-        self.proxy_url_mapping = {}
         self._sequence = 0
         self._event_cache = Deque(maxlen=100)
         self.stream_threshold = stream_threshold
@@ -115,10 +114,8 @@ class Server(Service, RouterMixin):
             item.ensure_server(self)
             self._adapters.append(item)
             self.providers.append(item)
-            self.proxy_url_mapping[item.id] = item.proxy_urls()
         elif isinstance(item, Provider):
             self.providers.append(item)
-            self.proxy_url_mapping[item.id] = item.proxy_urls()
         elif isinstance(item, Router):
             self.routers.append(item)
         else:
@@ -131,6 +128,8 @@ class Server(Service, RouterMixin):
         for connection in self.connections:
             try:
                 await connection.send({"op": Opcode.EVENT, "body": event.dump()})
+            except WebSocketDisconnect:
+                break
             except Exception as e:
                 print_exc()
                 logger.error(e)
@@ -141,8 +140,10 @@ class Server(Service, RouterMixin):
                     headers={
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {hook.token or ''}",
-                        "X-Platform": event.platform,
-                        "X-Self-ID": event.self_id,
+                        "X-Platform": event.platform_,
+                        "Satori-Platform": event.platform_,
+                        "X-Self-ID": event.self_id_,
+                        "Satori-Login-ID": event.self_id_,
                     },
                     json={"op": Opcode.EVENT, "body": event.dump()},
                 ) as resp:
@@ -198,12 +199,12 @@ class Server(Service, RouterMixin):
         if not self._adapters and not self.routes:
             return Response(status_code=404, content=request.path_params["method"])
         method = request.path_params["method"]
-        if "X-Platform" not in request.headers:
-            return Response(status_code=401, content="Missing X-Platform header")
-        platform = request.headers["X-Platform"]
-        if "X-Self-ID" not in request.headers:
-            return Response(status_code=401, content="Missing X-Self-ID header")
-        self_id = request.headers["X-Self-ID"]
+        if "X-Platform" not in request.headers and "Satori-Platform" not in request.headers:
+            return Response(status_code=401, content="Missing header X-Platform or Satori-Platform")
+        platform: str = request.headers.get("X-Platform") or request.headers.get("Satori-Platform")  # type: ignore
+        if "X-Self-ID" not in request.headers and "Satori-Login-ID" not in request.headers:
+            return Response(status_code=401, content="Missing header X-Self-ID or Satori-Login-ID")
+        self_id: str = request.headers.get("X-Self-ID") or request.headers.get("Satori-Login-ID")  # type: ignore
 
         for _router in self._adapters:
             if method not in _router.routes:
@@ -223,6 +224,8 @@ class Server(Service, RouterMixin):
         url = request.path_params["upload_url"]
         try:
             content = await self.download(url)
+            if isinstance(content, Path):
+                return FileResponse(path=content)
             # if content size > stream_limit, use streaming response
             if len(content) > self.stream_threshold:
 
@@ -251,17 +254,22 @@ class Server(Service, RouterMixin):
                 if inst == f"{self.id}:{id(self)}":
                     file = Path(self._tempdir.name) / filename
                     if file.exists():
-                        return file.read_bytes()
+                        return file
                 raise FileNotFoundError(f"{filename} not found")
-            platform = pr.netloc
-            _, self_id, path = pr.path.split("/", 2)
-            for provider in self.providers:
+        for provider in self.providers:
+            if pr.scheme == "upload":
+                platform = pr.netloc
+                _, self_id, path = pr.path.split("/", 2)
                 if provider.ensure(platform, self_id):
                     return await provider.download_uploaded(platform, self_id, path)
-        for provider in self.providers:
-            for proxy_url_pf in self.proxy_url_mapping[provider.id]:
-                if url.startswith(proxy_url_pf):
-                    return await provider.download_proxied(proxy_url_pf, url)
+
+            for proxy_url_pf in provider.proxy_urls():
+                if not url.startswith(proxy_url_pf):
+                    continue
+                resp = await provider.download_proxied(proxy_url_pf, url)
+                if resp is None:
+                    continue
+                return resp
         raise ValueError(f"Unknown proxy url: {url}")
 
     def get_local_file(self, url: str):

@@ -15,6 +15,8 @@ from satori.model import (
     Event,
     Guild,
     Login,
+    LoginPreview,
+    LoginType,
     Member,
     MessageObject,
     Order,
@@ -50,6 +52,8 @@ class ApiProtocol:
             "Authorization": f"Bearer {self.account.config.token or ''}",
             "X-Platform": self.account.platform,
             "X-Self-ID": self.account.self_id,
+            "Satori-Platform": self.account.platform,
+            "Satori-Login-ID": self.account.self_id,
         }
         aio = Launart.current().get_component(AiohttpClientService)
         if multipart:
@@ -672,14 +676,14 @@ class ApiProtocol:
         )
         return PageResult.parse(res, User.parse)
 
-    async def login_get(self) -> Login:
+    async def login_get(self) -> LoginType:
         """获取当前登录信息。返回一个 `Login` 对象。
 
         Returns:
             Login: `Login` 对象
         """
         res = await self.call_api(Api.LOGIN_GET, {})
-        return Login.parse(res)
+        return LoginPreview.parse(res) if "user" in res else Login.parse(res)
 
     async def user_get(self, user_id: str) -> User:
         """获取用户信息。返回一个 `User` 对象。
@@ -730,14 +734,14 @@ class ApiProtocol:
         """
         return await self.call_api(f"internal/{action}", kwargs)
 
-    async def admin_login_list(self) -> list[Login]:
+    async def admin_login_list(self) -> list[LoginType]:
         """获取登录信息列表。返回一个 `Login` 对象构成的数组。
 
         Returns:
             list[Login]: `Login` 对象构成的数组
         """
         res = await self.call_api("admin/login.list")
-        return [Login.parse(i) for i in res]
+        return [LoginPreview.parse(i) if "user" in i else Login.parse(i) for i in res]
 
     @overload
     async def upload_create(self, *uploads: Upload) -> list[str]: ...
