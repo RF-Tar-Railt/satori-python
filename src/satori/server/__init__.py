@@ -33,13 +33,13 @@ from satori.model import Event, ModelBase, Opcode
 
 from .adapter import Adapter as Adapter
 from .conection import WebsocketConnection
-from .utils import Deque
 from .formdata import parse_content_disposition as parse_content_disposition
 from .model import Provider as Provider
 from .model import Request as Request
 from .model import Router as Router
 from .route import RouteCall as RouteCall
 from .route import RouterMixin as RouterMixin
+from .utils import Deque
 
 
 async def _request_handler(method: str, request: StarletteRequest, func: RouteCall):

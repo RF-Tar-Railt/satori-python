@@ -1,5 +1,5 @@
-from collections import deque
 import ssl
+from collections import deque
 
 
 class Deque:
