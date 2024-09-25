@@ -6,6 +6,7 @@ from launart import Service
 
 from ..model import Event, LoginType
 from .route import RouterMixin
+from .utils import ctx
 
 if TYPE_CHECKING:
     from . import Server
@@ -33,8 +34,8 @@ class Adapter(Service, RouterMixin):
     @abstractmethod
     async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes: ...
 
-    async def download_proxied(self, prefix: str, url: str) -> Optional[bytes]:
-        async with self.server.session.get(url) as resp:
+    async def download_proxied(self, prefix: str, url: str) -> bytes:
+        async with self.server.session.get(url, ssl=ctx) as resp:
             return await resp.read()
 
     @abstractmethod
