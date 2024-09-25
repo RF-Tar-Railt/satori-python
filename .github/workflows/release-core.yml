@@ -28,7 +28,7 @@ jobs:
 
       - name: Build Package
         run: |
-          export MINA_BUILD_TARGET=core && pdm mina build core
+          export MINA_BUILD_TARGET=core && pdm mina build core --no-isolation
 
       - name: Publish Package
         run: |
