@@ -1,4 +1,5 @@
 from collections import deque
+import ssl
 
 
 class Deque:
@@ -21,6 +22,10 @@ class Deque:
         if i < self.offset:
             i = self.offset - 1
         return list(self.data)[i + 1 - self.offset :]
+
+
+ctx = ssl.create_default_context()
+ctx.set_ciphers("DEFAULT")
 
 
 if __name__ == "__main__":

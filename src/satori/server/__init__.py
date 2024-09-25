@@ -33,7 +33,7 @@ from satori.model import Event, ModelBase, Opcode
 
 from .adapter import Adapter as Adapter
 from .conection import WebsocketConnection
-from .deque import Deque
+from .utils import Deque
 from .formdata import parse_content_disposition as parse_content_disposition
 from .model import Provider as Provider
 from .model import Request as Request
@@ -243,7 +243,8 @@ class Server(Service, RouterMixin):
             return Response(status_code=500, content=repr(e))
 
     async def download(self, url: str):
-        pr = urllib.parse.urlparse(url.replace(":/", "://", 1).replace(":///", "://", 1))
+        url = url.replace(":/", "://", 1).replace(":///", "://", 1)
+        pr = urllib.parse.urlparse(url)
         if pr.scheme == "upload":
             if pr.netloc == "temp":
                 _, inst, filename = pr.path.split("/", 2)
