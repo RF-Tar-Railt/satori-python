@@ -44,7 +44,7 @@ class Element:
                         raise TypeError(f.name, attr)
                     setattr(self, f.name, attr.lower() == "true")
                 else:
-                    setattr(self, f.name, _type(attr))
+                    setattr(self, f.name, _type(attr))  # type: ignore
             self._attrs[f.name] = getattr(self, f.name)
         self._attrs = {k: v for k, v in self._attrs.items() if v is not None}
 

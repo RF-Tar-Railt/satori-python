@@ -24,6 +24,7 @@ from starlette.datastructures import FormData as FormData
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route, WebSocketRoute
+from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from yarl import URL
 
@@ -107,6 +108,7 @@ class Server(Service, RouterMixin):
         self._event_cache = Deque(maxlen=100)
         self.stream_threshold = stream_threshold
         self.stream_chunk_size = stream_chunk_size
+        self.resources: dict[str, Path] = {}
         super().__init__()
 
     def apply(self, item: Provider | Router | Adapter):
@@ -120,6 +122,10 @@ class Server(Service, RouterMixin):
             self.routers.append(item)
         else:
             raise TypeError(f"Unknown config type: {item}")
+
+    def mount(self, route_path: str, file: Path):
+        """在指定路径挂载静态文件"""
+        self.resources[route_path] = file
 
     async def event_callback(self, event: Event):
         event.id = self._sequence
@@ -192,7 +198,10 @@ class Server(Service, RouterMixin):
     async def admin_login_list_handler(self, request: StarletteRequest):
         logins = []
         for provider in self.providers:
-            logins.extend(await provider.get_logins())
+            _logins = await provider.get_logins()
+            for _login in _logins:
+                _login.proxy_urls.extend(provider.proxy_urls())
+            logins.extend(_logins)
         return JSONResponse(content=[lo.dump() for lo in logins])
 
     async def http_server_handler(self, request: StarletteRequest):
@@ -331,6 +340,8 @@ class Server(Service, RouterMixin):
                     ),
                 ]
             )
+            for path, file in self.resources.items():
+                app.mount(path, StaticFiles(directory=file.parent, html=file.suffix == ".html"))
             asgi_service.middleware.mounts[""] = app  # type: ignore
 
         async def event_task(_provider: Provider):
