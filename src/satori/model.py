@@ -320,7 +320,13 @@ class Event(ModelBase):
         "button": ButtonInteraction.parse,
         "channel": Channel.parse,
         "guild": Guild.parse,
-        "login": lambda raw: LoginPreview.parse(raw) if "user" in raw else Login.parse(raw),
+        "login": lambda raw: (
+            LoginPreview.parse(
+                raw if raw["user"] else {**raw, "user": {"id": raw["self_id"]}} if "self_id" in raw else raw
+            )
+            if "user" in raw
+            else Login.parse(raw)
+        ),
         "member": Member.parse,
         "message": MessageObject.parse,
         "operator": User.parse,

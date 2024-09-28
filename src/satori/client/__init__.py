@@ -204,8 +204,27 @@ class App(Service):
                 )
                 self.accounts[identity] = account
                 conn.accounts[identity] = account
-                await self.account_update(account, LoginStatus.ONLINE)
                 await self.account_update(account, LoginStatus.CONNECT)
+                await self.account_update(account, LoginStatus.ONLINE)
+            elif event.type == EventType.LOGIN_UPDATED:
+                if TYPE_CHECKING:
+                    assert isinstance(event, events.LoginEvent)
+                if event.login.status == LoginStatus.ONLINE:
+                    account = Account(
+                        event.platform_,
+                        event.self_id_,
+                        event.login,
+                        conn.config,
+                    )
+                    logger.info(f"account added: {account}")
+                    account.connected.set()
+                    self.accounts[identity] = account
+                    conn.accounts[identity] = account
+                    await self.account_update(account, LoginStatus.CONNECT)
+                    await self.account_update(account, LoginStatus.ONLINE)
+                else:
+                    logger.warning(f"Received event for unknown account: {event}")
+                    return
             else:
                 logger.warning(f"Received event for unknown account: {event}")
                 return

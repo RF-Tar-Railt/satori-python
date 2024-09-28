@@ -110,8 +110,8 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                 )
                 self.app.accounts[identity] = account
                 self.accounts[identity] = account
-                await self.app.account_update(account, LoginStatus.ONLINE)
-            await self.app.account_update(account, LoginStatus.CONNECT)
+                await self.app.account_update(account, LoginStatus.CONNECT)
+            await self.app.account_update(account, LoginStatus.ONLINE)
         if not self.accounts:
             logger.warning(f"No account available for {self.config}")
             return False

@@ -64,8 +64,8 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
             account.connected.set()
             self.app.accounts[identity] = account
             self.accounts[identity] = account
-            await self.app.account_update(account, LoginStatus.ONLINE)
             await self.app.account_update(account, LoginStatus.CONNECT)
+            await self.app.account_update(account, LoginStatus.ONLINE)
         data = await req.json()
         op = data["op"]
         if op != Opcode.EVENT:

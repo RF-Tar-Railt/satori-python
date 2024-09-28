@@ -40,8 +40,16 @@ class BaseNetwork(Generic[TConfig], Service):
             try:
                 event = Event.parse(raw)
             except Exception as e:
-                logger.warning(f"Failed to parse event: {raw}\nCaused by {e!r}")
+                if (
+                    "self_id" in raw
+                    or ("login" in raw and "self_id" in raw["login"])
+                    or ("login" in raw and "user" in raw["login"] and "self_id" in raw["login"]["user"])
+                ):
+                    logger.warning(f"Failed to parse event: {raw}\nCaused by {e!r}")
+                else:
+                    logger.trace(f"Failed to parse event: {raw}\nCaused by {e!r}")
             else:
+                logger.trace(f"Received event: {event}")
                 self.sequence = event.id
                 await self.app.post(event, self)
 
