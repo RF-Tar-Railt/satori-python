@@ -16,6 +16,7 @@
 目前提供了 `satori` 协议实现的有：
 
 - [Chronocat](https://chronocat.vercel.app)
+- [nekobox](https://github.com/wyapx/nekobox)
 - Koishi （搭配 `@koishijs/plugin-server`）
 
 ### 使用该 SDK 的框架
