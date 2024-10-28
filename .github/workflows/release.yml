@@ -1,7 +1,11 @@
 name: Full Release
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release Version'
+        required: true
   push:
     tags:
       - v*
@@ -22,8 +26,14 @@ jobs:
         id: version
         run: |
           echo "VERSION=$(pdm show --version -q)" >> $GITHUB_OUTPUT
-          echo "TAG_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == 'push' ]]; then
+            echo "TAG_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+            echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            input_version=${{ github.event.inputs.version }}
+            echo "TAG_VERSION=${input_version#v}" >> $GITHUB_OUTPUT
+            echo "TAG_NAME=${input_version}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Check Version
         if: steps.version.outputs.VERSION != steps.version.outputs.TAG_VERSION
