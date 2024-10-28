@@ -294,6 +294,38 @@ class MessageObject(ModelBase):
 
 
 @dataclass
+class MessageReceipt(ModelBase):
+    id: str
+    content: Optional[str] = None
+
+    @classmethod
+    def from_elements(
+        cls,
+        id: str,
+        content: Optional[list[Element]] = None,
+    ):
+        return cls(id, "".join(str(i) for i in content) if content else None)
+
+    @property
+    def message(self) -> Optional[list[Element]]:
+        return transform(parse(self.content)) if self.content else None
+
+    @classmethod
+    def parse(cls, raw: dict):
+        if "elements" in raw and "content" not in raw:
+            content = [RawElement(*item.values()) for item in raw["elements"]]
+            raw["content"] = "".join(str(i) for i in content)
+        return super().parse(raw)
+
+    def dump(self):
+        res = {"id": self.id}
+        if self.content:
+            res["content"] = self.content
+        return res
+
+
+
+@dataclass
 class Event(ModelBase):
     id: int
     type: str
@@ -400,7 +432,7 @@ class PageResult(ModelBase, Generic[T]):
     @classmethod
     def parse(cls, raw: dict, parser: Optional[Callable[[dict], T]] = None) -> "PageResult[T]":
         data = [(parser or ModelBase.parse)(item) for item in raw["data"]]
-        return cls(data, raw.get("next"))
+        return cls(data, raw.get("next"))  # type: ignore
 
     def dump(self):
         res: dict = {"data": [item.dump() for item in self.data]}
@@ -416,7 +448,7 @@ class PageDequeResult(PageResult[T]):
     @classmethod
     def parse(cls, raw: dict, parser: Optional[Callable[[dict], T]] = None) -> "PageDequeResult[T]":
         data = [(parser or ModelBase.parse)(item) for item in raw["data"]]
-        return cls(data, raw.get("next"), raw.get("prev"))
+        return cls(data, raw.get("next"), raw.get("prev"))  # type: ignore
 
     def dump(self):
         res: dict = {"data": [item.dump() for item in self.data]}

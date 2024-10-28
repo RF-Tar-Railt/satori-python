@@ -13,6 +13,7 @@ from satori.model import (
     LoginType,
     Member,
     MessageObject,
+    MessageReceipt,
     Order,
     PageDequeResult,
     PageResult,
@@ -71,7 +72,7 @@ class Account(Generic[TP]):
             - 链接开头出现在 self_info.proxy_urls 中的某一项
         """
 
-    async def send(self, event: Event, message: str | Iterable[str | Element]) -> list[MessageObject]:
+    async def send(self, event: Event, message: str | Iterable[str | Element]) -> list[MessageReceipt]:
         """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
@@ -87,7 +88,7 @@ class Account(Generic[TP]):
 
     async def send_message(
         self, channel: str | Channel, message: str | Iterable[str | Element]
-    ) -> list[MessageObject]:
+    ) -> list[MessageReceipt]:
         """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
@@ -100,7 +101,7 @@ class Account(Generic[TP]):
 
     async def send_private_message(
         self, user: str | User, message: str | Iterable[str | Element]
-    ) -> list[MessageObject]:
+    ) -> list[MessageReceipt]:
         """发送私聊消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
@@ -125,7 +126,7 @@ class Account(Generic[TP]):
             None: 该方法无返回值
         """
 
-    async def message_create(self, channel_id: str, content: str) -> list[MessageObject]:
+    async def message_create(self, channel_id: str, content: str) -> list[MessageReceipt]:
         """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
