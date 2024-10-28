@@ -324,7 +324,6 @@ class MessageReceipt(ModelBase):
         return res
 
 
-
 @dataclass
 class Event(ModelBase):
     id: int
