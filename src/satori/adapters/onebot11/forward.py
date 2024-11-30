@@ -226,3 +226,6 @@ class OneBot11ForwardAdapter(Adapter):
             raise ActionFailed(f"{result['retcode']}: {result}", result)
 
         return result.get("data")
+
+    def __str__(self):
+        return self.id

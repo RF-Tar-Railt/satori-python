@@ -1,0 +1,38 @@
+name: Client Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release Version'
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        name: Ensure Python Runtime
+        with:
+          python-version: '3.x'
+          architecture: 'x64'
+
+      - name: Ensure PDM
+        run: |
+          python3 -m pip install pdm==2.13.2 pdm-mina "mina-build<0.6"
+
+      - name: Build Package
+        run: |
+          export MINA_BUILD_TARGET=adapter_onebot11 && pdm mina build adapter_onebot11 --no-isolation
+
+      - name: Publish Package
+        run: |
+          pdm publish --no-build
+          gh release upload --clobber ${{ inputs.version }} dist/*.tar.gz dist/*.whl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

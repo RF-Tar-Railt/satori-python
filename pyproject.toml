@@ -53,6 +53,7 @@ dev = [
 
 [tool.pdm.build]
 includes = ["src/satori"]
+excludes = ["src/satori/adapters/*"]
 
 [tool.pdm.scripts]
 format = { composite = ["isort ./src/ ./example/","black ./src/ ./example/","ruff check ./src/ ./example/"] }
