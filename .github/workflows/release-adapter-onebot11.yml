@@ -1,4 +1,4 @@
-name: Client Release
+name: Onebot11 Release
 
 on:
   workflow_dispatch:
