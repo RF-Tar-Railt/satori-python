@@ -4,11 +4,11 @@ from typing import Literal, overload
 from aiohttp import ClientResponse
 
 from satori.exception import (
-    ApiNotImplementedException,
     BadRequestException,
     ForbiddenException,
     MethodNotAllowedException,
     NotFoundException,
+    ServerException,
     UnauthorizedException,
 )
 
@@ -36,7 +36,7 @@ async def validate_response(resp: ClientResponse, noreturn=False):
         raise NotFoundException(await resp.text())
     elif resp.status == 405:
         raise MethodNotAllowedException(await resp.text())
-    elif resp.status == 500:
-        raise ApiNotImplementedException(await resp.text())
+    elif resp.status >= 500:
+        raise ServerException(await resp.text())
     else:
         resp.raise_for_status()

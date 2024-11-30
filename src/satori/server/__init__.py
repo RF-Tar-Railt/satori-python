@@ -44,7 +44,9 @@ from .route import RouterMixin as RouterMixin
 from .utils import Deque
 
 
-async def _request_handler(method: str, request: StarletteRequest, func: RouteCall):
+async def _request_handler(
+    method: str, request: StarletteRequest, func: RouteCall, platform: str, self_id: str
+):
     if method == Api.UPLOAD_CREATE.value:
         async with request.form() as form:
             res = await func(
@@ -52,16 +54,24 @@ async def _request_handler(method: str, request: StarletteRequest, func: RouteCa
                     cast(dict, request.headers.mutablecopy()),
                     method,
                     form,
+                    platform=platform,
+                    self_id=self_id,
                 )
             )
             return JSONResponse(content=res)
-    res = await func(
-        Request(
-            cast(dict, request.headers.mutablecopy()),
-            method,
-            await request.json(),
+    try:
+        res = await func(
+            Request(
+                cast(dict, request.headers.mutablecopy()),
+                method,
+                await request.json(),
+                platform=platform,
+                self_id=self_id,
+            )
         )
-    )
+    except Exception as e:
+        logger.error(e)
+        return Response(status_code=500, content=str(e))
     if isinstance(res, ModelBase):
         return JSONResponse(content=res.dump())
     if res and isinstance(res, list) and isinstance(res[0], ModelBase):
@@ -223,13 +233,13 @@ class Server(Service, RouterMixin):
                 continue
             if not _router.ensure(platform, self_id):
                 continue
-            return await _request_handler(method, request, _router.routes[method])
+            return await _request_handler(method, request, _router.routes[method], platform, self_id)
         if method in self.routes:
-            return await _request_handler(method, request, self.routes[method])
+            return await _request_handler(method, request, self.routes[method], platform, self_id)
         for _router in self.routers:
             if method not in _router.routes:
                 continue
-            return await _request_handler(method, request, _router.routes[method])
+            return await _request_handler(method, request, _router.routes[method], platform, self_id)
         return Response(status_code=404, content=method)
 
     async def proxy_url_handler(self, request: StarletteRequest):

@@ -22,7 +22,7 @@ class MethodNotAllowedException(ActionFailed):
     pass
 
 
-class ApiNotImplementedException(ActionFailed):
+class ServerException(ActionFailed):
     pass
 
 

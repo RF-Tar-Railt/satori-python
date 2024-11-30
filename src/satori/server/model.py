@@ -18,6 +18,8 @@ class Request(Generic[TP]):
     headers: dict[str, Any]
     action: str
     params: TP
+    platform: str
+    self_id: str
 
 
 @runtime_checkable
