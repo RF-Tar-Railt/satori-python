@@ -7,9 +7,9 @@ import secrets
 import signal
 import threading
 import urllib.parse
-from itertools import chain
 from collections.abc import Iterable
 from contextlib import suppress
+from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from traceback import print_exc
