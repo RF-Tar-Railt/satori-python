@@ -12,9 +12,6 @@ class ExampleProvider:
     def id(self):
         return "example"
 
-    def authenticate(self, token) -> bool:
-        return True
-
     @staticmethod
     def proxy_urls():
         return []

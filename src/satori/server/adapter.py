@@ -1,8 +1,9 @@
 from abc import abstractmethod
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from launart import Service
+from starlette.routing import BaseRoute
 
 from ..model import Event, LoginType
 from .route import RouterMixin
@@ -23,9 +24,6 @@ class Adapter(Service, RouterMixin):
 
     @abstractmethod
     def ensure(self, platform: str, self_id: str) -> bool: ...
-
-    @abstractmethod
-    def authenticate(self, token: Optional[str]) -> bool: ...
 
     @staticmethod
     def proxy_urls() -> list[str]:
@@ -51,3 +49,7 @@ class Adapter(Service, RouterMixin):
 
     def ensure_server(self, server: "Server"):
         self.server = server
+
+    def get_routes(self) -> list[BaseRoute]:
+        """return extra routes that will mount to the server root"""
+        return []

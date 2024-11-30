@@ -1,5 +1,5 @@
 includes = ["src/satori"]
-excludes = ["src/satori/client", "src/satori/server"]
+excludes = ["src/satori/client", "src/satori/server", "src/satori/adapters"]
 
 [project]
 name = "satori-python-core"

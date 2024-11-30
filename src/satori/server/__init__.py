@@ -7,6 +7,7 @@ import secrets
 import signal
 import threading
 import urllib.parse
+from itertools import chain
 from collections.abc import Iterable
 from contextlib import suppress
 from pathlib import Path
@@ -86,6 +87,7 @@ class Server(Service, RouterMixin):
         port: int = 5140,
         path: str = "",
         version: str = "v1",
+        token: str | None = None,
         webhooks: list[WebhookInfo] | None = None,
         stream_threshold: int = 16 * 1024 * 1024,
         stream_chunk_size: int = 64 * 1024,
@@ -98,6 +100,7 @@ class Server(Service, RouterMixin):
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
         self.url_base = f"http://{host}:{port}{self.path}/{version}"
+        self.token = token
         self._adapters = []
         self.providers = []
         self.routers = []
@@ -167,9 +170,9 @@ class Server(Service, RouterMixin):
         body = identity["body"]
         token = identity["body"].get("token")
         logins = []
+        if token != self.token:
+            return await ws.close(code=3000, reason="Unauthorized")
         for provider in self.providers:
-            if not provider.authenticate(token):
-                return await ws.close(code=3000, reason="Unauthorized")
             _logins = await provider.get_logins()
             for _login in _logins:
                 _login.proxy_urls.extend(provider.proxy_urls())
@@ -322,6 +325,7 @@ class Server(Service, RouterMixin):
             asgi_service = manager.get_component(UvicornASGIService)
             app = Starlette(
                 routes=[
+                    *chain.from_iterable(ada.get_routes() for ada in self._adapters),
                     WebSocketRoute(f"{self.path}/{self.version}/events", self.websocket_server_handler),
                     Route(
                         f"{self.path}/{self.version}/admin/login.list",

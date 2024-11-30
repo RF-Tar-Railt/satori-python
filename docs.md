@@ -284,9 +284,6 @@ class Provider(Protocol):
     def publisher(self) -> AsyncIterator[Event]:
         ...
 
-    def authenticate(self, token: str) -> bool:
-        ...
-
     async def get_logins(self) -> list[Login]:
         ...
 ```
@@ -303,8 +300,6 @@ from satori.server import Server
 server = Server()
 
 class MyProvider:
-    def authenticate(self, token: str) -> bool:
-        return True
 
     async def get_logins(self):
         return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example")]
@@ -337,7 +332,6 @@ server.apply(Adapter(...))
 - `get_platform`: 返回适配器所适配的平台名称.
 - `publisher`: 用于推送平台事件.
 - `ensure`: 验证客户端请求的`platform` 和 `self-id`.
-- `authenticate`: 验证客户端请求的身份信息 (如果平台需要)
 - `get_logins`: 获取平台上的登录信息.
 - `launch`: 调度逻辑.
 

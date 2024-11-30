@@ -26,9 +26,6 @@ class ExampleAdapter(Adapter):
     def ensure(self, platform: str, self_id: str) -> bool:
         return platform == self.get_platform() and self_id == "1234567890"
 
-    def authenticate(self, token: str) -> bool:
-        return True
-
     async def get_logins(self):
         return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example")]
 
