@@ -23,6 +23,7 @@ from .account import ApiInfo as ApiInfo
 from .network.base import BaseNetwork as BaseNetwork
 from .network.webhook import WebhookNetwork
 from .network.websocket import WsNetwork
+from .protocol import ApiProtocol as ApiProtocol
 
 TConfig = TypeVar("TConfig", bound=Config)
 TE = TypeVar("TE", bound=Event, contravariant=True)
@@ -47,7 +48,7 @@ class App(Service):
     def register_config(cls, tc: type[TConfig], tn: type[BaseNetwork[TConfig]]):
         MAPPING[tc] = tn
 
-    def __init__(self, *configs: Config):
+    def __init__(self, *configs: Config, default_api_cls: type[ApiProtocol] = ApiProtocol):
         self.accounts = {}
         self.connections = []
         self.event_callbacks = []
@@ -55,6 +56,7 @@ class App(Service):
         super().__init__()
         for config in configs:
             self.apply(config)
+        self.default_api_cls = default_api_cls
 
     def apply(self, config: Config):
         try:
@@ -195,6 +197,7 @@ class App(Service):
                     event.self_id_,
                     event.login,
                     conn.config,
+                    self.default_api_cls,
                 )
                 logger.info(f"account added: {account}")
                 (
@@ -215,6 +218,7 @@ class App(Service):
                         event.self_id_,
                         event.login,
                         conn.config,
+                        self.default_api_cls,
                     )
                     logger.info(f"account added: {account}")
                     account.connected.set()

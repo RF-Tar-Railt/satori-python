@@ -101,7 +101,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                     account.connected.clear()
                 account.config = self.config
             else:
-                account = Account(platform, self_id, obj, self.config)
+                account = Account(platform, self_id, obj, self.config, self.app.default_api_cls)
                 logger.info(f"account registered: {account}")
                 (
                     account.connected.set()

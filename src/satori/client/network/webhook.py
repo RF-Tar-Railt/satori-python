@@ -59,7 +59,7 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
                 (i for i in logins if i.id == self_id and i.platform == platform),
                 Login(LoginStatus.CONNECT, self_id=self_id, platform=platform),
             )
-            account = Account(platform, self_id, login, self.config)
+            account = Account(platform, self_id, login, self.config, self.app.default_api_cls)
             logger.info(f"account registered: {account}")
             account.connected.set()
             self.app.accounts[identity] = account
