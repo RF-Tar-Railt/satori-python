@@ -114,9 +114,9 @@ class OneBot11ForwardAdapter(Adapter):
                     login = self.logins[self_id]
                     handler = events.get(event_type)
                     if not handler:
-                        logger.warning(f"received unsupported event {event_type}: {data}")
-                        return
-                    event = await handler(login, self, data)
+                        event = Event(0, EventType.INTERNAL, datetime.now(), login=login, _type=event_type, _data=data)
+                    else:
+                        event = await handler(login, self, data)
                     if event:
                         self.queue.put_nowait(event)
 

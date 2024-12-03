@@ -79,4 +79,6 @@ class Account(Generic[TP]):
         return f"<Account {self.self_id} ({self.platform})>"
 
     def __getattr__(self, item):
-        return getattr(self.protocol, item)
+        if hasattr(self.protocol, item):
+            return getattr(self.protocol, item)
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")

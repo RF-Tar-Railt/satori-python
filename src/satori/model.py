@@ -260,6 +260,10 @@ class MessageObject(ModelBase):
     def message(self) -> list[Element]:
         return transform(parse(self.content))
 
+    @message.setter
+    def message(self, value: list[Element]):
+        self.content = "".join(str(i) for i in value)
+
     @classmethod
     def parse(cls, raw: dict):
         if "elements" in raw and "content" not in raw:
@@ -309,6 +313,10 @@ class MessageReceipt(ModelBase):
     @property
     def message(self) -> Optional[list[Element]]:
         return transform(parse(self.content)) if self.content else None
+
+    @message.setter
+    def message(self, value: Optional[list[Element]]):
+        self.content = "".join(str(i) for i in value) if value else None
 
     @classmethod
     def parse(cls, raw: dict):
