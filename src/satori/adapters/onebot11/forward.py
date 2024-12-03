@@ -114,7 +114,9 @@ class OneBot11ForwardAdapter(Adapter):
                     login = self.logins[self_id]
                     handler = events.get(event_type)
                     if not handler:
-                        event = Event(0, EventType.INTERNAL, datetime.now(), login=login, _type=event_type, _data=data)
+                        event = Event(
+                            0, EventType.INTERNAL, datetime.now(), login=login, _type=event_type, _data=data
+                        )
                     else:
                         event = await handler(login, self, data)
                     if event:
