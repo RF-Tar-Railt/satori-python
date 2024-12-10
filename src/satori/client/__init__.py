@@ -187,16 +187,15 @@ class App(Service):
     async def post(self, event: Event, conn: BaseNetwork):
         if not self.event_callbacks:
             return
-        identity = f"{event.platform_}/{event.self_id_}"
-        if identity not in self.accounts:
+        login_sn = f"{event.login.sn}@{id(conn)}"
+        if login_sn not in self.accounts:
             if event.type == EventType.LOGIN_ADDED:
                 if TYPE_CHECKING:
                     assert isinstance(event, events.LoginEvent)
                 account = Account(
-                    event.platform_,
-                    event.self_id_,
                     event.login,
                     conn.config,
+                    conn.proxy_urls,
                     self.default_api_cls,
                 )
                 logger.info(f"account added: {account}")
@@ -205,26 +204,23 @@ class App(Service):
                     if event.login.status == LoginStatus.ONLINE
                     else account.connected.clear()
                 )
-                self.accounts[identity] = account
-                conn.accounts[identity] = account
-                await self.account_update(account, LoginStatus.CONNECT)
-                await self.account_update(account, LoginStatus.ONLINE)
+                self.accounts[login_sn] = account
+                conn.accounts[login_sn] = account
+                await self.account_update(account, event.login.status)
             elif event.type == EventType.LOGIN_UPDATED:
                 if TYPE_CHECKING:
                     assert isinstance(event, events.LoginEvent)
                 if event.login.status == LoginStatus.ONLINE:
                     account = Account(
-                        event.platform_,
-                        event.self_id_,
                         event.login,
                         conn.config,
+                        conn.proxy_urls,
                         self.default_api_cls,
                     )
                     logger.info(f"account added: {account}")
                     account.connected.set()
-                    self.accounts[identity] = account
-                    conn.accounts[identity] = account
-                    await self.account_update(account, LoginStatus.CONNECT)
+                    self.accounts[login_sn] = account
+                    conn.accounts[login_sn] = account
                     await self.account_update(account, LoginStatus.ONLINE)
                 else:
                     logger.warning(f"Received event for unknown account: {event}")
@@ -233,7 +229,7 @@ class App(Service):
                 logger.warning(f"Received event for unknown account: {event}")
                 return
         else:
-            account = self.accounts[identity]
+            account = self.accounts[login_sn]
         if event.type == EventType.LOGIN_UPDATED:
             if TYPE_CHECKING:
                 assert isinstance(event, events.LoginEvent)
@@ -243,6 +239,7 @@ class App(Service):
                 if event.login.status in (LoginStatus.ONLINE, LoginStatus.CONNECT)
                 else account.connected.clear()
             )
+            await self.account_update(account, event.login.status)
 
         await asyncio.gather(*(callback(account, event) for callback in self.event_callbacks))
 
@@ -251,9 +248,9 @@ class App(Service):
                 assert isinstance(event, events.LoginEvent)
             logger.info(f"account removed: {account}")
             account.connected.clear()
-            await self.account_update(account, LoginStatus.DISCONNECT)
-            del self.accounts[identity]
-            del conn.accounts[identity]
+            await self.account_update(account, LoginStatus.OFFLINE)
+            del self.accounts[login_sn]
+            del conn.accounts[login_sn]
 
     async def launch(self, manager: Launart):
         for conn in self.connections:

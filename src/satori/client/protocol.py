@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, Any, cast, overload, Optional
+from typing_extensions import deprecated
 
 from aiohttp import FormData
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
@@ -10,13 +11,12 @@ from launart import Launart
 from satori.const import Api
 from satori.element import Element
 from satori.model import (
+    Meta,
     Channel,
     Direction,
     Event,
     Guild,
     Login,
-    LoginPreview,
-    LoginType,
     Member,
     MessageObject,
     MessageReceipt,
@@ -39,12 +39,19 @@ class ApiProtocol:
         self.account = account
 
     async def download(self, url: str):
-        """访问内部链接。"""
+        """访问资源链接。"""
         endpoint = self.account.ensure_url(url)
         aio = Launart.current().get_component(AiohttpClientService)
         async with aio.session.get(endpoint) as resp:
             await validate_response(resp, noreturn=True)
             return await resp.read()
+
+    async def request_internal(self, url: str, request: str = "GET", **kwargs) -> dict:
+        """访问内部链接。"""
+        endpoint = self.account.ensure_url(url)
+        aio = Launart.current().get_component(AiohttpClientService)
+        async with aio.session.request(request, endpoint, **kwargs) as resp:
+            return await validate_response(resp)
 
     async def call_api(self, action: str | Api, params: dict | None = None, multipart: bool = False) -> dict:
         endpoint = self.account.config.api_base / (action.value if isinstance(action, Api) else action)
@@ -677,14 +684,14 @@ class ApiProtocol:
         )
         return PageResult.parse(res, User.parse)
 
-    async def login_get(self) -> LoginType:
+    async def login_get(self) -> Login:
         """获取当前登录信息。返回一个 `Login` 对象。
 
         Returns:
             Login: `Login` 对象
         """
         res = await self.call_api(Api.LOGIN_GET, {})
-        return LoginPreview.parse(res) if "user" in res else Login.parse(res)
+        return Login.parse(res)
 
     async def user_get(self, user_id: str) -> User:
         """获取用户信息。返回一个 `User` 对象。
@@ -735,14 +742,31 @@ class ApiProtocol:
         """
         return await self.call_api(f"internal/{action}", kwargs)
 
-    async def admin_login_list(self) -> list[LoginType]:
+    async def meta_get(self) -> Meta:
+        """获取元信息。返回一个 `Meta` 对象。
+
+        Returns:
+            Meta: `Meta` 对象
+        """
+        res = await self.call_api("meta")
+        return Meta.parse(res)
+
+    @deprecated("Use `meta_get` instead")
+    async def admin_login_list(self) -> list[Login]:
         """获取登录信息列表。返回一个 `Login` 对象构成的数组。
 
         Returns:
             list[Login]: `Login` 对象构成的数组
         """
-        res = await self.call_api("admin/login.list")
-        return [LoginPreview.parse(i) if "user" in i else Login.parse(i) for i in res]
+        return (await self.meta_get()).logins
+
+    async def webhook_create(self, url: str, token: Optional[str] = None):
+        """创建 Webhook。"""
+        await self.call_api("meta/webhook.create", {"url": url, "token": token})
+
+    async def webhook_delete(self, url: str):
+        """删除 Webhook。"""
+        await self.call_api("meta/webhook.delete", {"url": url})
 
     @overload
     async def upload_create(self, *uploads: Upload) -> list[str]: ...

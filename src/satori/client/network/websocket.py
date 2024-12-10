@@ -11,7 +11,7 @@ from launart.utilles import any_completed
 from loguru import logger
 
 from satori.config import WebsocketsInfo as WebsocketsInfo
-from satori.model import Login, LoginPreview, LoginStatus, Opcode
+from satori.model import LoginStatus, Opcode, Identify, Ready, Event
 
 from ..account import Account
 from .base import BaseNetwork
@@ -27,6 +27,26 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
 
     connection: aiohttp.ClientWebSocketResponse | None = None
 
+    def post_event(self, body: dict):
+        async def event_parse_task(raw: dict):
+            try:
+                event = Event.parse(raw)
+            except Exception as e:
+                if (
+                    "self_id" in raw
+                    or ("login" in raw and "self_id" in raw["login"])
+                    or ("login" in raw and "user" in raw["login"] and "self_id" in raw["login"]["user"])
+                ):
+                    logger.warning(f"Failed to parse event: {raw}\nCaused by {e!r}")
+                else:
+                    logger.trace(f"Failed to parse event: {raw}\nCaused by {e!r}")
+            else:
+                logger.trace(f"Received event: {event}")
+                self.sequence = event.sn
+                await self.app.post(event, self)
+
+        return asyncio.create_task(event_parse_task(body))
+
     async def message_receive(self):
         if self.connection is None:
             raise RuntimeError("connection is not established")
@@ -40,7 +60,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                 logger.trace(f"Received payload: {data}")
                 if data["op"] == Opcode.EVENT:
                     self.post_event(data["body"])
-                elif data["op"] > 4:
+                elif data["op"] > 5:
                     logger.warning(f"Received unknown event: {data}")
                 continue
         else:
@@ -63,16 +83,11 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
         """鉴权连接"""
         if not self.connection:
             raise RuntimeError("connection is not established")
-        payload = {
-            "op": Opcode.IDENTIFY,
-            "body": {
-                "token": self.config.token,
-            },
-        }
+        payload = Identify(self.config.token)
         if self.sequence > -1:
-            payload["body"]["sequence"] = self.sequence
+            payload.sn = self.sequence
         try:
-            await self.send(payload)
+            await self.send({"op": Opcode.IDENTIFY.value, "body": payload.dump()})
         except Exception as e:
             logger.error(f"Error while sending IDENTIFY event: {e}")
             return False
@@ -85,32 +100,28 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
         if data["op"] != Opcode.READY:
             logger.error(f"Received unexpected payload: {data}")
             return False
-        for login in data["body"]["logins"]:
-            obj = LoginPreview.parse(login) if "user" in login else Login.parse(login)
-            if obj.id is None:
-                continue
-            platform = obj.platform or "satori"
-            self_id = obj.id
-            identity = f"{platform}/{self_id}"
-            if identity in self.app.accounts:
-                account = self.app.accounts[identity]
-                self.accounts[identity] = account
-                if not obj.status or obj.status == LoginStatus.ONLINE:
+        ready = Ready.parse(data["body"])
+        self.proxy_urls = ready.proxy_urls
+        for login in ready.logins:
+            login_sn = f"{login.sn}@{id(self)}"
+            if login_sn in self.app.accounts:
+                account = self.app.accounts[login_sn]
+                self.accounts[login_sn] = account
+                if login.status == LoginStatus.ONLINE:
                     account.connected.set()
                 else:
                     account.connected.clear()
                 account.config = self.config
             else:
-                account = Account(platform, self_id, obj, self.config, self.app.default_api_cls)
+                account = Account(login,self.config, ready.proxy_urls, self.app.default_api_cls)
                 logger.info(f"account registered: {account}")
                 (
                     account.connected.set()
-                    if not obj.status or obj.status == LoginStatus.ONLINE
+                    if login.status == LoginStatus.ONLINE
                     else account.connected.clear()
                 )
-                self.app.accounts[identity] = account
-                self.accounts[identity] = account
-                await self.app.account_update(account, LoginStatus.CONNECT)
+                self.app.accounts[login_sn] = account
+                self.accounts[login_sn] = account
             await self.app.account_update(account, LoginStatus.ONLINE)
         if not self.accounts:
             logger.warning(f"No account available for {self.config}")
@@ -151,9 +162,11 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                         self.close_signal.set()
                         self.connection = None
                         for v in list(self.app.accounts.values()):
-                            if v.identity in self.accounts:
+                            if (identity := f"{v.sn}@{id(self)}") in self.accounts:
                                 v.connected.clear()
-                                del self.accounts[v.identity]
+                                await self.app.account_update(v, LoginStatus.OFFLINE)
+                                del self.app.accounts[identity]
+                                del self.accounts[identity]
                         return
                     if close_task in done:
                         receiver_task.cancel()
@@ -162,7 +175,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                             logger.debug(f"Unregistering satori account {k}...")
                             account = self.app.accounts[k]
                             account.connected.clear()
-                            await self.app.account_update(account, LoginStatus.DISCONNECT)
+                            await self.app.account_update(account, LoginStatus.RECONNECT)
                         self.accounts.clear()
                         await asyncio.sleep(5)
                         logger.info(f"{self} Reconnecting...")

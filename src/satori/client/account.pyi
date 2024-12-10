@@ -2,15 +2,17 @@ import asyncio
 from collections.abc import Iterable
 from typing import Any, Generic, Protocol, TypeVar, overload
 
+from typing_extensions import deprecated
 from yarl import URL
 
 from satori.element import Element
 from satori.model import (
+    Meta,
     Channel,
     Direction,
     Event,
     Guild,
-    LoginType,
+    Login,
     Member,
     MessageObject,
     MessageReceipt,
@@ -39,23 +41,28 @@ class ApiInfo(Api):
     ): ...
 
 class Account(Generic[TP]):
-    platform: str
-    self_id: str
-    self_info: LoginType
+    sn: str
+    adapter: str
+    self_info: Login
+    proxy_urls: list[str]
     config: Api
     protocol: TP
     connected: asyncio.Event
 
     def __init__(
         self,
-        platform: str,
-        self_id: str,
-        self_info: LoginType,
+        login: Login,
         config: Api,
+        proxy_urls: list[str],
         protocol_cls: type[TP] = ApiProtocol,
     ): ...
+
     @property
-    def identity(self) -> str: ...
+    def platform(self) -> str: ...
+
+    @property
+    def self_id(self) -> str: ...
+
     @overload
     def custom(self, config: Api, protocol_cls: type[TP1] = ApiProtocol) -> Account[TP1]: ...
     @overload
@@ -496,7 +503,7 @@ class Account(Generic[TP]):
             PageResult[User]: `User` 的分页列表
         """
 
-    async def login_get(self) -> LoginType:
+    async def login_get(self) -> Login:
         """获取当前登录信息。返回一个 `Login` 对象。
 
         Returns:
@@ -543,12 +550,26 @@ class Account(Generic[TP]):
             **kwargs: 参数
         """
 
-    async def admin_login_list(self) -> list[LoginType]:
+    async def meta_get(self) -> Meta:
+        """获取元信息。返回一个 `Meta` 对象。
+
+        Returns:
+            Meta: `Meta` 对象
+        """
+
+    @deprecated("Use `meta_get` instead")
+    async def admin_login_list(self) -> list[Login]:
         """获取登录信息列表。返回一个 `Login` 对象构成的数组。
 
         Returns:
             list[Login]: `Login` 对象构成的数组
         """
+
+    async def webhook_create(self, url: str, token: str | None = None):
+        """创建 Webhook。"""
+
+    async def webhook_delete(self, url: str):
+        """删除 Webhook。"""
 
     @overload
     async def upload_create(self, *uploads: Upload) -> list[str]: ...
@@ -563,4 +584,7 @@ class Account(Generic[TP]):
     upload = upload_create
 
     async def download(self, url: str):
+        """访问内部链接。"""
+
+    async def request_internal(self, url: str, request: str = "GET", **kwargs) -> dict:
         """访问内部链接。"""

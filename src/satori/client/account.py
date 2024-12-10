@@ -6,7 +6,7 @@ from typing import Generic, TypeVar
 
 from yarl import URL
 
-from satori.model import LoginType
+from satori.model import Login
 
 from .protocol import ApiProtocol
 
@@ -33,44 +33,47 @@ class ApiInfo:
 class Account(Generic[TP]):
     def __init__(
         self,
-        platform: str,
-        self_id: str,
-        self_info: LoginType,
+        login: Login,
         config: ApiInfo,
+        proxy_urls: list[str],
         protocol_cls: type[TP] = ApiProtocol,
     ):
-        self.platform = platform
-        self.self_id = self_id
-        self.self_info = self_info
+        self.sn = login.sn
+        self.adapter = login.adapter
+        self.self_info = login
         self.config = config
+        self.proxy_urls = proxy_urls
         self.protocol = protocol_cls(self)  # type: ignore
         self.connected = asyncio.Event()
+
+    @property
+    def platform(self):
+        return self.self_info.platform or "satori"
+
+    @property
+    def self_id(self):
+        return self.self_info.id
 
     def custom(
         self, config: ApiInfo | None = None, protocol_cls: type[TP1] = ApiProtocol, **kwargs
     ) -> "Account[TP1]":
         return Account(
-            self.platform,
-            self.self_id,
             self.self_info,
             config or (ApiInfo(**kwargs) if kwargs else self.config),
+            self.proxy_urls,
             protocol_cls,  # type: ignore
         )
-
-    @property
-    def identity(self):
-        return f"{self.platform}/{self.self_id}"
 
     def ensure_url(self, url: str) -> URL:
         """确定链接形式。
 
         若链接符合以下条件之一，则返回链接的代理形式 ({host}/{path}/{version}/proxy/{url})：
-            - 链接以 "upload://" 开头
-            - 链接开头出现在 self_info.proxy_urls 中的某一项
+            - 链接以 "internal:" 开头
+            - 链接开头出现在 proxy_urls 中的某一项
         """
-        if url.startswith("upload"):
+        if url.startswith("internal:"):
             return self.config.api_base / "proxy" / url.lstrip("/")
-        for proxy_url in self.self_info.proxy_urls:
+        for proxy_url in self.proxy_urls:
             if url.startswith(proxy_url):
                 return self.config.api_base / "proxy" / url.lstrip("/")
         return URL(url)

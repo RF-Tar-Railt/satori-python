@@ -3,17 +3,14 @@ from __future__ import annotations
 import asyncio
 
 from aiohttp import web
-from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart.manager import Launart
-from launart.utilles import any_completed
 from loguru import logger
 
 from satori.config import WebhookInfo as WebhookInfo
-from satori.model import Login, LoginPreview, LoginStatus, Opcode
+from satori.model import LoginStatus, Opcode, MetaPayload, Event
 
 from ..account import Account
 from .base import BaseNetwork
-from .util import validate_response
 
 
 class WebhookNetwork(BaseNetwork[WebhookInfo]):
@@ -33,45 +30,50 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
         token = auth.split(" ", 1)[1]
         if self.config.token and self.config.token != token:
             return web.Response(status=401)
-        if "X-Platform" in header and "X-Self-ID" in header:
-            platform = header["X-Platform"]
-            self_id = header["X-Self-ID"]
-        elif "Satori-Platform" in header and "Satori-Login-ID" in header:
-            platform = header["Satori-Platform"]
-            self_id = header["Satori-Login-ID"]
+        # if "X-Platform" in header and "X-Self-ID" in header:
+        #     platform = header["X-Platform"]
+        #     self_id = header["X-Self-ID"]
+        # elif "Satori-Platform" in header and "Satori-Login-ID" in header:
+        #     platform = header["Satori-Platform"]
+        #     self_id = header["Satori-Login-ID"]
+        # else:
+        #     return web.Response(status=400)
+        op_code = int(header.get("Satori-OpCode", "0"))
+        body = await req.json()
+        if op_code == Opcode.META:
+            payload = MetaPayload.parse(body)
+            self.proxy_urls = payload.proxy_urls
+            return web.Response()
+        if op_code != Opcode.EVENT:
+            return web.Response(status=202)
+        try:
+            event = Event.parse(body)
+        except Exception as e:
+            if (
+                "self_id" in body
+                or ("login" in body and "self_id" in body["login"])
+                or ("login" in body and "user" in body["login"] and "self_id" in body["login"]["user"])
+            ):
+                logger.warning(f"Failed to parse event: {body}\nCaused by {e!r}")
+            else:
+                logger.trace(f"Failed to parse event: {body}\nCaused by {e!r}")
+            return web.Response(status=500, reason=f"Failed to parse event caused by {e!r}")
         else:
-            return web.Response(status=400)
-        identity = f"{platform}/{self_id}"
-        if identity in self.app.accounts:
-            account = self.app.accounts[identity]
-            self.accounts[identity] = account
+            logger.trace(f"Received event: {event}")
+            self.sequence = event.sn
+        login_sn = f"{event.login.sn}@{id(self)}"
+        if login_sn in self.app.accounts:
+            account = self.app.accounts[login_sn]
             account.connected.set()
             account.config = self.config
         else:
-            assert self.manager
-            aio = self.manager.get_component(AiohttpClientService)
-            async with aio.session.post(self.config.api_base / "admin/login.list") as resp:
-                logins = [
-                    LoginPreview.parse(i) if "user" in i else Login.parse(i)
-                    for i in await validate_response(resp)
-                ]
-            login = next(
-                (i for i in logins if i.id == self_id and i.platform == platform),
-                Login(LoginStatus.CONNECT, self_id=self_id, platform=platform),
-            )
-            account = Account(platform, self_id, login, self.config, self.app.default_api_cls)
+            account = Account(event.login, self.config, self.proxy_urls)
             logger.info(f"account registered: {account}")
             account.connected.set()
-            self.app.accounts[identity] = account
-            self.accounts[identity] = account
-            await self.app.account_update(account, LoginStatus.CONNECT)
+            self.app.accounts[login_sn] = account
+            self.accounts[login_sn] = account
             await self.app.account_update(account, LoginStatus.ONLINE)
-        data = await req.json()
-        op = data["op"]
-        if op != Opcode.EVENT:
-            return web.Response(status=202)
-        logger.trace(f"Received payload: {data}")
-        self.post_event(data["body"])
+        asyncio.create_task(self.app.post(event, self))
         return web.Response()
 
     @property
@@ -80,37 +82,6 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
 
     async def wait_for_available(self):
         await self.status.wait_for_available()
-
-    async def daemon(self, manager: Launart, site: web.TCPSite):
-        while not manager.status.exiting:
-            await site.start()
-            self.close_signal.clear()
-            close_task = asyncio.create_task(self.close_signal.wait())
-            sigexit_task = asyncio.create_task(manager.status.wait_for_sigexit())
-            done, pending = await any_completed(
-                sigexit_task,
-                close_task,
-            )
-            if sigexit_task in done:
-                logger.info(f"{self.id} Webhook server exiting...")
-                self.close_signal.set()
-                for v in list(self.app.accounts.values()):
-                    if v.identity in self.accounts:
-                        v.connected.clear()
-                        del self.accounts[v.identity]
-                return
-            if close_task in done:
-                await site.stop()
-                logger.warning(f"{self.id} Connection closed by server, will reconnect in 5 seconds...")
-                for k in self.accounts.keys():
-                    logger.debug(f"Unregistering satori account {k}...")
-                    account = self.app.accounts[k]
-                    account.connected.clear()
-                    await self.app.account_update(account, LoginStatus.DISCONNECT)
-                self.accounts.clear()
-                await asyncio.sleep(5)
-                logger.info(f"{self} Reconnecting...")
-                continue
 
     async def launch(self, manager: Launart):
         async with self.stage("preparing"):
@@ -123,7 +94,16 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
             site = web.TCPSite(runner, self.config.host, self.config.port)
 
         async with self.stage("blocking"):
-            await self.daemon(manager, site)
+            await site.start()
+            await manager.status.wait_for_sigexit()
+            logger.info(f"{self.id} Webhook server exiting...")
+            self.close_signal.set()
+            for v in list(self.app.accounts.values()):
+                if (identity := f"{v.sn}@{id(self)}") in self.accounts:
+                    v.connected.clear()
+                    await self.app.account_update(v, LoginStatus.OFFLINE)
+                    del self.app.accounts[identity]
+                    del self.accounts[identity]
 
         async with self.stage("cleanup"):
             await site.stop()
