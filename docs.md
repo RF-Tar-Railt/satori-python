@@ -36,8 +36,7 @@ class WebhookInfo(Config):
 你可以在创建 `App` 对象时传入一个或多个 `WebsocketsInfo` 或 `WebhookInfo` 对象:
 
 ```python
-from satori.client import App
-from satori.config import WebsocketsInfo, WebhookInfo
+from satori.client import App, WebsocketsInfo, WebhookInfo
 
 app = App(
     WebsocketsInfo(...),
@@ -48,8 +47,7 @@ app = App(
 或使用 `App.apply` 方法:
 
 ```python
-from satori.client import App
-from satori.config import WebsocketsInfo, WebhookInfo
+from satori.client import App, WebsocketsInfo, WebhookInfo
 
 app = App()
 app.apply(WebsocketsInfo(...))
@@ -170,7 +168,7 @@ from satori import Login
 from satori.client import Account, ApiInfo
 
 async def main():
-    account = Account("kook", "xxxxxxxxxxxxx", Login(...), ApiInfo(token="xxxx"))
+    account = Account(Login(...), ApiInfo(token="xxxx"))
     await account.send_message("xxxxxxxx", "Hello, World!")
 
 ```
@@ -227,11 +225,10 @@ server = Server(
 同时可以传入 webhook 目标：
 
 ```python
-from satori.config import WebhookInfo
-from satori.server import Server
+from satori.server import Server, WebhookEndpoint
 
 server = Server(
-    webhooks=[WebhookInfo(port=8080)]
+    webhooks=[WebhookEndpoint("http://xxxxx:8080/v1/events")]
 )
 ```
 
@@ -294,7 +291,7 @@ class Provider(Protocol):
 import asyncio
 from datetime import datetime
 
-from satori import Channel, ChannelType, Event, Login, LoginStatus, User
+from satori import Channel, ChannelType, Event, Login, User
 from satori.server import Server
 
 server = Server()
@@ -302,14 +299,12 @@ server = Server()
 class MyProvider:
 
     async def get_logins(self):
-        return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example")]
+        return [Login(...)]
 
     async def publisher(self):
-        seq = 0
         while True:
             await asyncio.sleep(2)
-            yield Event(seq, "example", "example", "1234567890", datetime.now(), channel=Channel("1234567890", ChannelType.TEXT), user=User("9876543210"))
-            seq += 1
+            yield Event("example", datetime.now(), Login(...))
 
 server.apply(MyProvider())
 ```
@@ -568,10 +563,13 @@ async def _(account: Account, event: Event):
 - 如果 url 是一个内部链接，会由该内部链接的实现决定如何提供此资源 (可能的方式包括返回数据、重定向以及资源无法访问的报错)；
 - 如果 url 是一个外部链接 (即不以 upload:// 开头的链接)，会在 SDK 侧下载该资源并返回 (通常使用流式传输)
 
-你可以通过实现 `download_uploaded` 方法和 `download_proxied` 方法来处理内部链接和外部链接的下载请求:
+你可以通过实现 `handle_internal` 方法和 `handle_proxied` 方法来处理内部链接和代理链接的下载请求:
 
 ```python
-from satori.server import Server, Provider
+from typing import Optional
+
+from starlette.responses import Response
+from satori.server import Server, Provider, Request
 
 class MyProvider(Provider):
     # 此处声明的 `proxy_urls` 会同步到 Login.proxy_urls 中
@@ -579,16 +577,16 @@ class MyProvider(Provider):
     def proxy_urls() -> list[str]:
         return ["https://example.com"]
 
-    async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes:
+    async def handle_internal(self, request: Request, path: str) -> Response:
         # 处理下载请求
-        return b"..."
+        ...
     
     # prefix 为 Adapter.proxy_urls 中的某一项
     # Adapter 类下 download_proxied 已有默认实现，你可以选择自己重写实现
     # 若处理下载请求失败，可不做更改抛出异常或返回 None
-    async def download_proxied(self, prefix: str, url: str) -> Optional[bytes]:
+    async def handle_proxied(self, prefix: str, url: str) -> Optional[Response]:
         # 处理下载请求
-        return b"..."
+        ...
 
 # 当 download 返回值的大小超过 stream_threshold 时，会启用流式传输。默认为 16MB
 # 你可以通过传入 stream_chunk_size 来设置流式传输的块大小, 默认为 64KB

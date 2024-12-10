@@ -1,5 +1,5 @@
 includes = ["src/satori/client"]
-raw-dependencies = ["satori-python-core >= 0.15.0"]
+raw-dependencies = ["satori-python-core >= 0.16.0"]
 
 [project]
 name = "satori-python-client"
@@ -15,7 +15,7 @@ dependencies = [
 description = "Satori Protocol SDK for python, specify client part"
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Typing :: Typed",
     "Development Status :: 4 - Beta",

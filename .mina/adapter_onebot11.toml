@@ -1,5 +1,5 @@
 includes = ["src/satori/adapters/onebot11"]
-raw-dependencies = ["satori-python-core >= 0.15.1"]
+raw-dependencies = ["satori-python-server >= 0.16.0"]
 
 [project]
 name = "satori-python-adapter-onebot11"
@@ -15,7 +15,7 @@ dependencies = [
 description = "Satori Protocol SDK for python, adapter for OneBot 11"
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Typing :: Typed",
     "Development Status :: 4 - Beta",

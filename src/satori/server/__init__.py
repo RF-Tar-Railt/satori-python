@@ -275,33 +275,6 @@ class Server(Service, RouterMixin):
             logger.error(repr(e))
             return Response(status_code=500, content=repr(e))
 
-    # async def download(self, url: str):
-    #     url = url.replace(":/", "://", 1).replace(":///", "://", 1)
-    #     pr = urllib.parse.urlparse(url)
-    #     if pr.scheme == "upload":
-    #         if pr.netloc == "temp":
-    #             _, inst, filename = pr.path.split("/", 2)
-    #             if inst == f"{self.id}:{id(self)}":
-    #                 file = Path(self._tempdir.name) / filename
-    #                 if file.exists():
-    #                     return file
-    #             raise FileNotFoundError(f"{filename} not found")
-    #     for provider in self.providers:
-    #         if pr.scheme == "upload":
-    #             platform = pr.netloc
-    #             _, self_id, path = pr.path.split("/", 2)
-    #             if provider.ensure(platform, self_id):
-    #                 return await provider.download_uploaded(platform, self_id, path)
-    #
-    #         for proxy_url_pf in provider.proxy_urls():
-    #             if not url.startswith(proxy_url_pf):
-    #                 continue
-    #             resp = await provider.download_proxied(proxy_url_pf, url)
-    #             if resp is None:
-    #                 continue
-    #             return resp
-    #     raise ValueError(f"Unknown proxy url: {url}")
-
     async def fetch_proxy(self, url: str, request: StarletteRequest | None = None):
         url = url.replace(":/", "://", 1).replace(":///", "://", 1)
         url = urllib.parse.unquote(url)

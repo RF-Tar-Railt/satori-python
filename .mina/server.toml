@@ -1,5 +1,5 @@
 includes = ["src/satori/server"]
-raw-dependencies = ["satori-python-core >= 0.15.0"]
+raw-dependencies = ["satori-python-core >= 0.16.0"]
 
 [project]
 name = "satori-python-server"
@@ -18,7 +18,7 @@ dependencies = [
 description = "Satori Protocol SDK for python, specify server part"
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Typing :: Typed",
     "Development Status :: 4 - Beta",
