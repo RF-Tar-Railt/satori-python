@@ -89,7 +89,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
         try:
             await self.send({"op": Opcode.IDENTIFY.value, "body": payload.dump()})
         except Exception as e:
-            logger.error(f"Error while sending IDENTIFY event: {e}")
+            logger.error(f"Error while sending IDENTIFY event: {e!r}")
             return False
 
         resp = await self.connection.receive()

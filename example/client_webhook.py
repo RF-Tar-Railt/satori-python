@@ -1,5 +1,5 @@
-from satori import EventType, WebhookInfo
-from satori.client import Account, App
+from satori import EventType
+from satori.client import Account, App, WebhookInfo
 from satori.event import MessageEvent
 
 app = App(WebhookInfo(server_port=12345, path="bar"))

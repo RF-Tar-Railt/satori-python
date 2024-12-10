@@ -231,6 +231,9 @@ class Identify(ModelBase):
     def sequence(self) -> Optional[int]:
         return self.sn
 
+    def dump(self):
+        return asdict(self)
+
 
 @dataclass
 class Ready(ModelBase):
@@ -239,12 +242,18 @@ class Ready(ModelBase):
 
     __converter__ = {"logins": lambda raw: [Login.parse(login) for login in raw]}
 
+    def dump(self):
+        return asdict(self)
+
 
 @dataclass
 class MetaPayload(ModelBase):
     """Meta 信令"""
 
     proxy_urls: list[str]
+
+    def dump(self):
+        return asdict(self)
 
 
 @dataclass
@@ -255,6 +264,9 @@ class Meta(ModelBase):
     proxy_urls: list[str] = field(default_factory=list)
 
     __converter__ = {"logins": lambda raw: [Login.parse(login) for login in raw]}
+
+    def dump(self):
+        return asdict(self)
 
 
 @dataclass

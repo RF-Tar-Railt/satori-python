@@ -24,7 +24,14 @@ from loguru import logger
 from starlette.applications import Starlette
 from starlette.datastructures import FormData as FormData
 from starlette.requests import Request as StarletteRequest
-from starlette.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from starlette.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+    StreamingResponse,
+)
 from starlette.routing import Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
@@ -164,8 +171,9 @@ class Server(Service, RouterMixin):
                     headers={
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {hook.token or ''}",
+                        "Satori-OpCode": str(Opcode.EVENT.value),
                     },
-                    json={"op": Opcode.EVENT, "body": event.dump()},
+                    json=event.dump(),
                 ) as resp:
                     resp.raise_for_status()
             except Exception as e:
@@ -244,9 +252,12 @@ class Server(Service, RouterMixin):
     async def proxy_url_handler(self, request: StarletteRequest):
         url = request.path_params["internal_url"]
         try:
-            resp = await self.fetch_proxy(url)
+            resp = await self.fetch_proxy(url, request)
             # if content size > stream_limit, use streaming response
-            if len(resp.body) > self.stream_threshold:
+            if (
+                isinstance(resp, (PlainTextResponse, HTMLResponse, JSONResponse))
+                or resp.__class__ is Response
+            ) and len(resp.body) > self.stream_threshold:
 
                 async def iter_content(body: bytes):
                     for i in range(0, len(body), self.stream_chunk_size):
@@ -254,7 +265,7 @@ class Server(Service, RouterMixin):
 
                 return StreamingResponse(content=iter_content(resp.body))
             return resp
-        except (FileNotFoundError, NotImplementedError) as e404:
+        except (FileNotFoundError, NotImplementedError, AssertionError) as e404:
             return Response(status_code=404, content=str(e404))
         except ValueError as e403:
             return Response(status_code=403, content=str(e403))
@@ -291,7 +302,7 @@ class Server(Service, RouterMixin):
     #             return resp
     #     raise ValueError(f"Unknown proxy url: {url}")
 
-    async def fetch_proxy(self, url: str):
+    async def fetch_proxy(self, url: str, request: StarletteRequest | None = None):
         url = url.replace(":/", "://", 1).replace(":///", "://", 1)
         url = urllib.parse.unquote(url)
         if url.startswith("internal:"):
@@ -304,9 +315,12 @@ class Server(Service, RouterMixin):
                     if file.exists():
                         return FileResponse(file)
                     raise FileNotFoundError(f"{path[5:]} not found")
+                assert request is not None
                 for provider in self.providers:
                     if provider.ensure(platform, self_id):
-                        return await provider.handle_internal(platform, self_id, path)
+                        return await provider.handle_internal(
+                            Request(request, "internal", {}, platform=platform, self_id=self_id), path
+                        )
                 raise NotImplementedError(f"Login with {platform}:{self_id} not found")
             raise TypeError(f"Invalid internal url: {url}")
 
@@ -370,8 +384,9 @@ class Server(Service, RouterMixin):
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {token or ''}",
+                "Satori-OpCode": str(Opcode.META.value),
             },
-            json={"op": Opcode.META, "body": {"proxy_urls": proxy_urls}},
+            json={"proxy_urls": proxy_urls},
         ) as resp:
             resp.raise_for_status()
         return Response()
@@ -389,7 +404,7 @@ class Server(Service, RouterMixin):
         for _adapter in self._adapters:
             manager.add_component(_adapter)
 
-        if Api.UPLOAD_CREATE.value not in self.routes and not self._adapters:
+        if Api.UPLOAD_CREATE.value not in self.routes:
             self.routes[Api.UPLOAD_CREATE.value] = self._default_upload_create_handler
 
         async with self.stage("preparing"):
@@ -443,8 +458,9 @@ class Server(Service, RouterMixin):
                     headers={
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {hook.token or ''}",
+                        "Satori-OpCode": str(Opcode.META.value),
                     },
-                    json={"op": Opcode.META, "body": {"proxy_urls": proxy_urls}},
+                    json={"proxy_urls": proxy_urls},
                 ) as resp:
                     resp.raise_for_status()
             await any_completed(

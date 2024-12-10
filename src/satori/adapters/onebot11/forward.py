@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import uuid
 from contextlib import suppress
 from datetime import datetime
 from typing import cast
@@ -11,12 +12,13 @@ from aiohttp import ClientSession, ClientWebSocketResponse
 from launart import Launart, any_completed
 from launart.status import Phase
 from loguru import logger
+from starlette.responses import JSONResponse, Response
 from yarl import URL
 
 from satori import Event, EventType, LoginStatus
 from satori.exception import ActionFailed
-from satori.model import LoginPreview, LoginType, User
-from satori.server import Adapter
+from satori.model import Login, User
+from satori.server import Adapter, Request
 
 from .api import apply
 from .events.base import events
@@ -24,6 +26,7 @@ from .utils import onebot11_event_type
 
 
 class OneBot11ForwardAdapter(Adapter):
+
     session: ClientSession
     connection: ClientWebSocketResponse | None
 
@@ -38,22 +41,19 @@ class OneBot11ForwardAdapter(Adapter):
         self.close_signal = asyncio.Event()
         self.queue: asyncio.Queue[Event] = asyncio.Queue()
         self.response_waiters: dict[str, asyncio.Future] = {}
-        self.logins: dict[str, LoginPreview] = {}
+        self.logins: dict[str, Login] = {}
 
         apply(self, lambda _: self, lambda _: self.logins[_])
 
     async def publisher(self):
-        seq = 0
         while True:
             event = await self.queue.get()
-            event.id = seq
             yield event
-            seq += 1
 
     def ensure(self, platform: str, self_id: str) -> bool:
         return platform == "onebot"
 
-    async def get_logins(self) -> list[LoginType]:
+    async def get_logins(self) -> list[Login]:
         return list(self.logins.values())
 
     @property
@@ -76,14 +76,16 @@ class OneBot11ForwardAdapter(Adapter):
                 if event_type == "meta_event.lifecycle.connect":
                     self_id = str(data["self_id"])
                     if self_id not in self.logins:
-                        login = LoginPreview(
-                            User(self_id, "unknown"),  # TODO: get bot self info
+                        login = Login(
+                            uuid.uuid4().hex,
+                            LoginStatus.ONLINE,
+                            "onebot",
                             platform="onebot",
-                            status=LoginStatus.ONLINE,
+                            user=User(self_id, "unknown"),  # TODO: get bot self info
                             features=["guild.plain"],
                         )
                         self.logins[self_id] = login
-                        self.queue.put_nowait(Event(0, EventType.LOGIN_ADDED, datetime.now(), login=login))
+                        self.queue.put_nowait(Event(EventType.LOGIN_ADDED, datetime.now(), login))
                 elif event_type == "meta_event.lifecycle.enable":
                     logger.warning(
                         f"received lifecycle.enable event that is only supported in http adapter: {data}"
@@ -97,14 +99,16 @@ class OneBot11ForwardAdapter(Adapter):
                 elif event_type == "meta_event.heartbeat":
                     self_id = str(data["self_id"])
                     if self_id not in self.logins:
-                        login = LoginPreview(
-                            User(self_id, "unknown"),  # TODO: get bot self info
+                        login = Login(
+                            uuid.uuid4().hex,
+                            LoginStatus.ONLINE,
+                            "onebot",
                             platform="onebot",
-                            status=LoginStatus.ONLINE,
+                            user=User(self_id, "unknown"),  # TODO: get bot self info
                             features=["guild.plain"],
                         )
                         self.logins[self_id] = login
-                        self.queue.put_nowait(Event(0, EventType.LOGIN_ADDED, datetime.now(), login=login))
+                        self.queue.put_nowait(Event(EventType.LOGIN_ADDED, datetime.now(), login))
                     logger.trace(f"received heartbeat from {self_id}")
                 else:
                     self_id = str(data["self_id"])
@@ -114,9 +118,7 @@ class OneBot11ForwardAdapter(Adapter):
                     login = self.logins[self_id]
                     handler = events.get(event_type)
                     if not handler:
-                        event = Event(
-                            0, EventType.INTERNAL, datetime.now(), login=login, _type=event_type, _data=data
-                        )
+                        event = Event(EventType.INTERNAL, datetime.now(), login, _type=event_type, _data=data)
                     else:
                         event = await handler(login, self, data)
                     if event:
@@ -162,7 +164,7 @@ class OneBot11ForwardAdapter(Adapter):
             if self.logins:
                 for login in self.logins.values():
                     login.status = LoginStatus.ONLINE
-                    self.queue.put_nowait(Event(0, EventType.LOGIN_UPDATED, datetime.now(), login=login))
+                    self.queue.put_nowait(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
             close_task = asyncio.create_task(self.close_signal.wait())
             receiver_task = asyncio.create_task(self.message_handle())
             sigexit_task = asyncio.create_task(manager.status.wait_for_sigexit())
@@ -178,8 +180,8 @@ class OneBot11ForwardAdapter(Adapter):
                 self.close_signal.set()
                 self.connection = None
                 for login in self.logins.values():
-                    login.status = LoginStatus.DISCONNECT
-                    self.queue.put_nowait(Event(0, EventType.LOGIN_REMOVED, datetime.now(), login=login))
+                    login.status = LoginStatus.OFFLINE
+                    self.queue.put_nowait(Event(EventType.LOGIN_REMOVED, datetime.now(), login))
                 await asyncio.sleep(1)
                 return
             if close_task in done:
@@ -187,7 +189,7 @@ class OneBot11ForwardAdapter(Adapter):
                 logger.warning(f"{self} Connection closed by server, will reconnect in 5 seconds...")
                 for login in self.logins.values():
                     login.status = LoginStatus.RECONNECT
-                    self.queue.put_nowait(Event(0, EventType.LOGIN_UPDATED, datetime.now(), login=login))
+                    self.queue.put_nowait(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
                 await asyncio.sleep(5)
                 logger.info(f"{self} Reconnecting...")
                 continue
@@ -206,9 +208,11 @@ class OneBot11ForwardAdapter(Adapter):
     def get_platform(self) -> str:
         return "onebot"
 
-    async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes:
+    async def handle_internal(self, request: Request, path: str) -> Response:
+        if path.startswith("_raw"):
+            return JSONResponse(await self.call_api(path[5:], await request.origin.json()))
         async with self.session.get(path) as resp:
-            return await resp.read()
+            return Response(await resp.read())
 
     async def call_api(self, action: str, params: dict | None = None) -> dict | None:
         if not self.connection:

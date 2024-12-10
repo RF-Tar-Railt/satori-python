@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Literal, TypedDict
 
 from satori.element import Custom, E
-from satori.model import LoginPreview, MessageObject
+from satori.model import Login, MessageObject
 from satori.parser import Element, parse
 
 from .utils import OneBotNetwork
@@ -42,7 +42,7 @@ class State:
 
 
 class OneBot11MessageEncoder:
-    def __init__(self, login: LoginPreview, net: OneBotNetwork, channel_id: str):
+    def __init__(self, login: Login, net: OneBotNetwork, channel_id: str):
         self.net = net
         self.login = login
         self.channel_id = channel_id
@@ -91,8 +91,11 @@ class OneBot11MessageEncoder:
                     {
                         "type": "node",
                         "data": {
-                            "name": author.get("name", self.login.user.name or self.login.user.id),
-                            "uin": author.get("id", self.login.user.id),
+                            "name": author.get(
+                                "name",
+                                (self.login.user.name or self.login.user.id) if self.login.user else "",
+                            ),
+                            "uin": author.get("id", self.login.user.id if self.login.user else 0),
                             "content": self.children,
                             "time": int(datetime.now().timestamp()),
                         },

@@ -9,8 +9,7 @@ from satori.server import Adapter, Request, route
 
 
 class ExampleAdapter(Adapter):
-    async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes:
-        raise NotImplementedError
+    async def handle_internal(self, request: Request, path: str): ...
 
     @property
     def required(self):
@@ -27,7 +26,7 @@ class ExampleAdapter(Adapter):
         return platform == self.get_platform() and self_id == "1234567890"
 
     async def get_logins(self):
-        return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example")]
+        return [Login("abcd", LoginStatus.ONLINE, "test", "example", User("1234567890"))]
 
     def __init__(self):
         super().__init__()
@@ -41,11 +40,9 @@ class ExampleAdapter(Adapter):
         while True:
             await asyncio.sleep(2)
             yield Event(
-                seq,
                 "message-created",
                 datetime.now(),
-                self.get_platform(),
-                "1234567890",
+                (await self.get_logins())[0],
                 channel=Channel("345678", ChannelType.TEXT),
                 user=User("9876543210"),
                 message=MessageObject(f"msg_{seq}", "test"),

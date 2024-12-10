@@ -7,6 +7,7 @@ from starlette.responses import Response
 from starlette.routing import BaseRoute
 
 from ..model import Event, Login
+from .model import Request
 from .route import RouterMixin
 from .utils import ctx
 
@@ -31,7 +32,7 @@ class Adapter(Service, RouterMixin):
         return []
 
     @abstractmethod
-    async def handle_internal(self, platform: str, self_id: str, path: str) -> Response: ...
+    async def handle_internal(self, request: Request, path: str) -> Response: ...
 
     async def handle_proxied(self, prefix: str, url: str) -> Optional[Response]:
         async with self.server.session.get(url, ssl=ctx) as resp:

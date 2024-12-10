@@ -19,25 +19,23 @@ class ExampleProvider:
     def ensure(self, platform: str, self_id: str) -> bool:
         return platform == "example" and self_id == "1234567890"
 
-    async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes:
+    async def handle_internal(self, request: Request, path: str):
         raise NotImplementedError
 
-    async def download_proxied(self, prefix: str, url: str) -> bytes:
+    async def handle_proxied(self, prefix: str, url: str):
         raise NotImplementedError
 
     async def get_logins(self):
-        return [Login(LoginStatus.ONLINE, self_id="1234567890", platform="example", user=User("1234567890"))]
+        return [Login("abcd", LoginStatus.ONLINE, "test", "example", User("1234567890"))]
 
     async def publisher(self):
         seq = 0
         while True:
             await asyncio.sleep(2)
             yield Event(
-                seq,
                 "message-created",
                 datetime.now(),
-                "example",
-                "1234567890",
+                (await self.get_logins())[0],
                 channel=Channel("345678", ChannelType.TEXT),
                 user=User("9876543210"),
                 message=MessageObject(f"msg_{seq}", "/hitokoto"),

@@ -1,5 +1,5 @@
-from satori import EventType, Upload, WebsocketsInfo
-from satori.client import Account, App
+from satori import EventType, Upload
+from satori.client import Account, App, WebsocketsInfo
 from satori.event import Event, MessageEvent
 
 app = App(WebsocketsInfo(port=12345, path="foo"))
@@ -7,7 +7,7 @@ app = App(WebsocketsInfo(port=12345, path="foo"))
 
 @app.register
 async def _(account: Account, event: Event):
-    print(event.id)  # noqa: T201
+    print(event.sn)  # noqa: T201
 
 
 @app.register_on(EventType.MESSAGE_CREATED)
