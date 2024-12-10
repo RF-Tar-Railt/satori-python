@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, cast, overload, Optional
+from typing import TYPE_CHECKING, Any, cast, overload
 from typing_extensions import deprecated
 
 from aiohttp import FormData
@@ -11,7 +11,6 @@ from launart import Launart
 from satori.const import Api
 from satori.element import Element
 from satori.model import (
-    Meta,
     Channel,
     Direction,
     Event,
@@ -20,6 +19,7 @@ from satori.model import (
     Member,
     MessageObject,
     MessageReceipt,
+    Meta,
     Order,
     PageDequeResult,
     PageResult,
@@ -46,14 +46,16 @@ class ApiProtocol:
             await validate_response(resp, noreturn=True)
             return await resp.read()
 
-    async def request_internal(self, url: str, request: str = "GET", **kwargs) -> dict:
+    async def request_internal(self, url: str, method: str = "GET", **kwargs) -> dict:
         """访问内部链接。"""
         endpoint = self.account.ensure_url(url)
         aio = Launart.current().get_component(AiohttpClientService)
-        async with aio.session.request(request, endpoint, **kwargs) as resp:
+        async with aio.session.request(method, endpoint, **kwargs) as resp:
             return await validate_response(resp)
 
-    async def call_api(self, action: str | Api, params: dict | None = None, multipart: bool = False) -> dict:
+    async def call_api(
+        self, action: str | Api, params: dict | None = None, multipart: bool = False, method: str = "POST"
+    ) -> dict:
         endpoint = self.account.config.api_base / (action.value if isinstance(action, Api) else action)
         headers = {
             "Content-Type": "application/json",
@@ -80,7 +82,8 @@ class ApiProtocol:
                 headers=headers,
             ) as resp:
                 return await validate_response(resp)
-        async with aio.session.post(
+        async with aio.session.request(
+            method,
             endpoint,
             json=params or {},
             headers=headers,
@@ -733,14 +736,15 @@ class ApiProtocol:
             {"message_id": request_id, "approve": approve, "comment": comment},
         )
 
-    async def internal(self, action: str, **kwargs) -> Any:
+    async def internal(self, action: str, method: str = "POST", **kwargs) -> Any:
         """内部接口调用。
 
         Args:
             action (str): 内部接口名称
+            method (str, optional): 请求方法，默认为 POST
             **kwargs: 参数
         """
-        return await self.call_api(f"internal/{action}", kwargs)
+        return await self.call_api(f"internal/{action}", kwargs, method=method)
 
     async def meta_get(self) -> Meta:
         """获取元信息。返回一个 `Meta` 对象。
@@ -760,7 +764,7 @@ class ApiProtocol:
         """
         return (await self.meta_get()).logins
 
-    async def webhook_create(self, url: str, token: Optional[str] = None):
+    async def webhook_create(self, url: str, token: str | None = None):
         """创建 Webhook。"""
         await self.call_api("meta/webhook.create", {"url": url, "token": token})
 

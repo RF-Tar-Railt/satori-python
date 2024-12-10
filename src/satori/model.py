@@ -143,7 +143,6 @@ class LoginStatus(IntEnum):
     """正在重新连接"""
 
 
-
 @dataclass
 class Login(ModelBase):
     sn: str
@@ -244,12 +243,14 @@ class Ready(ModelBase):
 @dataclass
 class MetaPayload(ModelBase):
     """Meta 信令"""
+
     proxy_urls: list[str]
 
 
 @dataclass
 class Meta(ModelBase):
     """Meta 数据"""
+
     logins: list[Login]
     proxy_urls: list[str] = field(default_factory=list)
 

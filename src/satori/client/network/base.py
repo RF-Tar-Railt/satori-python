@@ -4,10 +4,8 @@ import asyncio
 from typing import TYPE_CHECKING, Generic, TypeVar
 
 from launart import Service
-from loguru import logger
 
-from satori.config import Config as Config
-from satori.model import Event
+from ..config import Config as Config
 
 if TYPE_CHECKING:
     from .. import App

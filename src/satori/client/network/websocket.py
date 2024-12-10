@@ -10,10 +10,10 @@ from launart.manager import Launart
 from launart.utilles import any_completed
 from loguru import logger
 
-from satori.config import WebsocketsInfo as WebsocketsInfo
-from satori.model import LoginStatus, Opcode, Identify, Ready, Event
+from satori.model import Event, Identify, LoginStatus, Opcode, Ready
 
 from ..account import Account
+from ..config import WebsocketsInfo as WebsocketsInfo
 from .base import BaseNetwork
 
 
@@ -113,13 +113,9 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                     account.connected.clear()
                 account.config = self.config
             else:
-                account = Account(login,self.config, ready.proxy_urls, self.app.default_api_cls)
+                account = Account(login, self.config, ready.proxy_urls, self.app.default_api_cls)
                 logger.info(f"account registered: {account}")
-                (
-                    account.connected.set()
-                    if login.status == LoginStatus.ONLINE
-                    else account.connected.clear()
-                )
+                (account.connected.set() if login.status == LoginStatus.ONLINE else account.connected.clear())
                 self.app.accounts[login_sn] = account
                 self.accounts[login_sn] = account
             await self.app.account_update(account, LoginStatus.ONLINE)

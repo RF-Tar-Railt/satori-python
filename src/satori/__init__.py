@@ -1,5 +1,3 @@
-from .config import WebhookInfo as WebhookInfo
-from .config import WebsocketsInfo as WebsocketsInfo
 from .const import Api as Api
 from .const import EventType as EventType
 from .element import At as At

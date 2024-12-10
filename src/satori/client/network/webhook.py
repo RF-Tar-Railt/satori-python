@@ -6,10 +6,10 @@ from aiohttp import web
 from launart.manager import Launart
 from loguru import logger
 
-from satori.config import WebhookInfo as WebhookInfo
-from satori.model import LoginStatus, Opcode, MetaPayload, Event
+from satori.model import Event, LoginStatus, MetaPayload, Opcode
 
 from ..account import Account
+from ..config import WebhookInfo as WebhookInfo
 from .base import BaseNetwork
 
 
@@ -30,14 +30,6 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
         token = auth.split(" ", 1)[1]
         if self.config.token and self.config.token != token:
             return web.Response(status=401)
-        # if "X-Platform" in header and "X-Self-ID" in header:
-        #     platform = header["X-Platform"]
-        #     self_id = header["X-Self-ID"]
-        # elif "Satori-Platform" in header and "Satori-Login-ID" in header:
-        #     platform = header["Satori-Platform"]
-        #     self_id = header["Satori-Login-ID"]
-        # else:
-        #     return web.Response(status=400)
         op_code = int(header.get("Satori-OpCode", "0"))
         body = await req.json()
         if op_code == Opcode.META:
@@ -46,6 +38,14 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
             return web.Response()
         if op_code != Opcode.EVENT:
             return web.Response(status=202)
+        # if "X-Platform" in header and "X-Self-ID" in header:
+        #     platform = header["X-Platform"]
+        #     self_id = header["X-Self-ID"]
+        # elif "Satori-Platform" in header and "Satori-Login-ID" in header:
+        #     platform = header["Satori-Platform"]
+        #     self_id = header["Satori-Login-ID"]
+        # else:
+        #     return web.Response(status=400)
         try:
             event = Event.parse(body)
         except Exception as e:

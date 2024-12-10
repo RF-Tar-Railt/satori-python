@@ -1,11 +1,12 @@
 from abc import abstractmethod
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from launart import Service
+from starlette.responses import Response
 from starlette.routing import BaseRoute
 
-from ..model import Event, LoginType
+from ..model import Event, Login
 from .route import RouterMixin
 from .utils import ctx
 
@@ -30,14 +31,14 @@ class Adapter(Service, RouterMixin):
         return []
 
     @abstractmethod
-    async def download_uploaded(self, platform: str, self_id: str, path: str) -> bytes: ...
+    async def handle_internal(self, platform: str, self_id: str, path: str) -> Response: ...
 
-    async def download_proxied(self, prefix: str, url: str) -> bytes:
+    async def handle_proxied(self, prefix: str, url: str) -> Optional[Response]:
         async with self.server.session.get(url, ssl=ctx) as resp:
-            return await resp.read()
+            return Response(await resp.read())
 
     @abstractmethod
-    async def get_logins(self) -> list[LoginType]: ...
+    async def get_logins(self) -> list[Login]: ...
 
     def __init__(self):
         super().__init__()

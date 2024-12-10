@@ -1,13 +1,12 @@
 import asyncio
 from collections.abc import Iterable
 from typing import Any, Generic, Protocol, TypeVar, overload
-
 from typing_extensions import deprecated
+
 from yarl import URL
 
 from satori.element import Element
 from satori.model import (
-    Meta,
     Channel,
     Direction,
     Event,
@@ -16,6 +15,7 @@ from satori.model import (
     Member,
     MessageObject,
     MessageReceipt,
+    Meta,
     Order,
     PageDequeResult,
     PageResult,
@@ -56,13 +56,10 @@ class Account(Generic[TP]):
         proxy_urls: list[str],
         protocol_cls: type[TP] = ApiProtocol,
     ): ...
-
     @property
     def platform(self) -> str: ...
-
     @property
     def self_id(self) -> str: ...
-
     @overload
     def custom(self, config: Api, protocol_cls: type[TP1] = ApiProtocol) -> Account[TP1]: ...
     @overload
@@ -542,11 +539,12 @@ class Account(Generic[TP]):
             None: 该方法无返回值
         """
 
-    async def internal(self, action: str, **kwargs) -> Any:
+    async def internal(self, action: str, method: str = "POST", **kwargs) -> Any:
         """内部接口调用。
 
         Args:
             action (str): 内部接口名称
+            method (str, optional): 请求方法，默认为 POST
             **kwargs: 参数
         """
 
@@ -586,5 +584,5 @@ class Account(Generic[TP]):
     async def download(self, url: str):
         """访问内部链接。"""
 
-    async def request_internal(self, url: str, request: str = "GET", **kwargs) -> dict:
+    async def request_internal(self, url: str, method: str = "GET", **kwargs) -> dict:
         """访问内部链接。"""

@@ -14,12 +14,14 @@ from launart import Launart, Service, any_completed
 from loguru import logger
 
 from satori import event as events
-from satori.config import Config, WebhookInfo, WebsocketsInfo
 from satori.const import EventType
 from satori.model import Event, LoginStatus
 
 from .account import Account as Account
 from .account import ApiInfo as ApiInfo
+from .config import Config
+from .config import WebhookInfo as WebhookInfo
+from .config import WebsocketsInfo as WebsocketsInfo
 from .network.base import BaseNetwork as BaseNetwork
 from .network.webhook import WebhookNetwork
 from .network.websocket import WsNetwork

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import mimetypes
+import re
 import secrets
 import signal
 import threading
@@ -13,7 +14,7 @@ from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from traceback import print_exc
-from typing import Any, cast
+from typing import Any
 
 import aiohttp
 from creart import it
@@ -29,30 +30,31 @@ from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from yarl import URL
 
-from satori.config import WebhookInfo
 from satori.const import Api
-from satori.model import Event, ModelBase, Opcode
+from satori.model import Event, Meta, ModelBase, Opcode
 
+from .. import EventType
 from .adapter import Adapter as Adapter
 from .conection import WebsocketConnection
 from .formdata import parse_content_disposition as parse_content_disposition
 from .model import Provider as Provider
 from .model import Request as Request
 from .model import Router as Router
+from .model import WebhookEndpoint as WebhookEndpoint
 from .route import RouteCall as RouteCall
 from .route import RouterMixin as RouterMixin
 from .utils import Deque
 
 
 async def _request_handler(
-    method: str, request: StarletteRequest, func: RouteCall, platform: str, self_id: str
+    action: str, request: StarletteRequest, func: RouteCall, platform: str, self_id: str
 ):
-    if method == Api.UPLOAD_CREATE.value:
+    if action == Api.UPLOAD_CREATE.value:
         async with request.form() as form:
             res = await func(
                 Request(
-                    cast(dict, request.headers.mutablecopy()),
-                    method,
+                    request,
+                    action,
                     form,
                     platform=platform,
                     self_id=self_id,
@@ -62,8 +64,8 @@ async def _request_handler(
     try:
         res = await func(
             Request(
-                cast(dict, request.headers.mutablecopy()),
-                method,
+                request,
+                action,
                 await request.json(),
                 platform=platform,
                 self_id=self_id,
@@ -77,6 +79,9 @@ async def _request_handler(
     if res and isinstance(res, list) and isinstance(res[0], ModelBase):
         return JSONResponse(content=[_.dump() for _ in res])  # type: ignore
     return res if isinstance(res, Response) else JSONResponse(content=res)
+
+
+INTERNAL_URL_PAT = re.compile("internal:(?P<platform>[^/]+)/(?P<self_id>[^/]+)/(?P<path>.+)")
 
 
 class Server(Service, RouterMixin):
@@ -98,7 +103,7 @@ class Server(Service, RouterMixin):
         path: str = "",
         version: str = "v1",
         token: str | None = None,
-        webhooks: list[WebhookInfo] | None = None,
+        webhooks: list[WebhookEndpoint] | None = None,
         stream_threshold: int = 16 * 1024 * 1024,
         stream_chunk_size: int = 64 * 1024,
     ):
@@ -141,7 +146,7 @@ class Server(Service, RouterMixin):
         self.resources[route_path] = file
 
     async def event_callback(self, event: Event):
-        event.id = self._sequence
+        event.sn = self._sequence
         self._event_cache.append(event)
         self._sequence += 1
         for connection in self.connections:
@@ -155,14 +160,10 @@ class Server(Service, RouterMixin):
         for hook in self.webhooks:
             try:
                 async with self.session.post(
-                    URL(f"http://{hook.identity}"),
+                    URL(hook.url),
                     headers={
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {hook.token or ''}",
-                        "X-Platform": event.platform_,
-                        "Satori-Platform": event.platform_,
-                        "X-Self-ID": event.self_id_,
-                        "Satori-Login-ID": event.self_id_,
                     },
                     json={"op": Opcode.EVENT, "body": event.dump()},
                 ) as resp:
@@ -180,17 +181,18 @@ class Server(Service, RouterMixin):
         body = identity["body"]
         token = identity["body"].get("token")
         logins = []
+        proxy_urls = []
         if token != self.token:
             return await ws.close(code=3000, reason="Unauthorized")
         for provider in self.providers:
-            _logins = await provider.get_logins()
-            for _login in _logins:
-                _login.proxy_urls.extend(provider.proxy_urls())
-            logins.extend(_logins)
+            logins.extend(await provider.get_logins())
+            proxy_urls.extend(provider.proxy_urls())
         sequence = body.get("sequence")
         if sequence is None:
             sequence = -1
-        await connection.send({"op": Opcode.READY, "body": {"logins": [lo.dump() for lo in logins]}})
+        await connection.send(
+            {"op": Opcode.READY, "body": {"logins": [lo.dump() for lo in logins], "proxy_urls": proxy_urls}}
+        )
         self.connections.append(connection)
         logger.debug(f"New connection: {id(connection)}")
         heartbeat_task = asyncio.create_task(connection.heartbeat())
@@ -198,6 +200,12 @@ class Server(Service, RouterMixin):
         try:
             if sequence > -1:
                 for event in self._event_cache.after(sequence):
+                    if event.type in (
+                        EventType.LOGIN_ADDED,
+                        EventType.LOGIN_REMOVED,
+                        EventType.LOGIN_UPDATED,
+                    ):
+                        continue
                     await connection.send({"op": Opcode.EVENT, "body": event.dump()})
                     await asyncio.sleep(0.1)
             await any_completed(heartbeat_task, close_task)
@@ -208,19 +216,10 @@ class Server(Service, RouterMixin):
             close_task.cancel()
             self.connections.remove(connection)
 
-    async def admin_login_list_handler(self, request: StarletteRequest):
-        logins = []
-        for provider in self.providers:
-            _logins = await provider.get_logins()
-            for _login in _logins:
-                _login.proxy_urls.extend(provider.proxy_urls())
-            logins.extend(_logins)
-        return JSONResponse(content=[lo.dump() for lo in logins])
-
     async def http_server_handler(self, request: StarletteRequest):
         if not self._adapters and not self.routes:
             return Response(status_code=404, content=request.path_params["method"])
-        method = request.path_params["method"]
+        action = request.path_params["action"]
         if "X-Platform" not in request.headers and "Satori-Platform" not in request.headers:
             return Response(status_code=401, content="Missing header X-Platform or Satori-Platform")
         platform: str = request.headers.get("X-Platform") or request.headers.get("Satori-Platform")  # type: ignore
@@ -229,35 +228,33 @@ class Server(Service, RouterMixin):
         self_id: str = request.headers.get("X-Self-ID") or request.headers.get("Satori-Login-ID")  # type: ignore
 
         for _router in self._adapters:
-            if method not in _router.routes:
+            if action not in _router.routes:
                 continue
             if not _router.ensure(platform, self_id):
                 continue
-            return await _request_handler(method, request, _router.routes[method], platform, self_id)
-        if method in self.routes:
-            return await _request_handler(method, request, self.routes[method], platform, self_id)
+            return await _request_handler(action, request, _router.routes[action], platform, self_id)
+        if action in self.routes:
+            return await _request_handler(action, request, self.routes[action], platform, self_id)
         for _router in self.routers:
-            if method not in _router.routes:
+            if action not in _router.routes:
                 continue
-            return await _request_handler(method, request, _router.routes[method], platform, self_id)
-        return Response(status_code=404, content=method)
+            return await _request_handler(action, request, _router.routes[action], platform, self_id)
+        return Response(status_code=404, content=action)
 
     async def proxy_url_handler(self, request: StarletteRequest):
-        url = request.path_params["upload_url"]
+        url = request.path_params["internal_url"]
         try:
-            content = await self.download(url)
-            if isinstance(content, Path):
-                return FileResponse(path=content)
+            resp = await self.fetch_proxy(url)
             # if content size > stream_limit, use streaming response
-            if len(content) > self.stream_threshold:
+            if len(resp.body) > self.stream_threshold:
 
                 async def iter_content(body: bytes):
                     for i in range(0, len(body), self.stream_chunk_size):
                         yield body[i : i + self.stream_chunk_size]
 
-                return StreamingResponse(content=iter_content(content))
-            return Response(content=content)
-        except FileNotFoundError as e404:
+                return StreamingResponse(content=iter_content(resp.body))
+            return resp
+        except (FileNotFoundError, NotImplementedError) as e404:
             return Response(status_code=404, content=str(e404))
         except ValueError as e403:
             return Response(status_code=403, content=str(e403))
@@ -267,28 +264,57 @@ class Server(Service, RouterMixin):
             logger.error(repr(e))
             return Response(status_code=500, content=repr(e))
 
-    async def download(self, url: str):
-        url = url.replace(":/", "://", 1).replace(":///", "://", 1)
-        pr = urllib.parse.urlparse(url)
-        if pr.scheme == "upload":
-            if pr.netloc == "temp":
-                _, inst, filename = pr.path.split("/", 2)
-                if inst == f"{self.id}:{id(self)}":
-                    file = Path(self._tempdir.name) / filename
-                    if file.exists():
-                        return file
-                raise FileNotFoundError(f"{filename} not found")
-        for provider in self.providers:
-            if pr.scheme == "upload":
-                platform = pr.netloc
-                _, self_id, path = pr.path.split("/", 2)
-                if provider.ensure(platform, self_id):
-                    return await provider.download_uploaded(platform, self_id, path)
+    # async def download(self, url: str):
+    #     url = url.replace(":/", "://", 1).replace(":///", "://", 1)
+    #     pr = urllib.parse.urlparse(url)
+    #     if pr.scheme == "upload":
+    #         if pr.netloc == "temp":
+    #             _, inst, filename = pr.path.split("/", 2)
+    #             if inst == f"{self.id}:{id(self)}":
+    #                 file = Path(self._tempdir.name) / filename
+    #                 if file.exists():
+    #                     return file
+    #             raise FileNotFoundError(f"{filename} not found")
+    #     for provider in self.providers:
+    #         if pr.scheme == "upload":
+    #             platform = pr.netloc
+    #             _, self_id, path = pr.path.split("/", 2)
+    #             if provider.ensure(platform, self_id):
+    #                 return await provider.download_uploaded(platform, self_id, path)
+    #
+    #         for proxy_url_pf in provider.proxy_urls():
+    #             if not url.startswith(proxy_url_pf):
+    #                 continue
+    #             resp = await provider.download_proxied(proxy_url_pf, url)
+    #             if resp is None:
+    #                 continue
+    #             return resp
+    #     raise ValueError(f"Unknown proxy url: {url}")
 
+    async def fetch_proxy(self, url: str):
+        url = url.replace(":/", "://", 1).replace(":///", "://", 1)
+        url = urllib.parse.unquote(url)
+        if url.startswith("internal:"):
+            if mat := INTERNAL_URL_PAT.match(url):
+                platform = mat["platform"]
+                self_id = mat["self_id"]
+                path = mat["path"]
+                if path.startswith("_tmp"):
+                    file = Path(self._tempdir.name) / path[5:]
+                    if file.exists():
+                        return FileResponse(file)
+                    raise FileNotFoundError(f"{path[5:]} not found")
+                for provider in self.providers:
+                    if provider.ensure(platform, self_id):
+                        return await provider.handle_internal(platform, self_id, path)
+                raise NotImplementedError(f"Login with {platform}:{self_id} not found")
+            raise TypeError(f"Invalid internal url: {url}")
+
+        for provider in self.providers:
             for proxy_url_pf in provider.proxy_urls():
                 if not url.startswith(proxy_url_pf):
                     continue
-                resp = await provider.download_proxied(proxy_url_pf, url)
+                resp = await provider.handle_proxied(proxy_url_pf, url)
                 if resp is None:
                     continue
                 return resp
@@ -317,11 +343,46 @@ class Server(Service, RouterMixin):
             with file.resolve().open("wb+") as f:
                 f.write(await data.read())
 
-            res[disp["name"]] = f"upload://temp/{self.id}:{id(self)}/{filename}"
+            res[disp["name"]] = f"internal:{request.platform}/{request.self_id}/_tmp/{filename}"
 
             loop = asyncio.get_running_loop()
             loop.call_later(600, file.unlink, True)
         return res
+
+    async def meta_get_handler(self, request: StarletteRequest):
+        logins = []
+        proxy_urls = []
+        for provider in self.providers:
+            logins.extend(await provider.get_logins())
+            proxy_urls.extend(provider.proxy_urls())
+        return JSONResponse(content=Meta(logins, proxy_urls).dump())
+
+    async def webhook_create_handler(self, request: StarletteRequest):
+        body = await request.json()
+        url = body["url"]
+        token = body.get("token")
+        self.webhooks.append(WebhookEndpoint(url, token))
+        proxy_urls = []
+        for provider in self.providers:
+            proxy_urls.extend(provider.proxy_urls())
+        async with self.session.post(
+            URL(url),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {token or ''}",
+            },
+            json={"op": Opcode.META, "body": {"proxy_urls": proxy_urls}},
+        ) as resp:
+            resp.raise_for_status()
+        return Response()
+
+    async def webhook_delete_handler(self, request: StarletteRequest):
+        body = await request.json()
+        url = body["url"]
+        for endpoint in self.webhooks:
+            if endpoint.url == url:
+                self.webhooks.remove(endpoint)
+        return Response()
 
     async def launch(self, manager: Launart):
         self.session = aiohttp.ClientSession()
@@ -338,19 +399,29 @@ class Server(Service, RouterMixin):
                     *chain.from_iterable(ada.get_routes() for ada in self._adapters),
                     WebSocketRoute(f"{self.path}/{self.version}/events", self.websocket_server_handler),
                     Route(
-                        f"{self.path}/{self.version}/admin/login.list",
-                        self.admin_login_list_handler,
+                        f"{self.path}/{self.version}/meta",
+                        self.meta_get_handler,
                         methods=["POST"],
                     ),
                     Route(
-                        f"{self.path}/{self.version}/proxy/{{upload_url:path}}",
+                        f"{self.path}/{self.version}/meta/webhook.create",
+                        self.webhook_create_handler,
+                        methods=["POST"],
+                    ),
+                    Route(
+                        f"{self.path}/{self.version}/meta/webhook.delete",
+                        self.webhook_delete_handler,
+                        methods=["POST"],
+                    ),
+                    Route(
+                        f"{self.path}/{self.version}/proxy/{{internal_url:path}}",
                         self.proxy_url_handler,
-                        methods=["GET"],
+                        methods=["GET", "POST", "PUT", "DELETE"],
                     ),
                     Route(
-                        f"{self.path}/{self.version}/{{method:path}}",
+                        f"{self.path}/{self.version}/{{action:path}}",
                         self.http_server_handler,
-                        methods=["POST"],
+                        methods=["GET", "POST", "PUT", "DELETE"],
                     ),
                 ]
             )
@@ -363,6 +434,19 @@ class Server(Service, RouterMixin):
                 await self.event_callback(event)
 
         async with self.stage("blocking"):
+            proxy_urls = []
+            for provider in self.providers:
+                proxy_urls.extend(provider.proxy_urls())
+            for hook in self.webhooks:
+                async with self.session.post(
+                    URL(hook.url),
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {hook.token or ''}",
+                    },
+                    json={"op": Opcode.META, "body": {"proxy_urls": proxy_urls}},
+                ) as resp:
+                    resp.raise_for_status()
             await any_completed(
                 manager.status.wait_for_sigexit(),
                 *(event_task(provider) for provider in self.providers),
