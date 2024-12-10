@@ -41,9 +41,9 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
         # if "X-Platform" in header and "X-Self-ID" in header:
         #     platform = header["X-Platform"]
         #     self_id = header["X-Self-ID"]
-        # elif "Satori-Platform" in header and "Satori-Login-ID" in header:
+        # elif "Satori-Platform" in header and "Satori-User-ID" in header:
         #     platform = header["Satori-Platform"]
-        #     self_id = header["Satori-Login-ID"]
+        #     self_id = header["Satori-User-ID"]
         # else:
         #     return web.Response(status=400)
         try:

@@ -63,7 +63,7 @@ class ApiProtocol:
             "X-Platform": self.account.platform,
             "X-Self-ID": self.account.self_id,
             "Satori-Platform": self.account.platform,
-            "Satori-Login-ID": self.account.self_id,
+            "Satori-User-ID": self.account.self_id,
         }
         aio = Launart.current().get_component(AiohttpClientService)
         if multipart:

@@ -231,9 +231,9 @@ class Server(Service, RouterMixin):
         if "X-Platform" not in request.headers and "Satori-Platform" not in request.headers:
             return Response(status_code=401, content="Missing header X-Platform or Satori-Platform")
         platform: str = request.headers.get("X-Platform") or request.headers.get("Satori-Platform")  # type: ignore
-        if "X-Self-ID" not in request.headers and "Satori-Login-ID" not in request.headers:
-            return Response(status_code=401, content="Missing header X-Self-ID or Satori-Login-ID")
-        self_id: str = request.headers.get("X-Self-ID") or request.headers.get("Satori-Login-ID")  # type: ignore
+        if "X-Self-ID" not in request.headers and "Satori-User-ID" not in request.headers:
+            return Response(status_code=401, content="Missing header X-Self-ID or Satori-User-ID")
+        self_id: str = request.headers.get("X-Self-ID") or request.headers.get("Satori-User-ID")  # type: ignore
 
         for _router in self._adapters:
             if action not in _router.routes:
