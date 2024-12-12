@@ -172,8 +172,12 @@ class Login(ModelBase):
     def parse(cls, raw: dict):
         if "self_id" in raw and "user" not in raw:
             raw["user"] = {"id": raw["self_id"]}
+        if "sn" not in raw:
+            raw["sn"] = raw["user"]["id"]
         if "adapter" not in raw:
             raw["adapter"] = "satori"
+        if "status" not in raw:
+            raw["status"] = LoginStatus.ONLINE
         return super().parse(raw)
 
     @property
