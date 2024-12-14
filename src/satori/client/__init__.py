@@ -232,6 +232,7 @@ class App(Service):
                 return
         else:
             account = self.accounts[login_sn]
+            account.self_info = event.login
         if event.type == EventType.LOGIN_UPDATED:
             if TYPE_CHECKING:
                 assert isinstance(event, events.LoginEvent)
