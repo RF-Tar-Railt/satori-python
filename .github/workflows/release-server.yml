@@ -19,12 +19,12 @@ jobs:
       - uses: actions/setup-python@v5
         name: Ensure Python Runtime
         with:
-          python-version: '3.x'
+          python-version: '3.11'
           architecture: 'x64'
 
       - name: Ensure PDM
         run: |
-          python3 -m pip install pdm==2.13.2 pdm-mina "mina-build<0.6"
+          python3 -m pip install pdm==2.13.2 pdm-mina "mina-build<0.6" "pdm-backend<2.4.0"
 
       - name: Build Package
         run: |
