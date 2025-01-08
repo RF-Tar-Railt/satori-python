@@ -1,4 +1,5 @@
 import mimetypes
+from collections.abc import AsyncIterable, Awaitable
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from enum import IntEnum
@@ -499,6 +500,29 @@ class PageDequeResult(PageResult[T]):
         if self.prev:
             res["prev"] = self.prev
         return res
+
+
+class IterablePageResult(Generic[T], AsyncIterable[T], Awaitable[PageResult[T]]):
+    def __init__(
+        self, func: Callable[[Optional[str]], Awaitable[PageResult[T]]], initial_page: Optional[str] = None
+    ):
+        self.func = func
+        self.next_page = initial_page
+
+    def __await__(self):
+        return self.func(self.next_page).__await__()
+
+    def __aiter__(self):
+        async def _gen():
+            while True:
+                result = await self.func(self.next_page)
+                for item in result.data:
+                    yield item
+                self.next_page = result.next
+                if not self.next_page:
+                    break
+
+        return _gen()
 
 
 Direction: TypeAlias = Literal["before", "after", "around"]

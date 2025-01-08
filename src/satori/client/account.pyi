@@ -11,6 +11,7 @@ from satori.model import (
     Direction,
     Event,
     Guild,
+    IterablePageResult,
     Login,
     Member,
     MessageObject,
@@ -18,7 +19,6 @@ from satori.model import (
     Meta,
     Order,
     PageDequeResult,
-    PageResult,
     Role,
     Upload,
     User,
@@ -211,7 +211,7 @@ class Account(Generic[TP]):
             Channel: `Channel` 对象
         """
 
-    async def channel_list(self, guild_id: str, next_token: str | None = None) -> PageResult[Channel]:
+    def channel_list(self, guild_id: str, next_token: str | None = None) -> IterablePageResult[Channel]:
         """获取群组中的全部频道。返回一个 Channel 的分页列表。
 
         Args:
@@ -219,7 +219,7 @@ class Account(Generic[TP]):
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[Channel]: `Channel` 的分页列表
+            IterablePageResult[Channel]: `Channel` 的分页列表
         """
 
     async def channel_create(self, guild_id: str, data: Channel) -> Channel:
@@ -291,14 +291,14 @@ class Account(Generic[TP]):
             Guild: `Guild` 对象
         """
 
-    async def guild_list(self, next_token: str | None = None) -> PageResult[Guild]:
+    def guild_list(self, next_token: str | None = None) -> IterablePageResult[Guild]:
         """获取当前用户加入的全部群组。返回一个 Guild 的分页列表。
 
         Args:
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[Guild]: `Guild` 的分页列表
+            IterablePageResult[Guild]: `Guild` 的分页列表
         """
 
     async def guild_approve(self, request_id: str, approve: bool, comment: str) -> None:
@@ -313,7 +313,7 @@ class Account(Generic[TP]):
             None: 该方法无返回值
         """
 
-    async def guild_member_list(self, guild_id: str, next_token: str | None = None) -> PageResult[Member]:
+    def guild_member_list(self, guild_id: str, next_token: str | None = None) -> IterablePageResult[Member]:
         """获取群组成员列表。返回一个 Member 的分页列表。
 
         Args:
@@ -321,7 +321,7 @@ class Account(Generic[TP]):
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[Member]: `Member` 的分页列表
+            IterablePageResult[Member]: `Member` 的分页列表
         """
 
     async def guild_member_get(self, guild_id: str, user_id: str) -> Member:
@@ -397,7 +397,7 @@ class Account(Generic[TP]):
             None: 该方法无返回值
         """
 
-    async def guild_role_list(self, guild_id: str, next_token: str | None = None) -> PageResult[Role]:
+    def guild_role_list(self, guild_id: str, next_token: str | None = None) -> IterablePageResult[Role]:
         """获取群组角色列表。返回一个 Role 的分页列表。
 
         Args:
@@ -405,7 +405,7 @@ class Account(Generic[TP]):
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[Role]: `Role` 的分页列表
+            IterablePageResult[Role]: `Role` 的分页列表
         """
 
     async def guild_role_create(self, guild_id: str, role: Role) -> Role:
@@ -485,9 +485,9 @@ class Account(Generic[TP]):
             None: 该方法无返回值
         """
 
-    async def reaction_list(
+    def reaction_list(
         self, channel_id: str, message_id: str, emoji: str, next_token: str | None = None
-    ) -> PageResult[User]:
+    ) -> IterablePageResult[User]:
         """获取添加特定消息的特定表态的用户列表。返回一个 User 的分页列表。
 
         Args:
@@ -497,7 +497,7 @@ class Account(Generic[TP]):
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[User]: `User` 的分页列表
+            IterablePageResult[User]: `User` 的分页列表
         """
 
     async def login_get(self) -> Login:
@@ -517,14 +517,14 @@ class Account(Generic[TP]):
             User: `User` 对象
         """
 
-    async def friend_list(self, next_token: str | None = None) -> PageResult[User]:
+    def friend_list(self, next_token: str | None = None) -> IterablePageResult[User]:
         """获取好友列表。返回一个 User 的分页列表。
 
         Args:
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[User]: `User` 的分页列表
+            IterablePageResult[User]: `User` 的分页列表
         """
 
     async def friend_approve(self, request_id: str, approve: bool, comment: str) -> None:

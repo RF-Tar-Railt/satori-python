@@ -15,6 +15,7 @@ from satori.model import (
     Direction,
     Event,
     Guild,
+    IterablePageResult,
     Login,
     Member,
     MessageObject,
@@ -278,7 +279,7 @@ class ApiProtocol:
         )
         return Channel.parse(res)
 
-    async def channel_list(self, guild_id: str, next_token: str | None = None) -> PageResult[Channel]:
+    def channel_list(self, guild_id: str, next_token: str | None = None) -> IterablePageResult[Channel]:
         """获取群组中的全部频道。返回一个 Channel 的分页列表。
 
         Args:
@@ -286,13 +287,17 @@ class ApiProtocol:
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[Channel]: `Channel` 的分页列表
+            IterablePageResult[Channel]: `Channel` 的分页列表
         """
-        res = await self.call_api(
-            Api.CHANNEL_LIST,
-            {"guild_id": guild_id, "next": next_token},
-        )
-        return PageResult.parse(res, Channel.parse)
+
+        async def _(token: str | None):
+            res = await self.call_api(
+                Api.CHANNEL_LIST,
+                {"guild_id": guild_id, "next": token},
+            )
+            return PageResult.parse(res, Channel.parse)
+
+        return IterablePageResult(_, next_token)
 
     async def channel_create(self, guild_id: str, data: Channel) -> Channel:
         """创建群组频道。返回一个 Channel 对象。
@@ -393,20 +398,24 @@ class ApiProtocol:
         )
         return Guild.parse(res)
 
-    async def guild_list(self, next_token: str | None = None) -> PageResult[Guild]:
+    def guild_list(self, next_token: str | None = None) -> IterablePageResult[Guild]:
         """获取当前用户加入的全部群组。返回一个 Guild 的分页列表。
 
         Args:
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[Guild]: `Guild` 的分页列表
+            IterablePageResult[Guild]: `Guild` 的分页列表
         """
-        res = await self.call_api(
-            Api.GUILD_LIST,
-            {"next": next_token},
-        )
-        return PageResult.parse(res, Guild.parse)
+
+        async def _(token: str | None):
+            res = await self.call_api(
+                Api.GUILD_LIST,
+                {"next": token},
+            )
+            return PageResult.parse(res, Guild.parse)
+
+        return IterablePageResult(_, next_token)
 
     async def guild_approve(self, request_id: str, approve: bool, comment: str) -> None:
         """处理来自群组的邀请。
@@ -424,7 +433,7 @@ class ApiProtocol:
             {"message_id": request_id, "approve": approve, "comment": comment},
         )
 
-    async def guild_member_list(self, guild_id: str, next_token: str | None = None) -> PageResult[Member]:
+    def guild_member_list(self, guild_id: str, next_token: str | None = None) -> IterablePageResult[Member]:
         """获取群组成员列表。返回一个 Member 的分页列表。
 
         Args:
@@ -432,13 +441,17 @@ class ApiProtocol:
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[Member]: `Member` 的分页列表
+            IterablePageResult[Member]: `Member` 的分页列表
         """
-        res = await self.call_api(
-            Api.GUILD_MEMBER_LIST,
-            {"guild_id": guild_id, "next": next_token},
-        )
-        return PageResult.parse(res, Member.parse)
+
+        async def _(token: str | None):
+            res = await self.call_api(
+                Api.GUILD_MEMBER_LIST,
+                {"guild_id": guild_id, "next": token},
+            )
+            return PageResult.parse(res, Member.parse)
+
+        return IterablePageResult(_, next_token)
 
     async def guild_member_get(self, guild_id: str, user_id: str) -> Member:
         """获取群成员信息。返回一个 `Member` 对象。
@@ -538,7 +551,7 @@ class ApiProtocol:
             {"guild_id": guild_id, "user_id": user_id, "role_id": role_id},
         )
 
-    async def guild_role_list(self, guild_id: str, next_token: str | None = None) -> PageResult[Role]:
+    def guild_role_list(self, guild_id: str, next_token: str | None = None) -> IterablePageResult[Role]:
         """获取群组角色列表。返回一个 Role 的分页列表。
 
         Args:
@@ -546,13 +559,17 @@ class ApiProtocol:
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[Role]: `Role` 的分页列表
+            IterablePageResult[Role]: `Role` 的分页列表
         """
-        res = await self.call_api(
-            Api.GUILD_ROLE_LIST,
-            {"guild_id": guild_id, "next": next_token},
-        )
-        return PageResult.parse(res, Role.parse)
+
+        async def _(token: str | None):
+            res = await self.call_api(
+                Api.GUILD_ROLE_LIST,
+                {"guild_id": guild_id, "next": token},
+            )
+            return PageResult.parse(res, Role.parse)
+
+        return IterablePageResult(_, next_token)
 
     async def guild_role_create(self, guild_id: str, role: Role) -> Role:
         """创建群组角色。返回一个 Role 对象。
@@ -662,9 +679,9 @@ class ApiProtocol:
             data,
         )
 
-    async def reaction_list(
+    def reaction_list(
         self, channel_id: str, message_id: str, emoji: str, next_token: str | None = None
-    ) -> PageResult[User]:
+    ) -> IterablePageResult[User]:
         """获取添加特定消息的特定表态的用户列表。返回一个 User 的分页列表。
 
         Args:
@@ -674,18 +691,22 @@ class ApiProtocol:
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[User]: `User` 的分页列表
+            IterablePageResult[User]: `User` 的分页列表
         """
-        res = await self.call_api(
-            Api.REACTION_LIST,
-            {
-                "channel_id": channel_id,
-                "message_id": message_id,
-                "emoji": emoji,
-                "next": next_token,
-            },
-        )
-        return PageResult.parse(res, User.parse)
+
+        async def _(token: str | None):
+            res = await self.call_api(
+                Api.REACTION_LIST,
+                {
+                    "channel_id": channel_id,
+                    "message_id": message_id,
+                    "emoji": emoji,
+                    "next": token,
+                },
+            )
+            return PageResult.parse(res, User.parse)
+
+        return IterablePageResult(_, next_token)
 
     async def login_get(self) -> Login:
         """获取当前登录信息。返回一个 `Login` 对象。
@@ -708,17 +729,21 @@ class ApiProtocol:
         res = await self.call_api(Api.USER_GET, {"user_id": user_id})
         return User.parse(res)
 
-    async def friend_list(self, next_token: str | None = None) -> PageResult[User]:
+    def friend_list(self, next_token: str | None = None) -> IterablePageResult[User]:
         """获取好友列表。返回一个 User 的分页列表。
 
         Args:
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            PageResult[User]: `User` 的分页列表
+            IterablePageResult[User]: `User` 的分页列表
         """
-        res = await self.call_api(Api.FRIEND_LIST, {"next": next_token})
-        return PageResult.parse(res, User.parse)
+
+        async def _(token: str | None):
+            res = await self.call_api(Api.FRIEND_LIST, {"next": token})
+            return PageResult.parse(res, User.parse)
+
+        return IterablePageResult(_, next_token)
 
     async def friend_approve(self, request_id: str, approve: bool, comment: str) -> None:
         """处理好友申请。
