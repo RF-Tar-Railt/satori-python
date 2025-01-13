@@ -26,7 +26,7 @@ class ExampleAdapter(Adapter):
         return platform == self.get_platform() and self_id == "1234567890"
 
     async def get_logins(self):
-        return [Login("abcd", LoginStatus.ONLINE, "test", "example", User("1234567890"))]
+        return [Login(0, LoginStatus.ONLINE, "test", "example", User("1234567890"))]
 
     def __init__(self):
         super().__init__()

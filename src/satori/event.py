@@ -5,6 +5,7 @@ from satori.model import (
     Event,
     Guild,
     Login,
+    LoginPartial,
     Member,
     MessageObject,
     Role,
@@ -37,7 +38,7 @@ class GuildRoleEvent(GuildEvent):
 
 
 class LoginEvent(Event):
-    login: Login
+    login: LoginPartial
 
 
 class ReactionEvent(Event):

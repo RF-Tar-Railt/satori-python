@@ -3,14 +3,16 @@ from __future__ import annotations
 import asyncio
 
 from aiohttp import web
+from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart.manager import Launart
 from loguru import logger
 
-from satori.model import Event, LoginStatus, MetaPayload, Opcode
+from satori.model import Event, LoginStatus, MetaPayload, Opcode, Meta
 
 from ..account import Account
 from ..config import WebhookInfo as WebhookInfo
 from .base import BaseNetwork
+from .util import validate_response
 
 
 class WebhookNetwork(BaseNetwork[WebhookInfo]):
@@ -35,6 +37,8 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
         if op_code == Opcode.META:
             payload = MetaPayload.parse(body)
             self.proxy_urls = payload.proxy_urls
+            for account in self.accounts.values():
+                account.proxy_urls = payload.proxy_urls
             return web.Response()
         if op_code != Opcode.EVENT:
             return web.Response(status=202)
@@ -61,18 +65,6 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
         else:
             logger.trace(f"Received event: {event}")
             self.sequence = event.sn
-        login_sn = f"{event.login.sn}@{id(self)}"
-        if login_sn in self.app.accounts:
-            account = self.app.accounts[login_sn]
-            account.connected.set()
-            account.config = self.config
-        else:
-            account = Account(event.login, self.config, self.proxy_urls)
-            logger.info(f"account registered: {account}")
-            account.connected.set()
-            self.app.accounts[login_sn] = account
-            self.accounts[login_sn] = account
-            await self.app.account_update(account, LoginStatus.ONLINE)
         asyncio.create_task(self.app.post(event, self))
         return web.Response()
 
@@ -94,12 +86,37 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
             site = web.TCPSite(runner, self.config.host, self.config.port)
 
         async with self.stage("blocking"):
+            endpoint = self.config.api_base / "meta"
+            headers = {
+                "Content-Type": "application/json",
+            }
+            aio = Launart.current().get_component(AiohttpClientService)
+
+            async with aio.session.request(
+                "POST",
+                endpoint,
+                json={},
+                headers=headers,
+            ) as resp:
+                data = await validate_response(resp)
+                meta = Meta.parse(data)
+            self.proxy_urls = meta.proxy_urls
+            for login in meta.logins:
+                if not login.user:
+                    continue
+                login_sn = f"{login.user.id}@{id(self)}"
+                account = Account(login, self.config, meta.proxy_urls, self.app.default_api_cls)
+                logger.info(f"account registered: {account}")
+                (account.connected.set() if login.status == LoginStatus.ONLINE else account.connected.clear())
+                self.app.accounts[login_sn] = account
+                self.accounts[login_sn] = account
+                await self.app.account_update(account, LoginStatus.ONLINE)
             await site.start()
             await manager.status.wait_for_sigexit()
             logger.info(f"{self.id} Webhook server exiting...")
             self.close_signal.set()
             for v in list(self.app.accounts.values()):
-                if (identity := f"{v.sn}@{id(self)}") in self.accounts:
+                if (identity := f"{v.self_id}@{id(self)}") in self.accounts:
                     v.connected.clear()
                     await self.app.account_update(v, LoginStatus.OFFLINE)
                     del self.app.accounts[identity]

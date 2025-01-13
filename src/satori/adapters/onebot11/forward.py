@@ -54,7 +54,10 @@ class OneBot11ForwardAdapter(Adapter):
         return platform == "onebot"
 
     async def get_logins(self) -> list[Login]:
-        return list(self.logins.values())
+        logins = list(self.logins.values())
+        for index, login in enumerate(logins):
+            login.sn = index
+        return logins
 
     @property
     def required(self) -> set[str]:
@@ -77,7 +80,7 @@ class OneBot11ForwardAdapter(Adapter):
                     self_id = str(data["self_id"])
                     if self_id not in self.logins:
                         login = Login(
-                            uuid.uuid4().hex,
+                            0,
                             LoginStatus.ONLINE,
                             "onebot",
                             platform="onebot",
@@ -100,7 +103,7 @@ class OneBot11ForwardAdapter(Adapter):
                     self_id = str(data["self_id"])
                     if self_id not in self.logins:
                         login = Login(
-                            uuid.uuid4().hex,
+                            0,
                             LoginStatus.ONLINE,
                             "onebot",
                             platform="onebot",

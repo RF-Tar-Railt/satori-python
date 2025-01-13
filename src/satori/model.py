@@ -146,11 +146,11 @@ class LoginStatus(IntEnum):
 
 @dataclass
 class Login(ModelBase):
-    sn: str
+    sn: int
     status: LoginStatus
     adapter: str
-    platform: Optional[str] = None
-    user: Optional[User] = None
+    platform: str
+    user: User
     features: list[str] = field(default_factory=list)
 
     __converter__ = {"user": User.parse, "status": LoginStatus}
@@ -174,7 +174,7 @@ class Login(ModelBase):
         if "self_id" in raw and "user" not in raw:
             raw["user"] = {"id": raw["self_id"]}
         if "sn" not in raw:
-            raw["sn"] = raw["user"]["id"]
+            raw["sn"] = 0
         if "adapter" not in raw:
             raw["adapter"] = "satori"
         if "status" not in raw:
@@ -183,9 +183,13 @@ class Login(ModelBase):
 
     @property
     def id(self) -> str:
-        if not self.user:
-            raise ValueError(f"Login {self.sn} has not complete yet")
         return self.user.id
+
+
+@dataclass
+class LoginPartial(Login):
+    platform: Optional[str] = None
+    user: Optional[User] = None
 
 
 @dataclass
@@ -242,10 +246,10 @@ class Identify(ModelBase):
 
 @dataclass
 class Ready(ModelBase):
-    logins: list[Login]
+    logins: list[LoginPartial]
     proxy_urls: list[str] = field(default_factory=list)
 
-    __converter__ = {"logins": lambda raw: [Login.parse(login) for login in raw]}
+    __converter__ = {"logins": lambda raw: [LoginPartial.parse(login) for login in raw]}
 
     def dump(self):
         return asdict(self)
@@ -265,10 +269,10 @@ class MetaPayload(ModelBase):
 class Meta(ModelBase):
     """Meta 数据"""
 
-    logins: list[Login]
+    logins: list[LoginPartial]
     proxy_urls: list[str] = field(default_factory=list)
 
-    __converter__ = {"logins": lambda raw: [Login.parse(login) for login in raw]}
+    __converter__ = {"logins": lambda raw: [LoginPartial.parse(login) for login in raw]}
 
     def dump(self):
         return asdict(self)
@@ -415,7 +419,7 @@ class Event(ModelBase):
             raw["sn"] = raw["id"]
         if "platform" in raw and "self_id" in raw and "login" not in raw:
             raw["login"] = {
-                "sn": raw["self_id"],
+                "sn": 0,
                 "platform": raw["platform"],
                 "user": {"id": raw["self_id"]},
                 "status": LoginStatus.ONLINE,

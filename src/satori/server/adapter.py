@@ -1,18 +1,21 @@
 from abc import abstractmethod
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from launart import Service
 from starlette.responses import Response
 from starlette.routing import BaseRoute
+from satori.model import Event, Login, LoginPartial
 
-from ..model import Event, Login
 from .model import Request
 from .route import RouterMixin
 from .utils import ctx
 
 if TYPE_CHECKING:
     from . import Server
+
+
+LoginType = Union[Login, LoginPartial]
 
 
 class Adapter(Service, RouterMixin):
@@ -39,7 +42,7 @@ class Adapter(Service, RouterMixin):
             return Response(await resp.read())
 
     @abstractmethod
-    async def get_logins(self) -> list[Login]: ...
+    async def get_logins(self) -> list[LoginType]: ...
 
     def __init__(self):
         super().__init__()

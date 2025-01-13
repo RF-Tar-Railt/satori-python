@@ -17,6 +17,7 @@ from satori.model import (
     Guild,
     IterablePageResult,
     Login,
+    LoginPartial,
     Member,
     MessageObject,
     MessageReceipt,
@@ -781,7 +782,7 @@ class ApiProtocol:
         return Meta.parse(res)
 
     @deprecated("Use `meta_get` instead")
-    async def admin_login_list(self) -> list[Login]:
+    async def admin_login_list(self) -> list[LoginPartial]:
         """获取登录信息列表。返回一个 `Login` 对象构成的数组。
 
         Returns:

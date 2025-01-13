@@ -10,7 +10,7 @@ from launart.manager import Launart
 from launart.utilles import any_completed
 from loguru import logger
 
-from satori.model import Event, Identify, LoginStatus, Opcode, Ready
+from satori.model import Event, Identify, LoginStatus, Opcode, Ready, MetaPayload
 
 from ..account import Account
 from ..config import WebsocketsInfo as WebsocketsInfo
@@ -60,6 +60,11 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                 logger.trace(f"Received payload: {data}")
                 if data["op"] == Opcode.EVENT:
                     self.post_event(data["body"])
+                elif data["op"] == Opcode.META:
+                    payload = MetaPayload.parse(data["body"])
+                    self.proxy_urls = payload.proxy_urls
+                    for account in self.accounts.values():
+                        account.proxy_urls = payload.proxy_urls.copy()
                 elif data["op"] > 5:
                     logger.warning(f"Received unknown event: {data}")
                 continue
@@ -103,7 +108,9 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
         ready = Ready.parse(data["body"])
         self.proxy_urls = ready.proxy_urls
         for login in ready.logins:
-            login_sn = f"{login.sn}@{id(self)}"
+            if not login.user:
+                continue
+            login_sn = f"{login.user.id}@{id(self)}"
             if login_sn in self.app.accounts:
                 account = self.app.accounts[login_sn]
                 self.accounts[login_sn] = account
@@ -121,7 +128,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
             await self.app.account_update(account, LoginStatus.ONLINE)
         if not self.accounts:
             logger.warning(f"No account available for {self.config}")
-            return False
+            # return False
         return True
 
     async def _heartbeat(self):
@@ -158,7 +165,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                         self.close_signal.set()
                         self.connection = None
                         for v in list(self.app.accounts.values()):
-                            if (identity := f"{v.sn}@{id(self)}") in self.accounts:
+                            if (identity := f"{v.self_id}@{id(self)}") in self.accounts:
                                 v.connected.clear()
                                 await self.app.account_update(v, LoginStatus.OFFLINE)
                                 del self.app.accounts[identity]

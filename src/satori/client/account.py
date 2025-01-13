@@ -38,7 +38,6 @@ class Account(Generic[TP]):
         proxy_urls: list[str],
         protocol_cls: type[TP] = ApiProtocol,
     ):
-        self.sn = login.sn
         self.adapter = login.adapter
         self.self_info = login
         self.config = config
@@ -52,7 +51,7 @@ class Account(Generic[TP]):
 
     @property
     def self_id(self):
-        return self.self_info.id
+        return self.self_info.user.id
 
     def custom(
         self, config: ApiInfo | None = None, protocol_cls: type[TP1] = ApiProtocol, **kwargs

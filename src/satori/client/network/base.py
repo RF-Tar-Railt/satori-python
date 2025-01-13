@@ -8,7 +8,7 @@ from launart import Service
 from ..config import Config as Config
 
 if TYPE_CHECKING:
-    from .. import App
+    from .. import App, Account
 
 TConfig = TypeVar("TConfig", bound=Config)
 
@@ -21,7 +21,7 @@ class BaseNetwork(Generic[TConfig], Service):
         super().__init__()
         self.app = app
         self.config = config
-        self.accounts = {}
+        self.accounts: dict[str, Account] = {}
         self.close_signal = asyncio.Event()
         self.sequence = -1
         self.proxy_urls = []

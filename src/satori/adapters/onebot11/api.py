@@ -1,7 +1,7 @@
 from typing import Callable
 
 from satori import Api
-from satori.model import LoginPreview
+from satori.model import Login
 from satori.server import Adapter, Request
 from satori.server.route import MessageParam
 
@@ -10,7 +10,7 @@ from .utils import OneBotNetwork
 
 
 def apply(
-    adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_getter: Callable[[str], LoginPreview]
+    adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_getter: Callable[[str], Login]
 ):
     @adapter.route(Api.MESSAGE_CREATE)
     async def message_create(request: Request[MessageParam]):

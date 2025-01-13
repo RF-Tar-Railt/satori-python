@@ -41,7 +41,6 @@ class ApiInfo(Api):
     ): ...
 
 class Account(Generic[TP]):
-    sn: str
     adapter: str
     self_info: Login
     proxy_urls: list[str]

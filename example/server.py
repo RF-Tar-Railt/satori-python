@@ -26,7 +26,7 @@ class ExampleProvider:
         raise NotImplementedError
 
     async def get_logins(self):
-        return [Login("abcd", LoginStatus.ONLINE, "test", "example", User("1234567890"))]
+        return [Login(0, LoginStatus.ONLINE, "test", "example", User("1234567890"))]
 
     async def publisher(self):
         seq = 0
