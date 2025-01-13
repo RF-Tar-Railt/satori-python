@@ -10,7 +10,7 @@ from launart.manager import Launart
 from launart.utilles import any_completed
 from loguru import logger
 
-from satori.model import Event, Identify, LoginStatus, Opcode, Ready, MetaPayload
+from satori.model import Event, Identify, LoginStatus, MetaPayload, Opcode, Ready
 
 from ..account import Account
 from ..config import WebsocketsInfo as WebsocketsInfo

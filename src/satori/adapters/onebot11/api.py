@@ -9,9 +9,7 @@ from .message import OneBot11MessageEncoder
 from .utils import OneBotNetwork
 
 
-def apply(
-    adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_getter: Callable[[str], Login]
-):
+def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_getter: Callable[[str], Login]):
     @adapter.route(Api.MESSAGE_CREATE)
     async def message_create(request: Request[MessageParam]):
         net = net_getter(request.self_id)

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from launart import Service
 from starlette.responses import Response
 from starlette.routing import BaseRoute
+
 from satori.model import Event, Login, LoginPartial
 
 from .model import Request

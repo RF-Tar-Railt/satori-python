@@ -204,11 +204,7 @@ class App(Service):
                 self.default_api_cls,
             )
             logger.info(f"account added: {account}")
-            (
-                account.connected.set()
-                if login.status == LoginStatus.ONLINE
-                else account.connected.clear()
-            )
+            (account.connected.set() if login.status == LoginStatus.ONLINE else account.connected.clear())
             self.accounts[login_sn] = account
             conn.accounts[login_sn] = account
             await self.account_update(account, login.status)

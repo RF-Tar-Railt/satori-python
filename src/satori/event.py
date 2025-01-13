@@ -4,7 +4,6 @@ from satori.model import (
     Channel,
     Event,
     Guild,
-    Login,
     LoginPartial,
     Member,
     MessageObject,

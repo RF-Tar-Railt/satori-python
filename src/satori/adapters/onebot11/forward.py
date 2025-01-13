@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import uuid
 from contextlib import suppress
 from datetime import datetime
 from typing import cast

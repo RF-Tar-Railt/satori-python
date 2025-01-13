@@ -7,7 +7,7 @@ from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart.manager import Launart
 from loguru import logger
 
-from satori.model import Event, LoginStatus, MetaPayload, Opcode, Meta
+from satori.model import Event, LoginStatus, Meta, MetaPayload, Opcode
 
 from ..account import Account
 from ..config import WebhookInfo as WebhookInfo
