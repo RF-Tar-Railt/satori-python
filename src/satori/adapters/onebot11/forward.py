@@ -17,25 +17,26 @@ from yarl import URL
 from satori import Event, EventType, LoginStatus
 from satori.exception import ActionFailed
 from satori.model import Login, User
-from satori.server import Adapter, Request
+from satori.server import Request
+from satori.server.adapter import Adapter as BaseAdapter
 
 from .api import apply
 from .events.base import events
 from .utils import onebot11_event_type
 
 
-class OneBot11ForwardAdapter(Adapter):
+class OneBot11ForwardAdapter(BaseAdapter):
 
     session: ClientSession
     connection: ClientWebSocketResponse | None
 
     def __init__(
         self,
-        endpoint: URL,
+        endpoint: str | URL,
         access_token: str | None = None,
     ):
         super().__init__()
-        self.endpoint = endpoint
+        self.endpoint = URL(endpoint)
         self.access_token = access_token
         self.close_signal = asyncio.Event()
         self.queue: asyncio.Queue[Event] = asyncio.Queue()
@@ -50,7 +51,7 @@ class OneBot11ForwardAdapter(Adapter):
             yield event
 
     def ensure(self, platform: str, self_id: str) -> bool:
-        return platform == "onebot"
+        return platform == "onebot" and self_id in self.logins
 
     async def get_logins(self) -> list[Login]:
         logins = list(self.logins.values())
@@ -211,7 +212,7 @@ class OneBot11ForwardAdapter(Adapter):
         return "onebot"
 
     async def handle_internal(self, request: Request, path: str) -> Response:
-        if path.startswith("_raw"):
+        if path.startswith("_api"):
             return JSONResponse(await self.call_api(path[5:], await request.origin.json()))
         async with self.session.get(path) as resp:
             return Response(await resp.read())
@@ -237,3 +238,6 @@ class OneBot11ForwardAdapter(Adapter):
 
     def __str__(self):
         return self.id
+
+
+Adapter = OneBot11ForwardAdapter

@@ -157,9 +157,11 @@ class Server(Service, RouterMixin):
         self._event_cache.append(event)
         self._sequence += 1
         for connection in self.connections:
+            if not connection.alive:
+                continue
             try:
                 await connection.send({"op": Opcode.EVENT, "body": event.dump()})
-            except WebSocketDisconnect:
+            except (WebSocketDisconnect, RuntimeError):
                 break
             except Exception as e:
                 print_exc()
