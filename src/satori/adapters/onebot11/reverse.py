@@ -159,13 +159,16 @@ class OneBot11ReverseAdapter(BaseAdapter):
 
     async def websocket_server_handler(self, ws: WebSocket):
         if ws.headers.get("Authorization", "")[7:] != (self.access_token or ""):
-            return await ws.close()
+            return await ws.close(1008, "Authorization Header is invalid")
+
+        if "X-Self-ID" not in ws.headers:
+            return await ws.close(1008, "Missing X-Self-ID Header")
 
         account_id = ws.headers["X-Self-ID"]
+        if account_id in self.connections:
+            return await ws.close(1008, "Duplicate X-Self-ID")
 
         await ws.accept()
-        if account_id in self.connections:
-            return
         connection = _Connection(self, ws)
         self.connections[account_id] = connection
 
