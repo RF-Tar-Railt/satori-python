@@ -18,6 +18,7 @@ from typing import Any
 
 import aiohttp
 from creart import it
+from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from graia.amnesia.builtins.asgi import UvicornASGIService
 from launart import Launart, Service, any_completed
 from loguru import logger
@@ -289,13 +290,14 @@ class Server(Service, RouterMixin):
                     file = Path(self._tempdir.name) / path[5:]
                     if file.exists():
                         return FileResponse(file)
-                    raise FileNotFoundError(f"{path[5:]} not found")
                 assert request is not None
                 for provider in self.providers:
                     if provider.ensure(platform, self_id):
                         return await provider.handle_internal(
                             Request(request, "internal", {}, platform=platform, self_id=self_id), path
                         )
+                if path.startswith("_tmp"):
+                    raise FileNotFoundError(f"File not found: {path[5:]}")
                 raise NotImplementedError(f"Login with {platform}:{self_id} not found")
             raise TypeError(f"Invalid internal url: {url}")
 
@@ -460,6 +462,8 @@ class Server(Service, RouterMixin):
         if manager is None:
             manager = it(Launart)
         manager.add_component(self)
+        with suppress(ValueError):
+            manager.add_component(AiohttpClientService())
         manager.launch_blocking(loop=loop, stop_signal=stop_signal)
 
     async def run_async(

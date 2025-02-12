@@ -46,7 +46,7 @@ class ChannelType(IntEnum):
 @dataclass
 class Channel(ModelBase):
     id: str
-    type: ChannelType
+    type: ChannelType = ChannelType.TEXT
     name: Optional[str] = None
     parent_id: Optional[str] = None
 

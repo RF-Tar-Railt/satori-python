@@ -1,1 +1,2 @@
 from .forward import OneBot11ForwardAdapter as OneBot11ForwardAdapter
+from .reverse import OneBot11ReverseAdapter as OneBot11ReverseAdapter
