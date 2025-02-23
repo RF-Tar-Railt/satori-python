@@ -29,59 +29,7 @@
 #     m.namespace = "avilla.protocol/onebot11::event"
 #     m.identify = "notice"
 
-#
-#     @m.entity(OneBot11Capability.event_callback, raw_event="notice.group_increase.approve")
-#     async def member_increase_approve(self, raw_event: dict):
-#         self_id = raw_event["self_id"]
-#         account = self.connection.accounts.get(self_id)
-#         if account is None:
-#             logger.warning(f"Unknown account {self_id} received message {raw_event}")
-#             return
-#         group = Selector().land("qq").group(str(raw_event["group_id"]))
-#         if raw_event["user_id"] == self_id:
-#             # Self join ==> SceneCreated
-#             context = Context(
-#                 account,
-#                 group.member(str(self_id)),
-#                 group,
-#                 group,
-#                 group.member(str(self_id)),
-#             )
-#             return SceneCreated(context)
-#         endpoint = group.member(str(raw_event["user_id"]))
-#         operator = group.member(str(raw_event["operator_id"]))
-#         context = Context(
-#             account,
-#             operator,
-#             endpoint,
-#             group,
-#             group.member(str(self_id)),
-#         )
-#         return MemberCreated(context)
-#
-#     @m.entity(OneBot11Capability.event_callback, raw_event="notice.group_increase.invite")
-#     async def member_increase_invite(self, raw_event: dict):
-#         self_id = raw_event["self_id"]
-#         account = self.connection.accounts.get(self_id)
-#         if account is None:
-#             logger.warning(f"Unknown account {self_id} received message {raw_event}")
-#             return
-#         group = Selector().land("qq").group(str(raw_event["group_id"]))
-#         operator = group.member(str(raw_event["operator_id"]))
-#         if raw_event["user_id"] == self_id:
-#             # Self join ==> SceneCreated
-#             context = Context(
-#                 account,
-#                 group.member(str(self_id)),
-#                 group,
-#                 group,
-#                 group.member(str(self_id)),
-#                 mediums=[operator],
-#             )
-#             return SceneCreated(context)
-#         endpoint = group.member(str(raw_event["user_id"]))
-#         context = Context(account, operator, endpoint, group, group.member(str(self_id)), mediums=[group])
-#         return MemberCreated(context)
+
 #
 #     @m.entity(OneBot11Capability.event_callback, raw_event="notice.group_ban.ban")
 #     async def member_muted(self, raw_event: dict):
@@ -305,6 +253,36 @@ async def member_kick_me(login: Login, net: OneBotNetwork, raw: dict):
     operator = User(str(raw["operator_id"]), avatar=USER_AVATAR_URL.format(uin=raw["operator_id"]))
     return Event(
         EventType.GUILD_REMOVED,
+        datetime.now(),
+        login=login,
+        user=user,
+        member=member,
+        guild=guild,
+        channel=channel,
+        operator=operator,
+    )
+
+
+@register_event("notice.group_increase.approve")
+@register_event("notice.group_increase.invite")
+async def group_increase(login: Login, net: OneBotNetwork, raw: dict):
+    guild = Guild(str(raw["group_id"]), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"]))
+    channel = Channel(str(raw["group_id"]), ChannelType.TEXT)
+    if str(raw["user_id"]) == login.user.id:  # bot self joined new group
+        return Event(
+            EventType.GUILD_ADDED,
+            datetime.now(),
+            login=login,
+            user=login.user,
+            member=Member(login.user, avatar=USER_AVATAR_URL.format(uin=login.user.id)),
+            guild=guild,
+            channel=channel,
+        )
+    user = User(str(raw["user_id"]), avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
+    member = Member(user, avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
+    operator = User(str(raw["operator_id"]), avatar=USER_AVATAR_URL.format(uin=raw["operator_id"]))
+    return Event(
+        EventType.GUILD_MEMBER_ADDED,
         datetime.now(),
         login=login,
         user=user,
