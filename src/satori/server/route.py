@@ -88,20 +88,20 @@ class ChannelListParam(TypedDict):
 CHANNEL_LIST: TypeAlias = RouteCall[ChannelListParam, Union[PageResult[Channel], dict[str, Any]]]
 
 
-class ChanneCreateParam(TypedDict):
+class ChannelCreateParam(TypedDict):
     guild_id: str
     data: dict
 
 
-CHANNEL_CREATE: TypeAlias = RouteCall[ChanneCreateParam, Union[Channel, dict[str, Any]]]
+CHANNEL_CREATE: TypeAlias = RouteCall[ChannelCreateParam, Union[Channel, dict[str, Any]]]
 
 
-class ChanneUpdateParam(TypedDict):
+class ChannelUpdateParam(TypedDict):
     channel_id: str
     data: dict
 
 
-CHANNEL_UPDATE: TypeAlias = RouteCall[ChanneUpdateParam, None]
+CHANNEL_UPDATE: TypeAlias = RouteCall[ChannelUpdateParam, None]
 
 
 class ChannelMuteParam(TypedDict):
@@ -261,7 +261,7 @@ FRIEND_LIST: TypeAlias = RouteCall[FriendListParam, Union[PageResult[User], dict
 class ApproveParam(TypedDict):
     message_id: str
     approve: bool
-    comment: str
+    comment: NotRequired[str]
 
 
 APPROVE: TypeAlias = RouteCall[ApproveParam, None]

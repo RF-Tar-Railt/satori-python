@@ -116,13 +116,12 @@ class Server(Service, RouterMixin):
         stream_chunk_size: int = 64 * 1024,
     ):
         self.connections = []
-        manager = it(Launart)
-        manager.add_component(UvicornASGIService(host, port))
+        self.host = host
+        self.port = port
         self.version = version
         self.path = path
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
-        self.url_base = f"http://{host}:{port}{self.path}/{version}"
         self.token = token
         self._adapters = []
         self.providers = []
@@ -136,6 +135,10 @@ class Server(Service, RouterMixin):
         self.stream_chunk_size = stream_chunk_size
         self.resources: dict[str, Path] = {}
         super().__init__()
+
+    @property
+    def url_base(self):
+        return f"http://{self.host}:{self.port}{self.path}/{self.version}"
 
     def apply(self, item: Provider | Router | Adapter):
         if isinstance(item, Adapter):
@@ -461,6 +464,7 @@ class Server(Service, RouterMixin):
     ):
         if manager is None:
             manager = it(Launart)
+        manager.add_component(UvicornASGIService(self.host, self.port))
         manager.add_component(self)
         with suppress(ValueError):
             manager.add_component(AiohttpClientService())
