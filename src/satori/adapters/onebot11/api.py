@@ -27,8 +27,37 @@ from satori.server.route import (
 from .message import OneBot11MessageEncoder, decode
 from .utils import GROUP_AVATAR_URL, USER_AVATAR_URL, OneBotNetwork
 
+INTERNAL_API = [
+    "get_forward_msg",
+    "send_like",
+    "set_group_card",
+    "set_group_leave",
+    "set_group_special_title",
+    "get_login_info",
+    "get_group_honor_info",
+    "get_cookies",
+    "get_csrf_token",
+    "get_credentials",
+    "get_record",
+    "get_image",
+    "can_send_image",
+    "can_send_record",
+    "get_status",
+    "get_version_info",
+    "set_restart",
+    "clean_cache",
+    # additional
+    "group_poke",
+    "friend_poke",
+    "set_group_reaction",
+]
+
 
 def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_getter: Callable[[str], Login]):
+    @adapter.route(Api.LOGIN_GET)
+    async def login_get(request: Request):
+        return login_getter(request.self_id)
+
     @adapter.route(Api.MESSAGE_CREATE)
     async def message_create(request: Request[MessageParam]):
         net = net_getter(request.self_id)
@@ -43,10 +72,27 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
         result = await net.call_api("get_msg", {"message_id": int(request.params["message_id"])})
         if not result:
             raise RuntimeError(f"Failed to get message {request.params['message_id']}")
+        sender: dict = result["sender"]
+        user = User(str(sender["user_id"]), sender["nickname"], USER_AVATAR_URL.format(uin=sender["user_id"]))
+        if result["message_type"] == "private":
+            return MessageObject(
+                request.params["message_id"],
+                await decode(result["message"], net),
+                user=user,
+                channel=Channel(f"private:{sender['user_id']}", ChannelType.DIRECT, sender["nickname"]),
+            )
+        member = Member(user, sender["nickname"], USER_AVATAR_URL.format(uin=sender["user_id"]))
+        guild = Guild(
+            request.params["channel_id"], avatar=GROUP_AVATAR_URL.format(group=request.params["channel_id"])
+        )
+        channel = Channel(request.params["channel_id"], ChannelType.TEXT)
         return MessageObject(
             request.params["message_id"],
             await decode(result["message"], net),
-            # TODO: info of guild, channel, user
+            user=user,
+            member=member,
+            guild=guild,
+            channel=channel,
         )
 
     @adapter.route(Api.MESSAGE_DELETE)
@@ -296,3 +342,10 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
             },
         )
         return
+
+    for api in INTERNAL_API:
+
+        @adapter.route(api)
+        async def internal_api(request: Request[dict]):
+            net = net_getter(request.self_id)
+            return await net.call_api(api, request.params)

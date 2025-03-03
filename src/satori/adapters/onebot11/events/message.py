@@ -63,7 +63,7 @@ async def friend_message_recall(login: Login, net: OneBotNetwork, raw: dict):
 @register_event("message_sent.group.normal")
 async def group(login: Login, net: OneBotNetwork, raw: dict):
     sender: dict = raw["sender"]
-    user = User(str(sender["user_id"]))
+    user = User(str(sender["user_id"]), sender["nickname"], USER_AVATAR_URL.format(uin=sender["user_id"]))
     member = Member(user, sender["nickname"], USER_AVATAR_URL.format(uin=sender["user_id"]))
     guild = Guild(str(raw["group_id"]), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"]))
     channel = Channel(str(raw["group_id"]), ChannelType.TEXT)

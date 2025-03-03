@@ -19,7 +19,7 @@ from satori.server.adapter import Adapter as BaseAdapter
 
 from .api import apply
 from .events.base import events
-from .utils import onebot11_event_type
+from .utils import USER_AVATAR_URL, onebot11_event_type
 
 
 class _Connection:
@@ -47,12 +47,17 @@ class _Connection:
                 if event_type == "meta_event.lifecycle.connect":
                     self_id = str(data["self_id"])
                     if self_id not in self.adapter.logins:
+                        self_info = await self.call_api("get_login_info")
                         login = Login(
                             0,
                             LoginStatus.ONLINE,
                             "onebot",
                             platform="onebot",
-                            user=User(self_id, "unknown"),  # TODO: get bot self info
+                            user=User(
+                                self_id,
+                                (self_info or {})["nickname"],
+                                avatar=USER_AVATAR_URL.format(uin=self_id),
+                            ),
                             features=["guild.plain"],
                         )
                         self.adapter.logins[self_id] = login
@@ -70,12 +75,17 @@ class _Connection:
                 elif event_type == "meta_event.heartbeat":
                     self_id = str(data["self_id"])
                     if self_id not in self.adapter.logins:
+                        self_info = await self.call_api("get_login_info")
                         login = Login(
                             0,
                             LoginStatus.ONLINE,
                             "onebot",
                             platform="onebot",
-                            user=User(self_id, "unknown"),  # TODO: get bot self info
+                            user=User(
+                                self_id,
+                                (self_info or {})["nickname"],
+                                avatar=USER_AVATAR_URL.format(uin=self_id),
+                            ),
                             features=["guild.plain"],
                         )
                         self.adapter.logins[self_id] = login
@@ -127,7 +137,7 @@ class OneBot11ReverseAdapter(BaseAdapter):
         access_token: str | None = None,
     ):
         super().__init__()
-        self.endpoint = URL("/") / prefix / path / endpoint
+        self.endpoint = URL(prefix) / path / endpoint
         self.access_token = access_token
         self.queue: asyncio.Queue[Event] = asyncio.Queue()
         self.logins: dict[str, Login] = {}

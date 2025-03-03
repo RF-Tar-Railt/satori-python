@@ -1,20 +1,40 @@
 from __future__ import annotations
 
 import re
+from base64 import b64decode
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Literal, TypedDict
+from urllib.parse import urlparse
 
-from satori.element import Custom, E
+from graia.amnesia.builtins.aiohttp import AiohttpClientService
+from launart import Launart
+
+from satori.element import Custom, E, Element
 from satori.model import Login, MessageObject
-from satori.parser import Element, parse
+from satori.parser import Element as RawElement
+from satori.parser import parse
 
-from .utils import OneBotNetwork
+from .utils import USER_AVATAR_URL, OneBotNetwork
 
 
 class MessageSegment(TypedDict):
     type: str
     data: dict[str, Any]
+
+
+def uri_to_path(uri):
+    parsed = urlparse(uri)
+    path_str = parsed.path
+
+    # 在 Windows 上处理驱动器字母
+    if path_str.startswith("/") and len(path_str) > 2 and path_str[2] == ":":
+        # 删除开头的 '/'，Windows 路径如 /C:/Users 需要转换为 C:/Users
+        path_str = path_str[1:]
+
+    return Path(path_str)
 
 
 # def escape(text: str, inline: bool = False) -> str:
@@ -49,6 +69,28 @@ class OneBot11MessageEncoder:
         self.children: list[MessageSegment] = []
         self.stack = [State("message")]
         self.results: list[MessageObject] = []
+
+    async def send_forward(self):
+        if not self.stack[0].children:
+            return
+        if self.channel_id.startswith("private:"):
+            resp = await self.net.call_api(
+                "send_private_forward_msg",
+                {
+                    "user_id": int(self.channel_id[8:]),
+                    "messages": self.stack[0].children,
+                },
+            )
+        else:
+            resp = await self.net.call_api(
+                "send_group_forward_msg",
+                {
+                    "group_id": int(self.channel_id),
+                    "messages": self.stack[0].children,
+                },
+            )
+        if resp:
+            self.results.append(MessageObject(resp["message_id"], ""))
 
     async def flush(self):
         if not self.children:
@@ -113,8 +155,6 @@ class OneBot11MessageEncoder:
                     "message": self.children,
                 },
             )
-            if resp:
-                self.results.append(MessageObject(resp["message_id"], ""))
         else:
             resp = await self.net.call_api(
                 "send_group_msg",
@@ -123,20 +163,58 @@ class OneBot11MessageEncoder:
                     "message": self.children,
                 },
             )
-            if resp:
-                self.results.append(MessageObject(resp["message_id"], ""))
+        if resp:
+            self.results.append(MessageObject(resp["message_id"], ""))
         self.children = []
+
+    async def _send_file(self, attrs: dict[str, Any]):
+        manager = Launart.current()
+        aio = manager.get_component(AiohttpClientService)
+        src = attrs.get("src") or attrs["url"]
+        name = attrs.get("title") or src.split("/")[-1][:32]
+        temp_dir = TemporaryDirectory()
+        if src.startswith("file:"):
+            file = uri_to_path(src)
+        else:
+            file = Path(temp_dir.name).joinpath(f"{id(src)}.tmp")
+            if src.startswith("data://"):
+                _, b64 = src[5:].split(";", 1)
+                with file.open("wb") as f:
+                    f.write(b64decode(b64[7:]))
+            else:
+                async with aio.session.get(src) as resp:
+                    with file.open("wb") as f:
+                        f.write(await resp.read())
+        if self.channel_id.startswith("private:"):
+            await self.net.call_api(
+                "upload_private_file",
+                {
+                    "user_id": int(self.channel_id[8:]),
+                    "file": str(file),
+                    "name": name,
+                },
+            )
+        else:
+            await self.net.call_api(
+                "upload_group_file",
+                {
+                    "group_id": int(self.channel_id),
+                    "file": str(file),
+                    "name": name,
+                },
+            )
+        self.results.append(MessageObject("", ""))
 
     async def send(self, content: str):
         await self.render(parse(content))
         await self.flush()
         return self.results
 
-    async def render(self, elements: list[Element]):
+    async def render(self, elements: list[RawElement]):
         for element in elements:
             await self.visit(element)
 
-    async def visit(self, element: Element):
+    async def visit(self, element: RawElement):
         type_, attrs, _children = element.type, element.attrs, element.children
         if type_ == "text":
             self.children.append({"type": "text", "data": {"text": attrs["text"]}})
@@ -183,7 +261,7 @@ class OneBot11MessageEncoder:
             self.children.append({"type": type_, "data": _data})
         elif type_ == "file":
             await self.flush()
-            # TODO: await self.send_file(attrs)
+            await self._send_file(attrs)
         elif type_ == "onebot:music":
             await self.flush()
             self.children.append({"type": "music", "data": attrs})
@@ -214,7 +292,7 @@ class OneBot11MessageEncoder:
                 await self.render(_children)
                 await self.flush()
                 self.stack.pop(0)
-                # TODO: await self.send_forward()
+                await self.send_forward()
             elif "id" in attrs:
                 self.stack[0].author["message_id"] = str(attrs["id"])
             else:
@@ -227,7 +305,7 @@ class OneBot11MessageEncoder:
             await self.render(_children)
 
 
-async def decode(content: list[MessageSegment], net: OneBotNetwork) -> str:
+async def _decode(content: list[MessageSegment], net: OneBotNetwork) -> list[Element]:
     result = []
     for seg in content:
         seg_type = seg["type"]
@@ -248,7 +326,20 @@ async def decode(content: list[MessageSegment], net: OneBotNetwork) -> str:
             result.append(E.video(seg_data.get("url") or seg_data.get("file")))
         elif seg_type == "file":
             result.append(E.file(seg_data.get("url") or seg_data.get("file")))
+        elif seg_type == "reply":
+            if msg := (await net.call_api("get_msg", {"message_id": seg_data["id"]})):
+                author = E.author(
+                    str(msg["sender"]["user_id"]),
+                    msg["sender"]["nickname"],
+                    USER_AVATAR_URL.format(uin=msg["sender"]["user_id"]),
+                )
+                result.append(
+                    E.quote(seg_data["id"], content=[author, *(await _decode(msg["message"], net))])
+                )
         else:
             result.append(Custom(f"onebot:{seg_type}", seg_data))
-        # TODO: handle reply
-    return "".join(str(x) for x in result)
+    return result
+
+
+async def decode(content: list[MessageSegment], net: OneBotNetwork) -> str:
+    return "".join(str(x) for x in await _decode(content, net))
