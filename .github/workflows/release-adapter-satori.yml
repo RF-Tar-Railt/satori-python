@@ -1,11 +1,7 @@
-name: Onebot11 Release
+name: Satori Release
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release Version'
-        required: true
 
 jobs:
   release:
@@ -33,6 +29,5 @@ jobs:
       - name: Publish Package
         run: |
           pdm publish --no-build
-          gh release upload --clobber ${{ inputs.version }} dist/*.tar.gz dist/*.whl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
