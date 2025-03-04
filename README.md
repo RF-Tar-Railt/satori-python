@@ -45,6 +45,13 @@ pip install satori-python-client
 pip install satori-python-server
 ```
 
+### 官方适配器
+
+| 适配器        | 安装                                           |
+|------------|----------------------------------------------|
+| Satori     | `pip install satori-python-adapter-satori`   |
+| OneBot V11 | `pip install satori-python-adapter-onebot11` |
+
 ## 使用
 
 客户端：
