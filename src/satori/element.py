@@ -180,6 +180,7 @@ class Resource(Element):
         raw: Optional[Union[bytes, BytesIO]] = None,
         mime: Optional[str] = None,
         name: Optional[str] = None,
+        duration: Optional[float] = None,
         poster: Optional[str] = None,
         extra: Optional[dict[str, Any]] = None,
         cache: Optional[bool] = None,
@@ -198,6 +199,8 @@ class Resource(Element):
             raise ValueError(f"{cls} need at least one of url, path and raw")
         if name is not None:
             data["title"] = name
+        if duration is not None and cls is Audio:
+            data["duration"] = duration
         if poster is not None and cls in (Video, Audio, File):
             data["poster"] = poster
         if cache is not None:
@@ -231,7 +234,7 @@ class Image(Resource):
 class Audio(Resource):
     """<audio> 元素用于表示语音。"""
 
-    duration: Optional[int] = None
+    duration: Optional[float] = None
     poster: Optional[str] = None
 
     __names__ = ("src", "title", "duration", "poster")
@@ -243,7 +246,7 @@ class Video(Resource):
 
     width: Optional[int] = None
     height: Optional[int] = None
-    duration: Optional[int] = None
+    duration: Optional[float] = None
     poster: Optional[str] = None
 
     __names__ = ("src", "title", "width", "height", "duration", "poster")
