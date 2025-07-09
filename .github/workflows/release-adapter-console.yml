@@ -1,0 +1,33 @@
+name: Satori Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        name: Ensure Python Runtime
+        with:
+          python-version: '3.11'
+          architecture: 'x64'
+
+      - name: Ensure PDM
+        run: |
+          python3 -m pip install pdm==2.13.2 pdm-mina "mina-build<0.6" "pdm-backend<2.4.0"
+
+      - name: Build Package
+        run: |
+          export MINA_BUILD_TARGET=adapter_console && pdm mina build adapter_console --no-isolation
+
+      - name: Publish Package
+        run: |
+          pdm publish --no-build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

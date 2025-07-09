@@ -43,7 +43,7 @@ from satori.model import Event, Meta, ModelBase, Opcode
 
 from .. import EventType
 from .adapter import Adapter as Adapter
-from .conection import WebsocketConnection
+from .connection import WebsocketConnection
 from .formdata import parse_content_disposition as parse_content_disposition
 from .model import Provider as Provider
 from .model import Request as Request
