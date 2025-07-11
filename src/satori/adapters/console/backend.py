@@ -7,7 +7,8 @@ from secrets import token_hex
 from typing import TYPE_CHECKING, cast
 
 from loguru import _colorama, logger
-from loguru._logger import Handler, Logger
+from loguru._handler import Handler
+from loguru._logger import Logger
 from loguru._simple_sinks import StreamSink
 from nonechat import Backend, Frontend
 from nonechat.message import ConsoleMessage
@@ -53,7 +54,10 @@ class SatoriConsoleBackend(Backend):
         self._adapter = adapter
 
     def on_console_load(self):
-        current_handler: Handler = list(cast(Logger, logger)._core.handlers.values())[-1]
+        if self._adapter._logger_id >= 0:
+            current_handler: Handler = cast(Logger, logger)._core.handlers[self._adapter._logger_id]
+        else:
+            current_handler: Handler = list(cast(Logger, logger)._core.handlers.values())[-1]
         if current_handler._colorize and _colorama.should_wrap(self.frontend._fake_output):
             stream = _colorama.wrap(self.frontend._fake_output)
         else:
@@ -74,7 +78,10 @@ class SatoriConsoleBackend(Backend):
 
     def on_console_unmount(self):
         if self._origin_sink is not None:
-            current_handler: Handler = list(cast(Logger, logger)._core.handlers.values())[-1]
+            if self._adapter._logger_id >= 0:
+                current_handler: Handler = cast(Logger, logger)._core.handlers[self._adapter._logger_id]
+            else:
+                current_handler: Handler = list(cast(Logger, logger)._core.handlers.values())[-1]
             current_handler._sink = self._origin_sink
             self._origin_sink = None
         self.login.status = LoginStatus.OFFLINE

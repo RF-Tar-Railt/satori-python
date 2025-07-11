@@ -14,7 +14,7 @@ from .backend import SatoriConsoleBackend
 
 
 class ConsoleAdapter(BaseAdapter):
-    def __init__(self, **kwargs):
+    def __init__(self, logger_id: int = -1, **kwargs):
         super().__init__()
         self.app = Frontend(
             SatoriConsoleBackend,
@@ -22,6 +22,7 @@ class ConsoleAdapter(BaseAdapter):
         )
         self.app.backend.set_adapter(self)
         self.queue = asyncio.Queue()
+        self._logger_id = logger_id
         apply(self)
 
     @property
