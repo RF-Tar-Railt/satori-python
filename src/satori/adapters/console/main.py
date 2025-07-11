@@ -80,3 +80,6 @@ class ConsoleAdapter(BaseAdapter):
             self.app.exit()
             if task:
                 await task
+
+
+Adapter = ConsoleAdapter

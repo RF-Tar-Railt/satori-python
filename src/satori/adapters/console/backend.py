@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import re
-import sys
 from dataclasses import asdict
 from datetime import datetime
 from secrets import token_hex
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from loguru import logger
+from loguru import _colorama, logger
+from loguru._logger import Handler, Logger
+from loguru._simple_sinks import StreamSink
 from nonechat import Backend, Frontend
 from nonechat.message import ConsoleMessage
 from nonechat.model import DIRECT
@@ -33,9 +34,6 @@ class SatoriConsoleBackend(Backend):
 
     def __init__(self, app: Frontend):
         super().__init__(app)
-        self._stderr = sys.stdout
-        self._logger_id: int | None = None
-        self._should_restore_logger: bool = False
         self.login = Login(
             0,
             LoginStatus.OFFLINE,
@@ -49,14 +47,19 @@ class SatoriConsoleBackend(Backend):
             ),
             features=["guild.plain"],
         )
+        self._origin_sink: StreamSink | None = None
 
     def set_adapter(self, adapter: ConsoleAdapter):
         self._adapter = adapter
 
     def on_console_load(self):
-        logger.remove()
-        self._should_restore_logger = True
-        self._logger_id = logger.add(self.frontend._fake_output, level=0, diagnose=False)
+        current_handler: Handler = list(cast(Logger, logger)._core.handlers.values())[-1]
+        if current_handler._colorize and _colorama.should_wrap(self.frontend._fake_output):
+            stream = _colorama.wrap(self.frontend._fake_output)
+        else:
+            stream = self.frontend._fake_output
+        self._origin_sink = current_handler._sink
+        current_handler._sink = StreamSink(stream)
 
     def on_console_mount(self):
         logger.success("Console mounted.")
@@ -70,17 +73,10 @@ class SatoriConsoleBackend(Backend):
         )
 
     def on_console_unmount(self):
-        if self._logger_id is not None:
-            logger.remove(self._logger_id)
-            self._logger_id = None
-        if self._should_restore_logger:
-            logger.add(
-                self._stderr,
-                backtrace=True,
-                diagnose=True,
-                colorize=True,
-            )
-            self._should_restore_logger = False
+        if self._origin_sink is not None:
+            current_handler: Handler = list(cast(Logger, logger)._core.handlers.values())[-1]
+            current_handler._sink = self._origin_sink
+            self._origin_sink = None
         self.login.status = LoginStatus.OFFLINE
         self._adapter.queue.put_nowait(
             Event(
@@ -98,7 +94,7 @@ class SatoriConsoleBackend(Backend):
             event.user.nickname,
             avatar=f"https://emoji.aranja.com/static/emoji-data/img-apple-160/{ord(event.user.avatar):x}.png",
         )
-        member = Member(user, nick=user.nick, avatar=user.avatar)
+        member = Member(user, nick=user.name, avatar=user.avatar)
         if isinstance(event, ConsoleMessageEvent):
             message = MessageObject(token_hex(8), handle_message(event.message))
             if event.channel == DIRECT:

@@ -6,7 +6,7 @@ raw-dependencies = [
 
 [project]
 name = "satori-python-adapter-console"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
   {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
 ]

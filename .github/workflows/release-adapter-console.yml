@@ -1,4 +1,4 @@
-name: Satori Release
+name: Console Release
 
 on:
   workflow_dispatch:

@@ -122,3 +122,6 @@ class SatoriAdapter(BaseAdapter):
 
         async with self.stage("cleanup"):
             pass
+
+
+Adapter = SatoriAdapter
