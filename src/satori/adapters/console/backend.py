@@ -11,10 +11,12 @@ from loguru._handler import Handler
 from loguru._logger import Logger
 from loguru._simple_sinks import StreamSink
 from nonechat import Backend, Frontend
+from nonechat.backend import BotAdd
 from nonechat.message import ConsoleMessage
 from nonechat.model import DIRECT
 from nonechat.model import Event as ConsoleEvent
 from nonechat.model import MessageEvent as ConsoleMessageEvent
+from nonechat.model import Robot
 
 from satori.const import EventType
 from satori.event import Event
@@ -35,19 +37,8 @@ class SatoriConsoleBackend(Backend):
 
     def __init__(self, app: Frontend):
         super().__init__(app)
-        self.login = Login(
-            0,
-            LoginStatus.OFFLINE,
-            "console",
-            "console",
-            User(
-                id=self.bot.id,
-                name=self.bot.nickname,
-                avatar=f"https://emoji.aranja.com/static/emoji-data/img-apple-160/{ord(self.bot.avatar):x}.png",
-                is_bot=True,
-            ),
-            features=["guild.plain"],
-        )
+        self.logins = {}
+        self.sn = 0
         self._origin_sink: StreamSink | None = None
 
     def set_adapter(self, adapter: ConsoleAdapter):
@@ -65,18 +56,31 @@ class SatoriConsoleBackend(Backend):
         self._origin_sink = current_handler._sink
         current_handler._sink = StreamSink(stream)
 
-    def on_console_mount(self):
-        logger.success("Console mounted.")
-        self.login.status = LoginStatus.ONLINE
-        self._adapter.queue.put_nowait(
-            Event(
-                EventType.LOGIN_ADDED,
-                datetime.now(),
-                self.login,
+    async def add_bot(self, bot: Robot):
+        if self.storage.add_bot(bot):
+            for watcher in self.bot_watchers:
+                watcher.post_message(BotAdd(bot))
+            login = Login(
+                self.sn,
+                LoginStatus.ONLINE,
+                "console",
+                "console",
+                User(
+                    id=bot.id,
+                    name=bot.nickname,
+                    avatar=f"https://emoji.aranja.com/static/emoji-data/img-apple-160/{ord(bot.avatar):x}.png",
+                    is_bot=True,
+                ),
+                features=["guild.plain"],
             )
-        )
+            self.sn += 1
+            self.logins[bot.id] = login
+            await self._adapter.queue.put(Event(EventType.LOGIN_ADDED, datetime.now(), login))
 
-    def on_console_unmount(self):
+    async def on_console_mount(self):
+        logger.success("Console mounted.")
+
+    async def on_console_unmount(self):
         if self._origin_sink is not None:
             if self._adapter._logger_id >= 0:
                 current_handler: Handler = cast(Logger, logger)._core.handlers[self._adapter._logger_id]
@@ -84,18 +88,23 @@ class SatoriConsoleBackend(Backend):
                 current_handler: Handler = list(cast(Logger, logger)._core.handlers.values())[-1]
             current_handler._sink = self._origin_sink
             self._origin_sink = None
-        self.login.status = LoginStatus.OFFLINE
-        self._adapter.queue.put_nowait(
-            Event(
-                EventType.LOGIN_REMOVED,
-                datetime.now(),
-                self.login,
+        for login in self.logins.values():
+            login.status = LoginStatus.OFFLINE
+            await self._adapter.queue.put(
+                Event(
+                    EventType.LOGIN_REMOVED,
+                    datetime.now(),
+                    login,
+                )
             )
-        )
+
         logger.success("Console exit.")
         logger.warning("Press Ctrl-C for Application exit")
 
     async def post_event(self, event: ConsoleEvent):
+        if event.self_id not in self.logins:
+            logger.warning(f"Received event from unknown bot: {event.self_id}")
+            return
         user = User(
             event.user.id,
             event.user.nickname,
@@ -109,7 +118,7 @@ class SatoriConsoleBackend(Backend):
                     Event(
                         EventType.MESSAGE_CREATED,
                         event.time,
-                        self.login,
+                        self.logins[event.self_id],
                         user=user,
                         channel=Channel(
                             id=f"private:{user.id}",
@@ -134,7 +143,7 @@ class SatoriConsoleBackend(Backend):
                     Event(
                         EventType.MESSAGE_CREATED,
                         event.time,
-                        self.login,
+                        self.logins[event.self_id],
                         user=user,
                         member=member,
                         channel=channel,
@@ -144,5 +153,11 @@ class SatoriConsoleBackend(Backend):
                 )
         else:
             await self._adapter.queue.put(
-                Event(EventType.INTERNAL, event.time, self.login, _type=event.type, _data=asdict(event))
+                Event(
+                    EventType.INTERNAL,
+                    event.time,
+                    self.logins[event.self_id],
+                    _type=event.type,
+                    _data=asdict(event),
+                )
             )

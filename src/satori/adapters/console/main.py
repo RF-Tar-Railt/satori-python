@@ -38,14 +38,14 @@ class ConsoleAdapter(BaseAdapter):
             yield event
 
     def ensure(self, platform: str, self_id: str) -> bool:
-        return platform == "console" and self_id == self.app.backend.bot.id
+        return platform == "console" and self_id in self.app.backend.logins
 
     async def handle_internal(self, request: Request, path: str) -> Response:
         if path.startswith("_api"):
             api = path[5:]
             data = await request.origin.json()
             if api == "send_msg":
-                self.app.send_message(**data)
+                await self.app.send_message(**data)
                 return JSONResponse({})
             if api == "bell":
                 await self.app.toggle_bell()
@@ -56,7 +56,7 @@ class ConsoleAdapter(BaseAdapter):
             return Response(await resp.read())
 
     async def get_logins(self) -> list[LoginType]:
-        return [self.app.backend.login]
+        return list(self.app.backend.logins.values())
 
     @property
     def required(self) -> set[str]:

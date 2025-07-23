@@ -42,9 +42,7 @@ def apply(adapter: "ConsoleAdapter"):
     @adapter.route(Api.USER_GET)
     async def user_get(request: Request[UserGetParam]) -> User:
         user_id = request.params["user_id"]
-        ans = next((user for user in adapter.app.storage.users if user.id == user_id), None)
-        if not ans:
-            raise ValueError(f"User {user_id} not found")
+        ans = await adapter.app.backend.get_user(user_id)
         return User(
             ans.id,
             ans.nickname,
@@ -54,7 +52,7 @@ def apply(adapter: "ConsoleAdapter"):
     @adapter.route(Api.CHANNEL_GET)
     async def channel_get(request: Request[ChannelParam]) -> Channel:
         channel_id = request.params["channel_id"]
-        ans = next((channel for channel in adapter.app.storage.channels if channel.id == channel_id), None)
+        ans = await adapter.app.backend.get_channel(channel_id)
         if not ans:
             raise ValueError(f"Channel {channel_id} not found")
         return Channel(
@@ -66,9 +64,7 @@ def apply(adapter: "ConsoleAdapter"):
     @adapter.route(Api.GUILD_GET)
     async def guild_get(request: Request[GuildGetParam]) -> Guild:
         guild_id = request.params["guild_id"]
-        ans = next((channel for channel in adapter.app.storage.channels if channel.id == guild_id), None)
-        if not ans:
-            raise ValueError(f"Guild {guild_id} not found")
+        ans = await adapter.app.backend.get_channel(guild_id)
         return Guild(
             ans.id,
             ans.name,
@@ -84,7 +80,7 @@ def apply(adapter: "ConsoleAdapter"):
                     user.nickname,
                     avatar=f"https://emoji.aranja.com/static/emoji-data/img-apple-160/{ord(user.avatar):x}.png",
                 )
-                for user in adapter.app.storage.users
+                for user in await adapter.app.backend.list_users()
             ]
         )
 
@@ -97,7 +93,7 @@ def apply(adapter: "ConsoleAdapter"):
                     channel.name,
                     f"https://emoji.aranja.com/static/emoji-data/img-apple-160/{ord(channel.avatar):x}.png",
                 )
-                for channel in adapter.app.storage.channels
+                for channel in await adapter.app.backend.list_channels()
             ]
         )
 
@@ -110,16 +106,14 @@ def apply(adapter: "ConsoleAdapter"):
                     ChannelType.TEXT,
                     channel.name,
                 )
-                for channel in adapter.app.storage.channels
+                for channel in await adapter.app.backend.list_channels()
             ]
         )
 
     @adapter.route(Api.GUILD_MEMBER_GET)
     async def guild_member_get(request: Request[GuildMemberGetParam]) -> Member:
         user_id = request.params["user_id"]
-        ans = next((user for user in adapter.app.storage.users if user.id == user_id), None)
-        if not ans:
-            raise ValueError(f"User {user_id} not found")
+        ans = await adapter.app.backend.get_user(user_id)
         user = User(
             ans.id,
             ans.nickname,
@@ -139,16 +133,14 @@ def apply(adapter: "ConsoleAdapter"):
                 user.nickname,
                 f"https://emoji.aranja.com/static/emoji-data/img-apple-160/{ord(user.avatar):x}.png",
             )
-            for user in adapter.app.storage.users
+            for user in await adapter.app.backend.list_users()
         ]
         return PageResult(members)
 
     @adapter.route(Api.USER_CHANNEL_CREATE)
     async def user_channel_create(request: Request[UserChannelCreateParam]) -> Channel:
         user_id = request.params["user_id"]
-        user = next((user for user in adapter.app.storage.users if user.id == user_id), None)
-        if not user:
-            raise ValueError(f"User {user_id} not found")
+        user = await adapter.app.backend.get_user(user_id)
         channel = Channel(
             id=f"private:{user.id}",
             type=ChannelType.DIRECT,
@@ -160,19 +152,21 @@ def apply(adapter: "ConsoleAdapter"):
     async def message_create(request: Request[MessageParam]):
         content = request.params["content"]
         channel_id = request.params["channel_id"]
+
         if channel_id.startswith("private:"):
             user_id = channel_id.split(":")[1]
-            target = next((user for user in adapter.app.storage.users if user.id == user_id), None)
-            if not target:
-                raise ValueError(f"User {user_id} not found")
+            user = await adapter.app.backend.get_user(user_id)
+            target = await adapter.app.backend.create_dm(user)
         else:
-            target = next(
-                (channel for channel in adapter.app.storage.channels if channel.id == channel_id), None
-            )
-            if not target:
-                raise ValueError(f"Channel {channel_id} not found")
-        adapter.app.send_message(decode(content), target)
+            target = await adapter.app.backend.get_channel(channel_id)
+
+        bot = next((b for b in await adapter.app.backend.list_bots() if b.id == request.self_id), None)
+        await adapter.app.send_message(decode(content), target, bot)  # type: ignore
         return [MessageObject("", content)]
+
+    @adapter.route(Api.LOGIN_GET)
+    async def login_get(request: Request):
+        return adapter.app.backend.logins[request.self_id]
 
     @adapter.route("bell")
     async def bell(request: Request):
