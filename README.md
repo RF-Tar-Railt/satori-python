@@ -47,17 +47,17 @@ pip install satori-python-server
 
 ### 官方适配器
 
-| 适配器        | 安装                                           | 路径                                                                                           |
-|------------|----------------------------------------------|----------------------------------------------------------------------------------------------|
-| Satori     | `pip install satori-python-adapter-satori`   | satori.adapters.satori:SatoriAdapter                                                         |
-| OneBot V11 | `pip install satori-python-adapter-onebot11` | satori.adapters.onebot:OneBot11ForwardAdapter, satori.adapters.onebot:OneBot11ReverseAdapter |
-| Console    | `pip install satori-python-adapter-console`  | satori.adapters.console:ConsoleAdapter                                                       |
+| 适配器        | 安装                                           | 路径                                                                 |
+|------------|----------------------------------------------|--------------------------------------------------------------------|
+| Satori     | `pip install satori-python-adapter-satori`   | satori.adapters.satori                                             |
+| OneBot V11 | `pip install satori-python-adapter-onebot11` | satori.adapters.onebot11.forward, satori.adapters.onebot11.reverse |
+| Console    | `pip install satori-python-adapter-console`  | satori.adapters.console                                            |
 
 ### 社区适配器
 
-| 适配器               | 安装                    | 路径                          |
-|-------------------|-----------------------|-----------------------------|
-| nekobox(Lagrange) | `pip install nekobox` | nekobox.main:NekoBoxAdapter |
+| 适配器               | 安装                    | 路径           |
+|-------------------|-----------------------|--------------|
+| nekobox(Lagrange) | `pip install nekobox` | nekobox.main |
 
 ## 使用
 
