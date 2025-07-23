@@ -8,7 +8,7 @@ from launart import Service
 from ..config import Config as Config
 
 if TYPE_CHECKING:
-    from .. import Account, App
+    from satori.client import Account, App
 
 TConfig = TypeVar("TConfig", bound=Config)
 

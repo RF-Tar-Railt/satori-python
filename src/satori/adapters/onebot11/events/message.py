@@ -31,13 +31,14 @@ async def private_group(login: Login, net: OneBotNetwork, raw: dict):
     sender: dict = raw["sender"]
     user = User(str(sender["user_id"]), sender["nickname"], USER_AVATAR_URL.format(uin=sender["user_id"]))
     channel = Channel(f"private:{sender['user_id']}", ChannelType.DIRECT, sender["nickname"])
+    group_id = sender["group_id"] if "group_id" in sender else raw.get("group_id")
     return Event(
         EventType.MESSAGE_CREATED,
         datetime.now(),
         login=login,
         user=user,
         member=Member(user, sender["nickname"], USER_AVATAR_URL.format(uin=sender["user_id"])),
-        guild=Guild(str(sender["group_id"]), avatar=GROUP_AVATAR_URL.format(group=sender["group_id"])),
+        guild=Guild(str(group_id), avatar=GROUP_AVATAR_URL.format(group=group_id)) if group_id else None,
         channel=channel,
         message=MessageObject(str(raw["message_id"]), await decode(raw["message"], net)),
     )

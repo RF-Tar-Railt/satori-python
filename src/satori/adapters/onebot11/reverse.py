@@ -133,7 +133,7 @@ class OneBot11ReverseAdapter(BaseAdapter):
         self,
         prefix: str = "/",
         path: str = "onebot/v11",
-        endpoint: str = "ws/universal",
+        endpoint: str = "ws",
         access_token: str | None = None,
     ):
         super().__init__()
