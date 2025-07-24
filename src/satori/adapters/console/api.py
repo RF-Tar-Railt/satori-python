@@ -1,12 +1,7 @@
 from typing import TYPE_CHECKING
 
-from nonechat.message import ConsoleMessage, Markdown
-from nonechat.message import Text as ConsoleText
-
 from satori.const import Api
-from satori.element import At, Text, transform
-from satori.model import Channel, ChannelType, Guild, Member, MessageObject, PageResult, User
-from satori.parser import parse
+from satori.model import Channel, ChannelType, Guild, Member, MessageObject, PageDequeResult, PageResult, User
 from satori.server import Request
 from satori.server.route import (
     ChannelListParam,
@@ -16,26 +11,18 @@ from satori.server.route import (
     GuildListParam,
     GuildMemberGetParam,
     GuildXXXListParam,
+    MessageListParam,
+    MessageOpParam,
     MessageParam,
+    MessageUpdateParam,
     UserChannelCreateParam,
     UserGetParam,
 )
 
+from .message import decode_message, encode_message
+
 if TYPE_CHECKING:
     from .main import ConsoleAdapter
-
-
-def decode(content: str) -> ConsoleMessage:
-    elements = []
-    msg = transform(parse(content))
-    for seg in msg:
-        if isinstance(seg, Text):
-            elements.append(ConsoleText(seg.text))
-        elif isinstance(seg, At):
-            elements.append(ConsoleText(f"@{seg.id}"))
-        else:
-            elements.append(Markdown(str(seg)))
-    return ConsoleMessage(elements)
 
 
 def apply(adapter: "ConsoleAdapter"):
@@ -161,8 +148,70 @@ def apply(adapter: "ConsoleAdapter"):
             target = await adapter.app.backend.get_channel(channel_id)
 
         bot = next((b for b in await adapter.app.backend.list_bots() if b.id == request.self_id), None)
-        await adapter.app.send_message(decode(content), target, bot)  # type: ignore
-        return [MessageObject("", content)]
+        message_id = await adapter.app.send_message(decode_message(content), target, bot)  # type: ignore
+        return [MessageObject(message_id, content)]
+
+    @adapter.route(Api.MESSAGE_GET)
+    async def message_get(request: Request[MessageOpParam]) -> MessageObject:
+        message_id = request.params["message_id"]
+        channel_id = request.params["channel_id"]
+        if channel_id.startswith("private:"):
+            user_id = channel_id.split(":")[1]
+            user = await adapter.app.backend.get_user(user_id)
+            channel = await adapter.app.backend.create_dm(user)
+        else:
+            channel = await adapter.app.backend.get_channel(channel_id)
+        event = await adapter.app.backend.get_chat(message_id, channel)
+        if not event:
+            raise ValueError(f"Message {message_id} not found in channel {channel_id}")
+        return MessageObject(message_id, encode_message(event.message))
+
+    @adapter.route(Api.MESSAGE_LIST)
+    async def message_list(request: Request[MessageListParam]) -> PageDequeResult[MessageObject]:
+        channel_id = request.params["channel_id"]
+        if channel_id.startswith("private:"):
+            user_id = channel_id.split(":")[1]
+            user = await adapter.app.backend.get_user(user_id)
+            channel = await adapter.app.backend.create_dm(user)
+        else:
+            channel = await adapter.app.backend.get_channel(channel_id)
+        messages = await adapter.app.backend.get_chat_history(channel)
+        return PageDequeResult(
+            [
+                MessageObject(
+                    event.message_id,
+                    encode_message(event.message),
+                )
+                for i, event in enumerate(messages)
+            ]
+        )
+
+    @adapter.route(Api.MESSAGE_UPDATE)
+    async def message_update(request: Request[MessageUpdateParam]) -> None:
+        content = request.params["content"]
+        message_id = request.params["message_id"]
+        channel_id = request.params["channel_id"]
+        if channel_id.startswith("private:"):
+            user_id = channel_id.split(":")[1]
+            user = await adapter.app.backend.get_user(user_id)
+            channel = await adapter.app.backend.create_dm(user)
+        else:
+            channel = await adapter.app.backend.get_channel(channel_id)
+
+        await adapter.app.edit_message(message_id, decode_message(content), channel)
+
+    @adapter.route(Api.MESSAGE_DELETE)
+    async def message_delete(request: Request[MessageOpParam]) -> None:
+        message_id = request.params["message_id"]
+        channel_id = request.params["channel_id"]
+        if channel_id.startswith("private:"):
+            user_id = channel_id.split(":")[1]
+            user = await adapter.app.backend.get_user(user_id)
+            channel = await adapter.app.backend.create_dm(user)
+        else:
+            channel = await adapter.app.backend.get_channel(channel_id)
+
+        await adapter.app.recall_message(message_id, channel)
 
     @adapter.route(Api.LOGIN_GET)
     async def login_get(request: Request):

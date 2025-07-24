@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import re
 from dataclasses import asdict
 from datetime import datetime
-from secrets import token_hex
 from typing import TYPE_CHECKING, cast
 
 from loguru import _colorama, logger
@@ -12,7 +10,6 @@ from loguru._logger import Logger
 from loguru._simple_sinks import StreamSink
 from nonechat import Backend, Frontend
 from nonechat.backend import BotAdd
-from nonechat.message import ConsoleMessage
 from nonechat.model import DIRECT
 from nonechat.model import Event as ConsoleEvent
 from nonechat.model import MessageEvent as ConsoleMessageEvent
@@ -22,14 +19,10 @@ from satori.const import EventType
 from satori.event import Event
 from satori.model import Channel, ChannelType, Guild, Login, LoginStatus, Member, MessageObject, User
 
+from .message import encode_message
+
 if TYPE_CHECKING:
     from .main import ConsoleAdapter
-
-
-def handle_message(message: ConsoleMessage) -> str:
-    content = str(message)
-    content = re.sub(r"@(\w+)", r"@<at id='\1'>", content)  # Handle mentions
-    return content
 
 
 class SatoriConsoleBackend(Backend):
@@ -112,7 +105,7 @@ class SatoriConsoleBackend(Backend):
         )
         member = Member(user, nick=user.name, avatar=user.avatar)
         if isinstance(event, ConsoleMessageEvent):
-            message = MessageObject(token_hex(8), handle_message(event.message))
+            message = MessageObject(event.message_id, encode_message(event.message))
             if event.channel == DIRECT:
                 await self._adapter.queue.put(
                     Event(
