@@ -8,31 +8,29 @@ import secrets
 import signal
 import threading
 import urllib.parse
-from collections.abc import Iterable
+from collections.abc import Awaitable, Iterable
 from contextlib import suppress
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from traceback import print_exc
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 import aiohttp
 from creart import it
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
-from graia.amnesia.builtins.asgi import UvicornASGIService
+from graia.amnesia.builtins.asgi import UvicornASGIService, asgitypes
 from launart import Launart, Service, any_completed
 from loguru import logger
 from starlette.applications import Starlette
 from starlette.datastructures import FormData as FormData
 from starlette.requests import Request as StarletteRequest
-from starlette.responses import (
-    FileResponse,
-    HTMLResponse,
-    JSONResponse,
-    PlainTextResponse,
-    Response,
-    StreamingResponse,
-)
+from starlette.responses import FileResponse as FileResponse
+from starlette.responses import HTMLResponse as HTMLResponse
+from starlette.responses import JSONResponse as JSONResponse
+from starlette.responses import PlainTextResponse as PlainTextResponse
+from starlette.responses import Response as Response
+from starlette.responses import StreamingResponse as StreamingResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
@@ -52,6 +50,10 @@ from .model import WebhookEndpoint as WebhookEndpoint
 from .route import RouteCall as RouteCall
 from .route import RouterMixin as RouterMixin
 from .utils import Deque
+
+_T_endpoint = TypeVar("_T_endpoint", bound=Callable[[StarletteRequest], Awaitable[Response] | Response])
+_T_ws_endpoint = TypeVar("_T_ws_endpoint", bound=Callable[[WebSocket], Awaitable[None]])
+StarletteResponse = Response
 
 
 async def _request_handler(
@@ -134,7 +136,54 @@ class Server(Service, RouterMixin):
         self.stream_threshold = stream_threshold
         self.stream_chunk_size = stream_chunk_size
         self.resources: dict[str, Path] = {}
+        self.app = Starlette()
         super().__init__()
+
+    def replace_app(self, app: asgitypes.ASGI3Application):
+        """替换当前的 Starlette 应用"""
+        self.app = app
+
+    def asgi_route(
+        self,
+        path: str,
+        methods: list[str] | None = None,
+        name: str | None = None,
+        include_in_schema: bool = True,
+    ) -> Callable[[_T_endpoint], _T_endpoint]:
+        """注册一个 ASGI 路由
+
+        Args:
+            path (str): 路由路径
+            methods (list[str], optional): 支持的 HTTP 方法，默认为 None，表示 ["GET"]
+            name (str, optional): 路由名称，默认为 None
+            include_in_schema (bool, optional): 是否包含在 OpenAPI 文档中，默认为 True
+        """
+
+        def wrapper(endpoint: _T_endpoint, /) -> _T_endpoint:
+            self.app.add_route(
+                path, endpoint, methods=methods, name=name, include_in_schema=include_in_schema
+            )
+            return endpoint
+
+        return wrapper
+
+    def asgi_websocket_route(
+        self,
+        path: str,
+        name: str | None = None,
+    ) -> Callable[[_T_ws_endpoint], _T_ws_endpoint]:
+        """注册一个 ASGI WebSocket 路由
+
+        Args:
+            path (str): 路由路径
+            name (str, optional): 路由名称，默认为 None
+        """
+
+        def wrapper(endpoint: _T_ws_endpoint, /) -> _T_ws_endpoint:
+            self.app.add_websocket_route(path, endpoint, name=name)
+            return endpoint
+
+        return wrapper
 
     @property
     def url_base(self):
@@ -389,8 +438,8 @@ class Server(Service, RouterMixin):
 
         async with self.stage("preparing"):
             asgi_service = manager.get_component(UvicornASGIService)
-            app = Starlette(
-                routes=[
+            self.app.routes.extend(
+                [
                     *chain.from_iterable(ada.get_routes() for ada in self._adapters),
                     WebSocketRoute(f"{self.path}/{self.version}/events", self.websocket_server_handler),
                     Route(
@@ -421,8 +470,8 @@ class Server(Service, RouterMixin):
                 ]
             )
             for path, file in self.resources.items():
-                app.mount(path, StaticFiles(directory=file.parent, html=file.suffix == ".html"))
-            asgi_service.middleware.mounts[""] = app  # type: ignore
+                self.app.mount(path, StaticFiles(directory=file.parent, html=file.suffix == ".html"))
+            asgi_service.middleware.mounts[""] = self.app  # type: ignore
 
         async def event_task(_provider: Provider):
             async for event in _provider.publisher():

@@ -402,7 +402,7 @@ class RouterMixin:
     def route(self, path: str) -> Callable[[INTERAL], INTERAL]: ...
 
     def route(self, path: Union[str, Api]) -> Callable[[RouteCall], RouteCall]:
-        """注册一个路由
+        """注册一个 Satori 路由
 
         Args:
             path (str | Api): 路由路径；若 path 不属于 Api，则会被认为是内部接口
