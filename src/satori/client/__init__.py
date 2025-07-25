@@ -35,6 +35,28 @@ MAPPING: dict[type[Config], type[BaseNetwork]] = {
     WebsocketsInfo: WsNetwork,
 }
 
+_app: App | None = None
+
+
+def get_accounts() -> dict[str, Account]:
+    if _app is None:
+        raise RuntimeError("App instance is not initialized.")
+    return _app.accounts
+
+
+def get_app() -> App:
+    """Get the current App instance."""
+    if _app is None:
+        raise RuntimeError("App instance is not initialized.")
+    return _app
+
+
+def get_account(self_id: str) -> Account:
+    """Get an account by its self_id."""
+    if _app is None:
+        raise RuntimeError("App instance is not initialized.")
+    return _app.get_account(self_id)
+
 
 class App(Service):
     id = "satori-python.client"
@@ -51,6 +73,10 @@ class App(Service):
         MAPPING[tc] = tn
 
     def __init__(self, *configs: Config, default_api_cls: type[ApiProtocol] = ApiProtocol):
+        global _app
+
+        if _app is not None:
+            raise RuntimeError("App instance already exists. Only one App instance is allowed.")
         self.accounts = {}
         self.connections = []
         self.event_callbacks = []
@@ -59,6 +85,7 @@ class App(Service):
         for config in configs:
             self.apply(config)
         self.default_api_cls = default_api_cls
+        _app = self
 
     def apply(self, config: Config):
         try:
