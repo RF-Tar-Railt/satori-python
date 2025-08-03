@@ -33,6 +33,7 @@ from starlette.responses import Response as Response
 from starlette.responses import StreamingResponse as StreamingResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
+from starlette.types import ASGIApp
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from yarl import URL
 
@@ -139,7 +140,7 @@ class Server(Service, RouterMixin):
         self.app = Starlette()
         super().__init__()
 
-    def replace_app(self, app: asgitypes.ASGI3Application):
+    def replace_app(self, app: ASGIApp | asgitypes.ASGI3Application):
         """替换当前的 Starlette 应用"""
         self.app = app
 

@@ -38,10 +38,20 @@ MAPPING: dict[type[Config], type[BaseNetwork]] = {
 _app: App | None = None
 
 
-def get_accounts() -> dict[str, Account]:
+@overload
+def get_accounts() -> dict[str, Account]: ...
+
+
+@overload
+def get_accounts(self_id: str) -> list[Account]: ...
+
+
+def get_accounts(self_id: str | None = None):
     if _app is None:
         raise RuntimeError("App instance is not initialized.")
-    return _app.accounts
+    if not self_id:
+        return _app.accounts
+    return [acc for acc in _app.accounts.values() if acc.self_info.user.id == self_id]
 
 
 def get_app() -> App:
@@ -49,13 +59,6 @@ def get_app() -> App:
     if _app is None:
         raise RuntimeError("App instance is not initialized.")
     return _app
-
-
-def get_account(self_id: str) -> Account:
-    """Get an account by its self_id."""
-    if _app is None:
-        raise RuntimeError("App instance is not initialized.")
-    return _app.get_account(self_id)
 
 
 class App(Service):
@@ -93,9 +96,6 @@ class App(Service):
         except KeyError:
             raise TypeError(f"Unknown config type: {config}")
         self.connections.append(connection)
-
-    def get_account(self, self_id: str) -> Account:
-        return self.accounts[self_id]
 
     def register(self, callback: Callable[[Account, Event], Awaitable[Any]]):
         self.event_callbacks.append(callback)
