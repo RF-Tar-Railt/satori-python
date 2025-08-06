@@ -75,10 +75,12 @@ class App(Service):
     def register_config(cls, tc: type[TConfig], tn: type[BaseNetwork[TConfig]]):
         MAPPING[tc] = tn
 
-    def __init__(self, *configs: Config, default_api_cls: type[ApiProtocol] = ApiProtocol):
+    def __init__(
+        self, *configs: Config, default_api_cls: type[ApiProtocol] = ApiProtocol, main_app: bool = True
+    ):
         global _app
 
-        if _app is not None:
+        if _app is not None and main_app:
             raise RuntimeError("App instance already exists. Only one App instance is allowed.")
         self.accounts = {}
         self.connections = []

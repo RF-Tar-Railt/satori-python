@@ -24,7 +24,7 @@ class SatoriAdapter(BaseAdapter):
         post_upload: bool = False,
     ):
         super().__init__()
-        self.app = App(WebsocketsInfo(host, port, path, token))
+        self.app = App(WebsocketsInfo(host, port, path, token), main_app=False)
         self.queue = asyncio.Queue()
 
         @self.app.register
