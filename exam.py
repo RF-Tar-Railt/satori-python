@@ -41,3 +41,7 @@ message = Message(forward=True)(
     Message()(Author(id="123456789"), "World!"),
 )
 print(message)
+
+from satori import E
+
+print(E("<qq:passive id={ id }/>", {"id": "123456789"}))

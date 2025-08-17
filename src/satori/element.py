@@ -1,12 +1,13 @@
 from base64 import b64encode
+from collections.abc import Sequence
 from dataclasses import InitVar, dataclass, field, fields
 from io import BytesIO
 from pathlib import Path
-from typing import Any, ClassVar, Optional, TypeVar, Union, get_args, overload
+from typing import Any, ClassVar, Final, Optional, TypeVar, Union, final, get_args, overload
 from typing_extensions import override
 
 from .parser import Element as RawElement
-from .parser import escape, param_case
+from .parser import escape, param_case, parse
 from .parser import select as select_raw
 
 TE = TypeVar("TE", bound="Element")
@@ -462,15 +463,13 @@ class Button(Element):
 class Custom(Element):
     """自定义元素用于构造标准元素以外的元素"""
 
-    type: str
-
     __names__ = ()
 
     def __init__(
         self,
         type: str,
         attrs: Optional[dict[str, Any]] = None,
-        children: Optional[list[Union[str, Element]]] = None,
+        children: Optional[Sequence[Union[str, Element]]] = None,
     ):
         self.type = type
         super().__init__()
@@ -598,39 +597,44 @@ def select(elements: Union[Element, list[Element]], query: Union[type[TE], str])
     return results
 
 
-class E:
-    text = Text
-    at = At
-    at_role = At.role_
-    at_all = At.all
-    sharp = Sharp
-    link = Link
-    image = Image.of
-    audio = Audio.of
-    video = Video.of
-    file = File.of
-    resource = Resource
-    bold = Bold
-    italic = Italic
-    underline = Underline
-    strikethrough = Strikethrough
-    spoiler = Spoiler
-    code = Code
-    sup = Superscript
-    sub = Subscript
-    br = Br
-    paragraph = Paragraph
-    message = Message
-    quote = Quote
-    author = Author
-    custom = Custom
-    raw = Raw
-    button = Button
-    action_button = Button.action
-    link_button = Button.link
-    input_button = Button.input
+@final
+class _E:
+    def __init__(self):
+        self.text = Text
+        self.at = At
+        self.at_role = At.role_
+        self.at_all = At.all
+        self.sharp = Sharp
+        self.link = Link
+        self.image = Image.of
+        self.audio = Audio.of
+        self.video = Video.of
+        self.file = File.of
+        self.resource = Resource
+        self.bold = Bold
+        self.italic = Italic
+        self.underline = Underline
+        self.strikethrough = Strikethrough
+        self.spoiler = Spoiler
+        self.code = Code
+        self.sup = Superscript
+        self.sub = Subscript
+        self.br = Br
+        self.paragraph = Paragraph
+        self.message = Message
+        self.quote = Quote
+        self.author = Author
+        self.raw = Raw
+        self.button = Button
+        self.action_button = Button.action
+        self.link_button = Button.link
+        self.input_button = Button.input
+        self.select = select
 
-    select = select
+    def __call__(self, elem: str, context: Optional[dict] = None) -> Custom:
+        """创建一个自定义元素"""
+        e = parse(elem, context)[0]
+        return Custom(e.type, e.attrs, transform(e.children))
 
-    def __new__(cls, *args, **kwargs):
-        raise TypeError("E is not instantiable")
+
+E: Final = _E()

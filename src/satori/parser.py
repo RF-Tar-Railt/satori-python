@@ -238,7 +238,7 @@ tag_pat2 = re.compile(
 )
 attr_pat1 = re.compile(r"([^\s=]+)(?:=\"(?P<value1>[^\"]*)\"|='(?P<value2>[^']*)')?", re.S)
 attr_pat2 = re.compile(
-    r"([^\s=]+)(?:=\"(?P<value1>[^\"]*)\"|='(?P<value2>[^']*)'|=\{(?P<value3>[^\}]+)\})?", re.S
+    r"([^\s=]+)(?:=\"(?P<value1>[^\"]*)\"|='(?P<value2>[^']*)'|=\{(?P<curly>[^\}]+)\})?", re.S
 )
 
 
@@ -313,12 +313,12 @@ def parse_tokens(tokens: list[Union[str, Token]], context: Optional[dict] = None
             while mat := attr_pat.search(token.extra):
                 key = mat.group(1)
                 groupdict = mat.groupdict()
-                v = groupdict.get("value1") or groupdict.get("value2")
-                v3 = groupdict.get("value3")
-                if v3 and context is not None:
-                    attrs[key] = interpolate(v3, context)
-                elif v is not None:
-                    attrs[key] = unescape(v)
+                v2 = groupdict.get("value2", groupdict.get("value1"))
+                curly = groupdict.get("curly")
+                if curly and context is not None:
+                    attrs[key] = interpolate(curly, context)
+                elif v2 is not None:
+                    attrs[key] = unescape(v2)
                 elif key.startswith("no-"):
                     attrs[key[3:]] = False
                 else:
