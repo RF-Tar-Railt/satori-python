@@ -136,6 +136,8 @@ class Sharp(Element):
     id: str
     name: Optional[str] = None
 
+    __names__ = ("id", "name")
+
 
 @dataclass(repr=False)
 class Link(Element):
