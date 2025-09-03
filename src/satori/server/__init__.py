@@ -527,7 +527,10 @@ class Server(Service, RouterMixin):
     ):
         if manager is None:
             manager = it(Launart)
+        manager.add_component(UvicornASGIService(self.host, self.port))
         manager.add_component(self)
+        with suppress(ValueError):
+            manager.add_component(AiohttpClientService())
         handled_signals: dict[signal.Signals, Any] = {}
         launch_task = asyncio.create_task(manager.launch(), name="amnesia-launch")
         signal_handler = functools.partial(manager._on_sys_signal, main_task=launch_task)
