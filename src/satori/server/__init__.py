@@ -17,6 +17,7 @@ from traceback import print_exc
 from typing import Any, Callable, TypeVar
 
 import aiohttp
+from aiohttp import ClientTimeout
 from creart import it
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from graia.amnesia.builtins.asgi import UvicornASGIService, asgitypes
@@ -230,6 +231,7 @@ class Server(Service, RouterMixin):
                         "Satori-OpCode": str(Opcode.EVENT.value),
                     },
                     json=event.dump(),
+                    timeout=ClientTimeout(hook.timeout or 300),
                 ) as resp:
                     resp.raise_for_status()
             except Exception as e:
@@ -491,6 +493,7 @@ class Server(Service, RouterMixin):
                         "Satori-OpCode": str(Opcode.META.value),
                     },
                     json={"proxy_urls": proxy_urls},
+                    timeout=ClientTimeout(hook.timeout or 300),
                 ) as resp:
                     resp.raise_for_status()
             await any_completed(

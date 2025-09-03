@@ -24,6 +24,7 @@ class WebsocketsInfo(Config):
     port: int = 5140
     path: str = ""
     token: Optional[str] = None
+    timeout: Optional[float] = None
 
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):
@@ -51,6 +52,7 @@ class WebhookInfo(Config):
     server_host: str = "localhost"
     server_port: int = 5140
     server_path: str = ""
+    timeout: Optional[float] = None
 
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):

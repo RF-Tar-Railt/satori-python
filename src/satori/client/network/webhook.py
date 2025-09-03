@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from aiohttp import web
+from aiohttp import ClientTimeout, web
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart.manager import Launart
 from loguru import logger
@@ -97,6 +97,7 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
                 endpoint,
                 json={},
                 headers=headers,
+                timeout=ClientTimeout(total=self.config.timeout or 300),
             ) as resp:
                 data = await validate_response(resp)
                 meta = Meta.parse(data)

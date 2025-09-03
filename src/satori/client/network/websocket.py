@@ -141,7 +141,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
     async def daemon(self, manager: Launart, session: aiohttp.ClientSession):
         while not manager.status.exiting:
             try:
-                async with session.ws_connect(self.config.ws_base / "events", timeout=30) as self.connection:
+                async with session.ws_connect(self.config.ws_base / "events", timeout=300) as self.connection:
                     logger.debug(f"{self.id} Websocket client connected")
                     self.close_signal.clear()
                     result = await self._authenticate()

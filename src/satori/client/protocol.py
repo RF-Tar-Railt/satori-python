@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast, overload
 from typing_extensions import deprecated
 
-from aiohttp import FormData
+from aiohttp import ClientTimeout, FormData
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart import Launart
 
@@ -82,6 +82,7 @@ class ApiProtocol:
                 endpoint,
                 data=data,
                 headers=headers,
+                timeout=ClientTimeout(self.account.config.timeout or 300),
             ) as resp:
                 return await validate_response(resp)
         async with aio.session.request(
@@ -89,6 +90,7 @@ class ApiProtocol:
             endpoint,
             json=params or {},
             headers=headers,
+            timeout=ClientTimeout(self.account.config.timeout or 300),
         ) as resp:
             return await validate_response(resp)
 

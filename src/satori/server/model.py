@@ -50,3 +50,4 @@ class Router(Protocol):
 class WebhookEndpoint:
     url: str
     token: Optional[str] = None
+    timeout: Optional[float] = None

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing_extensions import Generic, TypeVar  # noqa: UP035
 
 from yarl import URL
 
@@ -10,8 +10,8 @@ from satori.model import Login
 
 from .protocol import ApiProtocol
 
-TP = TypeVar("TP", bound="ApiProtocol")
-TP1 = TypeVar("TP1", bound="ApiProtocol")
+TP = TypeVar("TP", bound="ApiProtocol", default=ApiProtocol)
+TP1 = TypeVar("TP1", bound="ApiProtocol", default=ApiProtocol)
 
 
 @dataclass
@@ -20,6 +20,7 @@ class ApiInfo:
     port: int = 5140
     path: str = ""
     token: str | None = None
+    timeout: float | None = None
 
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):
@@ -60,7 +61,7 @@ class Account(Generic[TP]):
             self.self_info,
             config or (ApiInfo(**kwargs) if kwargs else self.config),
             self.proxy_urls,
-            protocol_cls,  # type: ignore
+            protocol_cls,
         )
 
     def ensure_url(self, url: str) -> URL:

@@ -1,7 +1,7 @@
 import asyncio
 from collections.abc import Iterable
-from typing import Any, Generic, Protocol, TypeVar, overload
-from typing_extensions import deprecated
+from typing import Any, Protocol, overload
+from typing_extensions import Generic, TypeVar, deprecated  # noqa: UP035
 
 from yarl import URL
 
@@ -26,18 +26,24 @@ from satori.model import (
 
 from .protocol import ApiProtocol
 
-TP = TypeVar("TP", bound="ApiProtocol")
-TP1 = TypeVar("TP1", bound="ApiProtocol")
+TP = TypeVar("TP", bound="ApiProtocol", default=ApiProtocol)
+TP1 = TypeVar("TP1", bound="ApiProtocol", default=ApiProtocol)
 
 class Api(Protocol):
     token: str | None = None
+    timeout: float | None = None
 
     @property
     def api_base(self) -> URL: ...
 
 class ApiInfo(Api):
     def __init__(
-        self, host: str = "localhost", port: int = 5140, path: str = "", token: str | None = None
+        self,
+        host: str = "localhost",
+        port: int = 5140,
+        path: str = "",
+        token: str | None = None,
+        timeout: float | None = None,
     ): ...
 
 class Account(Generic[TP]):
