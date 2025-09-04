@@ -1,6 +1,6 @@
 import mimetypes
 from collections.abc import AsyncIterable, Awaitable
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field, Field
 from datetime import datetime
 from enum import IntEnum
 from os import PathLike
@@ -20,14 +20,14 @@ class ModelBase:
 
     @classmethod
     def parse(cls, raw: dict):
-        fs = fields(cls)
+        fs: dict[str, Field] = cls.__dataclass_fields__
         data = {}
-        for fd in fs:
-            if fd.name in raw:
-                if fd.name in cls.__converter__:
-                    data[fd.name] = cls.__converter__[fd.name](raw[fd.name])
+        for name in fs.keys():
+            if name in raw:
+                if name in cls.__converter__:
+                    data[name] = cls.__converter__[name](raw[name])
                 else:
-                    data[fd.name] = raw[fd.name]
+                    data[name] = raw[name]
         obj = cls(**data)  # type: ignore
         obj._raw_data = raw
         return obj
@@ -301,14 +301,20 @@ class MessageObject(ModelBase):
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None,
     ):
-        return cls(id, "".join(str(i) for i in content), channel, guild, member, user, created_at, updated_at)
+        obj = cls(id, "".join(str(i) for i in content), channel, guild, member, user, created_at, updated_at)
+        obj._parsed_message = content
+        return obj
 
     @property
     def message(self) -> list[Element]:
-        return transform(parse(self.content))
+        if hasattr(self, "_parsed_message"):
+            return self._parsed_message
+        self._parsed_message = transform(parse(self.content))
+        return self._parsed_message
 
     @message.setter
     def message(self, value: list[Element]):
+        self._parsed_message = value
         self.content = "".join(str(i) for i in value)
 
     @classmethod

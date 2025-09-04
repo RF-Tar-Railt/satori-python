@@ -27,25 +27,22 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
 
     connection: aiohttp.ClientWebSocketResponse | None = None
 
-    def post_event(self, body: dict):
-        async def event_parse_task(raw: dict):
-            try:
-                event = Event.parse(raw)
-            except Exception as e:
-                if (
-                    "self_id" in raw
-                    or ("login" in raw and "self_id" in raw["login"])
-                    or ("login" in raw and "user" in raw["login"] and "self_id" in raw["login"]["user"])
-                ):
-                    logger.warning(f"Failed to parse event: {raw}\nCaused by {e!r}")
-                else:
-                    logger.trace(f"Failed to parse event: {raw}\nCaused by {e!r}")
+    async def event_parse_task(self, raw: dict):
+        try:
+            event = Event.parse(raw)
+        except Exception as e:
+            if (
+                "self_id" in raw
+                or ("login" in raw and "self_id" in raw["login"])
+                or ("login" in raw and "user" in raw["login"] and "self_id" in raw["login"]["user"])
+            ):
+                logger.warning(f"Failed to parse event: {raw}\nCaused by {e!r}")
             else:
-                logger.trace(f"Received event: {event}")
-                self.sequence = event.sn
-                await self.app.post(event, self)
-
-        return asyncio.create_task(event_parse_task(body))
+                logger.trace(f"Failed to parse event: {raw}\nCaused by {e!r}")
+        else:
+            # logger.trace(f"Received event: {event}")
+            self.sequence = event.sn
+            await self.app.post(event, self)
 
     async def message_receive(self):
         if self.connection is None:
@@ -59,7 +56,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                 data: dict = json.loads(cast(str, msg.data))
                 logger.trace(f"Received payload: {data}")
                 if data["op"] == Opcode.EVENT:
-                    self.post_event(data["body"])
+                    asyncio.create_task(self.event_parse_task(data["body"]))
                 elif data["op"] == Opcode.META:
                     payload = MetaPayload.parse(data["body"])
                     self.proxy_urls = payload.proxy_urls
