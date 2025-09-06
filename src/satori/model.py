@@ -1,12 +1,12 @@
 import mimetypes
 from collections.abc import AsyncIterable, Awaitable
-from dataclasses import asdict, dataclass, field, Field
+from dataclasses import Field, dataclass, field
 from datetime import datetime
 from enum import IntEnum
 from os import PathLike
 from pathlib import Path
 from typing import IO, Any, Callable, ClassVar, Generic, Literal, Optional, TypeVar, Union
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, Self
 
 from .element import Element, transform
 from .parser import Element as RawElement
@@ -19,7 +19,7 @@ class ModelBase:
     _raw_data: dict[str, Any] = field(init=False, default_factory=dict, repr=False, compare=False, hash=False)
 
     @classmethod
-    def parse(cls, raw: dict):
+    def parse(cls: type[Self], raw: dict) -> Self:
         fs: dict[str, Field] = cls.__dataclass_fields__
         data = {}
         for name in fs.keys():
@@ -199,7 +199,7 @@ class ArgvInteraction(ModelBase):
     options: Any
 
     def dump(self):
-        return asdict(self)
+        return {"name": self.name, "arguments": self.arguments, "options": self.options}
 
 
 @dataclass
@@ -207,7 +207,7 @@ class ButtonInteraction(ModelBase):
     id: str
 
     def dump(self):
-        return asdict(self)
+        return {"id": self.id}
 
 
 class Opcode(IntEnum):
@@ -241,7 +241,7 @@ class Identify(ModelBase):
         return self.sn
 
     def dump(self):
-        return asdict(self)
+        return {k: v for k, v in (("token", self.token), ("sn", self.sn)) if v is not None}
 
 
 @dataclass
@@ -252,7 +252,7 @@ class Ready(ModelBase):
     __converter__ = {"logins": lambda raw: [LoginPartial.parse(login) for login in raw]}
 
     def dump(self):
-        return asdict(self)
+        return {"logins": [login.dump() for login in self.logins], "proxy_urls": self.proxy_urls}
 
 
 @dataclass
@@ -262,7 +262,7 @@ class MetaPayload(ModelBase):
     proxy_urls: list[str]
 
     def dump(self):
-        return asdict(self)
+        return {"proxy_urls": self.proxy_urls}
 
 
 @dataclass
@@ -275,7 +275,7 @@ class Meta(ModelBase):
     __converter__ = {"logins": lambda raw: [LoginPartial.parse(login) for login in raw]}
 
     def dump(self):
-        return asdict(self)
+        return {"logins": [login.dump() for login in self.logins], "proxy_urls": self.proxy_urls}
 
 
 @dataclass

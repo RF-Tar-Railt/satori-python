@@ -1,6 +1,6 @@
 from base64 import b64encode
 from collections.abc import Sequence
-from dataclasses import InitVar, dataclass, field, fields
+from dataclasses import InitVar, dataclass, field
 from io import BytesIO
 from pathlib import Path
 from typing import Any, ClassVar, Final, Optional, TypeVar, Union, final, get_args, overload
@@ -19,6 +19,17 @@ class Element:
     _children: list["Element"] = field(init=False, default_factory=list)
 
     __names__: ClassVar[tuple[str, ...]]
+    __convert_fields__: ClassVar[dict[str, type]]
+
+    def __init_subclass__(cls, **kwargs):
+        cls.__convert_fields__ = {}
+        annotations = cls.__annotations__
+        for name, typ in annotations.items():
+            if name.startswith("_"):
+                continue
+            _type = get_args(typ)[0] if hasattr(typ, "__origin__") else typ
+            if _type is not str:
+                cls.__convert_fields__[name] = _type
 
     @property
     def children(self) -> list["Element"]:
@@ -30,24 +41,23 @@ class Element:
 
     @classmethod
     def unpack(cls, attrs: dict[str, Any]):
-        obj = cls(**{k: v for k, v in attrs.items() if k in cls.__names__})  # type: ignore
-        obj._attrs.update({k: v for k, v in attrs.items() if k not in cls.__names__})
-        return obj
-
-    def __post_init__(self):
-        for f in fields(self):
-            if f.name in ("_attrs", "_children"):
-                continue
-            _type = get_args(f.type)[0] if hasattr(f.type, "__origin__") else f.type
-            if _type is not str and isinstance(attr := getattr(self, f.name), str):
-                if _type is bool:
-                    if attr.lower() not in ("true", "false"):
-                        raise TypeError(f.name, attr)
-                    setattr(self, f.name, attr.lower() == "true")
+        data = {}
+        names = getattr(cls, "__names__", None)
+        for name, f in cls.__dataclass_fields__.items():
+            if name in attrs:
+                if name in cls.__convert_fields__:
+                    _type = cls.__convert_fields__[name]
+                    if _type is bool:
+                        if attrs[name].lower() not in ("true", "false"):
+                            raise TypeError(name, attrs[name])
+                        data[name] = attrs[name].lower() == "true"
+                    else:
+                        data[name] = _type(attrs[name])
                 else:
-                    setattr(self, f.name, _type(attr))  # type: ignore
-            self._attrs[f.name] = getattr(self, f.name)
-        self._attrs = {k: v for k, v in self._attrs.items() if v is not None}
+                    data[name] = attrs[name]
+        obj = cls(**{k: v for k, v in data.items() if names is None or k in names})  # type: ignore
+        obj._attrs.update(data)
+        return obj
 
     def attributes(self) -> str:
         def _attr(key: str, value: Any):
@@ -104,8 +114,6 @@ class Text(Element):
     def dumps(self, strip: bool = False) -> str:
         return self.text if strip else escape(self.text)
 
-    __names__ = ("text",)
-
 
 @dataclass(repr=False)
 class At(Element):
@@ -127,8 +135,6 @@ class At(Element):
     def all(here: bool = False) -> "At":
         return At(type="here" if here else "all")
 
-    __names__ = ("id", "name", "role", "type")
-
 
 @dataclass(repr=False)
 class Sharp(Element):
@@ -137,16 +143,12 @@ class Sharp(Element):
     id: str
     name: Optional[str] = None
 
-    __names__ = ("id", "name")
-
 
 @dataclass(repr=False)
 class Link(Element):
     """<a> 元素用于显示一个链接。"""
 
     href: str
-
-    __names__ = ("href",)
 
     def __post_call__(self):
         if not self._children:
@@ -213,7 +215,6 @@ class Resource(Element):
         return cls(**data)
 
     def __post_init__(self, extra: Optional[dict[str, Any]] = None):
-        super().__post_init__()
         if extra:
             self._attrs.update(extra)
 
@@ -377,8 +378,6 @@ class Message(Element):
     子元素对应于消息的内容。如果其没有子元素，则消息不会被发送。
     """
 
-    __names__ = ("id", "forward")
-
     id: Optional[str]
     forward: Optional[bool]
 
@@ -411,8 +410,6 @@ class Author(Element):
     name: Optional[str] = None
     avatar: Optional[str] = None
 
-    __names__ = ("id", "name", "avatar")
-
 
 @dataclass(repr=False)
 class Button(Element):
@@ -423,8 +420,6 @@ class Button(Element):
     href: Optional[str] = None
     text: Optional[str] = None
     theme: Optional[str] = None
-
-    __names__ = ("type", "id", "href", "text", "theme")
 
     @classmethod
     def action(cls, button_id: str, theme: Optional[str] = None):

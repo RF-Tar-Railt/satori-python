@@ -16,15 +16,15 @@ from satori import Image, Video
 image = Image.of(url="https://example.com/image.png", name="image.png")
 print(image)
 print(
-    Video.unpack(
+    repr(Video.unpack(
         {
             "src": "https://example.com/video.mp4",
             "title": "video.mp4",
-            "width": 123,
-            "height": 456,
+            "width": "123",
+            "height": "456",
             "poster": "https://example.com/poster.png",
         }
-    )
+    ))
 )
 
 from satori import Bold, Italic, Paragraph, Underline
