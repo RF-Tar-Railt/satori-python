@@ -20,7 +20,8 @@ import aiohttp
 from aiohttp import ClientTimeout
 from creart import it
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
-from graia.amnesia.builtins.asgi import UvicornASGIService, asgitypes
+from graia.amnesia.builtins.asgi import asgitypes
+from graia.amnesia.builtins.asgi.uvicorn import UvicornASGIService, UvicornOptions
 from launart import Launart, Service, any_completed
 from loguru import logger
 from starlette.applications import Starlette
@@ -116,6 +117,8 @@ class Server(Service, RouterMixin):
         version: str = "v1",
         token: str | None = None,
         webhooks: list[WebhookEndpoint] | None = None,
+        uvicorn_options: UvicornOptions | None = None,
+        *,
         stream_threshold: int = 16 * 1024 * 1024,
         stream_chunk_size: int = 64 * 1024,
     ):
@@ -124,6 +127,7 @@ class Server(Service, RouterMixin):
         self.port = port
         self.version = version
         self.path = path
+        self.uvicorn_options = uvicorn_options
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
         if (self.host == "0.0.0.0" or self.host == "::") and not token:
@@ -519,7 +523,7 @@ class Server(Service, RouterMixin):
     ):
         if manager is None:
             manager = it(Launart)
-        manager.add_component(UvicornASGIService(self.host, self.port))
+        manager.add_component(UvicornASGIService(self.host, self.port, options=self.uvicorn_options))
         manager.add_component(self)
         with suppress(ValueError):
             manager.add_component(AiohttpClientService())
@@ -532,7 +536,7 @@ class Server(Service, RouterMixin):
     ):
         if manager is None:
             manager = it(Launart)
-        manager.add_component(UvicornASGIService(self.host, self.port))
+        manager.add_component(UvicornASGIService(self.host, self.port, options=self.uvicorn_options))
         manager.add_component(self)
         with suppress(ValueError):
             manager.add_component(AiohttpClientService())
