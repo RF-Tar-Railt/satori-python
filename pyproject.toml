@@ -10,13 +10,13 @@ dependencies = [
     "loguru>=0.7.2",
     "launart>=0.8.2",
     "typing-extensions>=4.7.0",
-    "graia-amnesia>=0.9.0",
+    "graia-amnesia[uvicorn]<0.12.0,>=0.11.0",
     "starlette[python-multipart]>=0.37.2",
-    "uvicorn[standard]>=0.28.0",
     "yarl>=1.9.4",
     "python-multipart>=0.0.9",
+    "websockets>=15.0.1",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10,<4.0"
 readme = "README.md"
 license = {text = "MIT"}
 classifiers = [
@@ -39,7 +39,7 @@ repository = "https://github.com/RF-Tar-Railt/satori-python"
 requires = ["mina-build<0.6,>=0.5.1", "pdm-backend<2.4.0"]
 build-backend = "mina.backend"
 
-[tool.pdm.dev-dependencies]
+[dependency-groups]
 dev = [
     "isort>=5.13.2",
     "black>=24.4.0",
@@ -49,6 +49,7 @@ dev = [
     "mina-build<0.6,>=0.5.1",
     "pdm-mina>=0.3.2",
     "nonechat<0.7.0,>=0.6.0",
+    "uvicorn[standard]>=0.35.0",
 ]
 
 
@@ -82,7 +83,7 @@ exclude = ["exam.py"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "UP", "C", "T", "Q"]
-ignore = ["E402", "F403", "F405", "C901", "UP037"]
+ignore = ["E402", "F403", "F405", "C901", "UP038"]
 
 [tool.pyright]
 pythonPlatform = "All"

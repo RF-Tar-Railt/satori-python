@@ -56,7 +56,7 @@ class Account(Generic[TP]):
 
     def custom(
         self, config: ApiInfo | None = None, protocol_cls: type[TP1] = ApiProtocol, **kwargs
-    ) -> "Account[TP1]":
+    ) -> Account[TP1]:
         return Account(
             self.self_info,
             config or (ApiInfo(**kwargs) if kwargs else self.config),

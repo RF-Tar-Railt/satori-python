@@ -10,9 +10,9 @@ authors = [
 dependencies = [
     "aiohttp",
     "launart",
-    "graia-amnesia",
-    "starlette",
-    "uvicorn[standard]",
+    "graia-amnesia[standard]",
+    "starlette[python-multipart]",
+    "websockets",
     "python-multipart",
 ]
 description = "Satori Protocol SDK for python, specify server part"

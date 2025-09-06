@@ -126,6 +126,8 @@ class Server(Service, RouterMixin):
         self.path = path
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
+        if (self.host == "0.0.0.0" or self.host == "::") and not token:
+            raise ValueError("Token is required when the server is exposed to the public network")
         self.token = token
         self._adapters = []
         self.providers = []
