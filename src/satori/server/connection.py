@@ -6,6 +6,7 @@ from loguru import logger
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from satori.model import Opcode
+from satori.utils import decode, encode
 
 
 class WebsocketConnection:
@@ -22,10 +23,11 @@ class WebsocketConnection:
     async def heartbeat(self):
         while True:
             try:
-                msg = await asyncio.wait_for(self.connection.receive_json(), timeout=12)
+                msg = await asyncio.wait_for(self.connection.receive_text(), timeout=12)
+                msg = decode(msg)
                 if not isinstance(msg, dict) or msg.get("op") != Opcode.PING:
                     continue
-                await self.connection.send_json({"op": Opcode.PONG})
+                await self.connection.send_text(encode({"op": Opcode.PONG}))
             except asyncio.TimeoutError:
                 logger.warning(f"Connection {id(self)} heartbeat timeout, closing connection.")
                 await self.connection.close()
@@ -41,4 +43,4 @@ class WebsocketConnection:
         return
 
     async def send(self, payload: dict) -> None:
-        return await self.connection.send_json(payload)
+        return await self.connection.send_text(encode(payload))

@@ -41,6 +41,7 @@ from yarl import URL
 
 from satori.const import Api
 from satori.model import Event, Meta, ModelBase, Opcode
+from satori.utils import decode
 
 from .. import EventType
 from .adapter import Adapter as Adapter
@@ -79,7 +80,7 @@ async def _request_handler(
             Request(
                 request,
                 action,
-                await request.json(),
+                decode(await request.body()),
                 platform=platform,
                 self_id=self_id,
             )
@@ -247,7 +248,7 @@ class Server(Service, RouterMixin):
     async def websocket_server_handler(self, ws: WebSocket):
         await ws.accept()
         connection = WebsocketConnection(ws)
-        identity = await ws.receive_json()
+        identity = decode(await ws.receive_text())
         if not isinstance(identity, dict) or identity.get("op") != Opcode.IDENTIFY:
             return await ws.close(code=3000, reason="Unauthorized")
         body = identity["body"]
@@ -410,7 +411,7 @@ class Server(Service, RouterMixin):
         return JSONResponse(content=Meta(logins, proxy_urls).dump())
 
     async def webhook_create_handler(self, request: StarletteRequest):
-        body = await request.json()
+        body = decode(await request.body())
         url = body["url"]
         token = body.get("token")
         self.webhooks.append(WebhookEndpoint(url, token))
@@ -430,7 +431,7 @@ class Server(Service, RouterMixin):
         return Response()
 
     async def webhook_delete_handler(self, request: StarletteRequest):
-        body = await request.json()
+        body = decode(await request.body())
         url = body["url"]
         for endpoint in self.webhooks:
             if endpoint.url == url:

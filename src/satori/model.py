@@ -6,7 +6,7 @@ from enum import IntEnum
 from os import PathLike
 from pathlib import Path
 from typing import IO, Any, Callable, ClassVar, Generic, Literal, Optional, TypeVar, Union
-from typing_extensions import TypeAlias, Self
+from typing_extensions import Self, TypeAlias
 
 from .element import Element, transform
 from .parser import Element as RawElement

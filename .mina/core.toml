@@ -15,7 +15,7 @@ dependencies = [
 description = "Satori Protocol SDK for python, specify common part"
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10,<4.0"
 classifiers = [
     "Typing :: Typed",
     "Development Status :: 4 - Beta",
@@ -31,3 +31,8 @@ classifiers = [
 [project.urls]
 homepage = "https://github.com/RF-Tar-Railt/satori-python"
 repository = "https://github.com/RF-Tar-Railt/satori-python"
+
+[project.optional-dependencies]
+msgspec = [
+    "msgspec>=0.19.0",
+]

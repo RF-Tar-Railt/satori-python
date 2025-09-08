@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from contextlib import suppress
 from datetime import datetime
 from typing import cast
@@ -19,6 +18,7 @@ from satori.exception import ActionFailed
 from satori.model import Login, User
 from satori.server import Request
 from satori.server.adapter import Adapter as BaseAdapter
+from satori.utils import decode, encode
 
 from .api import apply
 from .events.base import events
@@ -148,7 +148,7 @@ class OneBot11ForwardAdapter(BaseAdapter):
                 self.close_signal.set()
                 break
             elif msg.type == aiohttp.WSMsgType.TEXT:
-                data: dict = json.loads(cast(str, msg.data))
+                data: dict = decode(cast(str, msg.data))
                 yield self, data
         else:
             self.close_signal.set()
@@ -223,7 +223,7 @@ class OneBot11ForwardAdapter(BaseAdapter):
 
     async def handle_internal(self, request: Request, path: str) -> Response:
         if path.startswith("_api"):
-            return JSONResponse(await self.call_api(path[5:], await request.origin.json()))
+            return JSONResponse(await self.call_api(path[5:], decode(await request.origin.body())))
         async with self.session.get(path) as resp:
             return Response(await resp.read())
 
@@ -236,7 +236,7 @@ class OneBot11ForwardAdapter(BaseAdapter):
         self.response_waiters[echo] = future
 
         try:
-            await self.connection.send_json({"action": action, "params": params or {}, "echo": echo})
+            await self.connection.send_str(encode({"action": action, "params": params or {}, "echo": echo}))
             result = await future
         finally:
             del self.response_waiters[echo]

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from contextlib import suppress
 from typing import cast
 
@@ -11,6 +10,7 @@ from launart.utilles import any_completed
 from loguru import logger
 
 from satori.model import Event, Identify, LoginStatus, MetaPayload, Opcode, Ready
+from satori.utils import decode, encode
 
 from ..account import Account
 from ..config import WebsocketsInfo as WebsocketsInfo
@@ -53,7 +53,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                 self.close_signal.set()
                 return
             elif msg.type == aiohttp.WSMsgType.TEXT:
-                data: dict = json.loads(cast(str, msg.data))
+                data: dict = decode(cast(str, msg.data))
                 logger.trace(f"Received payload: {data}")
                 if data["op"] == Opcode.EVENT:
                     asyncio.create_task(self.event_parse_task(data["body"]))
@@ -72,7 +72,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
         if self.connection is None:
             raise RuntimeError("connection is not established")
 
-        await self.connection.send_json(payload)
+        await self.connection.send_str(encode(payload))
 
     @property
     def alive(self):
@@ -98,7 +98,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
         if resp.type != aiohttp.WSMsgType.TEXT:
             logger.error(f"Received unexpected payload: {resp}")
             return False
-        data = resp.json()
+        data = decode(cast(str, resp.data))
         if data["op"] != Opcode.READY:
             logger.error(f"Received unexpected payload: {data}")
             return False

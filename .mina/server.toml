@@ -18,7 +18,7 @@ dependencies = [
 description = "Satori Protocol SDK for python, specify server part"
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10,<4.0"
 classifiers = [
     "Typing :: Typed",
     "Development Status :: 4 - Beta",

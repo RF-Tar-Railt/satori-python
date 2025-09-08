@@ -8,6 +8,7 @@ from launart.manager import Launart
 from loguru import logger
 
 from satori.model import Event, LoginStatus, Meta, MetaPayload, Opcode
+from satori.utils import decode
 
 from ..account import Account
 from ..config import WebhookInfo as WebhookInfo
@@ -33,7 +34,7 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
         if self.config.token and self.config.token != token:
             return web.Response(status=401)
         op_code = int(header.get("Satori-OpCode", "0"))
-        body = await req.json()
+        body = decode(await req.text())
         if op_code == Opcode.META:
             payload = MetaPayload.parse(body)
             self.proxy_urls = payload.proxy_urls

@@ -8,6 +8,7 @@ from starlette.responses import JSONResponse, Response
 from satori.server import Adapter as BaseAdapter
 from satori.server import Request
 from satori.server.adapter import LoginType
+from satori.utils import decode
 
 from .api import apply
 from .backend import SatoriConsoleBackend
@@ -43,7 +44,7 @@ class ConsoleAdapter(BaseAdapter):
     async def handle_internal(self, request: Request, path: str) -> Response:
         if path.startswith("_api"):
             api = path[5:]
-            data = await request.origin.json()
+            data = decode(await request.origin.body())
             if api == "send_msg":
                 await self.app.send_message(**data)
                 return JSONResponse({})

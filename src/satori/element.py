@@ -3,14 +3,21 @@ from collections.abc import Sequence
 from dataclasses import InitVar, dataclass, field
 from io import BytesIO
 from pathlib import Path
-from typing import Any, ClassVar, Final, Optional, TypeVar, Union, final, get_args, overload
+from typing import Any, Callable, ClassVar, Final, Optional, TypeVar, Union, final, get_args, overload
 from typing_extensions import override
 
 from .parser import Element as RawElement
 from .parser import escape, param_case, parse
 from .parser import select as select_raw
+from .utils import decode
 
 TE = TypeVar("TE", bound="Element")
+
+
+def conv_bool(v: str) -> bool:
+    if v.lower() not in ("true", "false"):
+        raise ValueError(v)
+    return v.lower() == "true"
 
 
 @dataclass(repr=False)
@@ -19,7 +26,7 @@ class Element:
     _children: list["Element"] = field(init=False, default_factory=list)
 
     __names__: ClassVar[tuple[str, ...]]
-    __convert_fields__: ClassVar[dict[str, type]]
+    __convert_fields__: ClassVar[dict[str, Callable[[str], Any]]]
 
     def __init_subclass__(cls, **kwargs):
         cls.__convert_fields__ = {}
@@ -29,7 +36,12 @@ class Element:
                 continue
             _type = get_args(typ)[0] if hasattr(typ, "__origin__") else typ
             if _type is not str:
-                cls.__convert_fields__[name] = _type
+                if _type is bool:
+                    cls.__convert_fields__[name] = conv_bool
+                elif _type in (list, dict):
+                    cls.__convert_fields__[name] = decode
+                else:
+                    cls.__convert_fields__[name] = _type
 
     @property
     def children(self) -> list["Element"]:
@@ -43,18 +55,13 @@ class Element:
     def unpack(cls, attrs: dict[str, Any]):
         data = {}
         names = getattr(cls, "__names__", None)
-        for name, f in cls.__dataclass_fields__.items():
-            if name in attrs:
-                if name in cls.__convert_fields__:
-                    _type = cls.__convert_fields__[name]
-                    if _type is bool:
-                        if attrs[name].lower() not in ("true", "false"):
-                            raise TypeError(name, attrs[name])
-                        data[name] = attrs[name].lower() == "true"
-                    else:
-                        data[name] = _type(attrs[name])
-                else:
-                    data[name] = attrs[name]
+        for name in cls.__dataclass_fields__.keys():
+            if name not in attrs:
+                continue
+            if name in cls.__convert_fields__:
+                data[name] = cls.__convert_fields__[name](attrs[name])
+            else:
+                data[name] = attrs[name]
         obj = cls(**{k: v for k, v in data.items() if names is None or k in names})  # type: ignore
         obj._attrs.update(data)
         return obj

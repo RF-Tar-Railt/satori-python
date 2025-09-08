@@ -13,5 +13,17 @@ def get_public_ip():
     return IP
 
 
-if __name__ == "__main__":
-    print(get_public_ip())  # noqa: T201
+try:
+    from msgspec.json import decode  # noqa: F401
+    from msgspec.json import encode as msgspec_encode
+
+    def encode(obj):
+        return msgspec_encode(obj).decode()
+
+except ImportError:
+    import json
+
+    def encode(obj):
+        return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
+
+    decode = json.loads

@@ -12,6 +12,7 @@ from satori.exception import ActionFailed
 from satori.server import Adapter as BaseAdapter
 from satori.server import Request
 from satori.server.adapter import LoginType
+from satori.utils import decode
 
 
 class SatoriAdapter(BaseAdapter):
@@ -81,7 +82,7 @@ class SatoriAdapter(BaseAdapter):
             try:
                 return JSONResponse(
                     await acc.protocol.call_api(
-                        path[5:], await request.origin.json(), method=request.origin.method
+                        path[5:], decode(await request.origin.body()), method=request.origin.method
                     )
                 )
             except ActionFailed as e:

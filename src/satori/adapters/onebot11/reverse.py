@@ -16,6 +16,7 @@ from satori.exception import ActionFailed
 from satori.model import Login, User
 from satori.server import Request
 from satori.server.adapter import Adapter as BaseAdapter
+from satori.utils import decode, encode
 
 from .api import apply
 from .events.base import events
@@ -30,8 +31,8 @@ class _Connection:
         self.response_waiters: dict[str, asyncio.Future] = {}
 
     async def message_receive(self):
-        async for msg in self.ws.iter_json():
-            yield self, msg
+        async for msg in self.ws.iter_bytes():
+            yield self, decode(msg)
         else:
             self.close_signal.set()
 
@@ -116,7 +117,7 @@ class _Connection:
         self.response_waiters[echo] = future
 
         try:
-            await self.ws.send_json({"action": action, "params": params or {}, "echo": echo})
+            await self.ws.send_text(encode({"action": action, "params": params or {}, "echo": echo}))
             result = await future
         finally:
             del self.response_waiters[echo]
@@ -213,7 +214,7 @@ class OneBot11ReverseAdapter(BaseAdapter):
         if path.startswith("_api"):
             self_id = request.self_id
             return JSONResponse(
-                await self.connections[self_id].call_api(path[5:], await request.origin.json())
+                await self.connections[self_id].call_api(path[5:], decode(await request.origin.body()))
             )
         async with self.server.session.get(path) as resp:
             return Response(await resp.read())

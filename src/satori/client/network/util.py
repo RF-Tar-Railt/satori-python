@@ -1,4 +1,3 @@
-import json
 from typing import Literal, overload
 
 from aiohttp import ClientResponse
@@ -11,6 +10,7 @@ from satori.exception import (
     ServerException,
     UnauthorizedException,
 )
+from satori.utils import decode
 
 
 @overload
@@ -25,7 +25,7 @@ async def validate_response(resp: ClientResponse, noreturn=False):
     if 200 <= resp.status < 300:
         if noreturn:
             return
-        return json.loads(content) if (content := await resp.text()) else {}
+        return decode(content) if (content := await resp.text()) else {}
     elif resp.status == 400:
         raise BadRequestException(await resp.text())
     elif resp.status == 401:
