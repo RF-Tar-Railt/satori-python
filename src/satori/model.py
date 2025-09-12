@@ -1,12 +1,12 @@
 import mimetypes
-from collections.abc import AsyncIterable, Awaitable
+from collections.abc import AsyncIterable, Awaitable, Callable
 from dataclasses import Field, dataclass, field
 from datetime import datetime
 from enum import IntEnum
 from os import PathLike
 from pathlib import Path
-from typing import IO, Any, Callable, ClassVar, Generic, Literal, Optional, TypeVar, Union
-from typing_extensions import Self, TypeAlias
+from typing import IO, Any, ClassVar, Generic, Literal, TypeAlias, TypeVar
+from typing_extensions import Self
 
 from .element import Element, transform
 from .parser import Element as RawElement
@@ -47,8 +47,8 @@ class ChannelType(IntEnum):
 class Channel(ModelBase):
     id: str
     type: ChannelType = ChannelType.TEXT
-    name: Optional[str] = None
-    parent_id: Optional[str] = None
+    name: str | None = None
+    parent_id: str | None = None
 
     __converter__ = {"type": ChannelType}
 
@@ -64,8 +64,8 @@ class Channel(ModelBase):
 @dataclass
 class Guild(ModelBase):
     id: str
-    name: Optional[str] = None
-    avatar: Optional[str] = None
+    name: str | None = None
+    avatar: str | None = None
 
     def dump(self):
         res = {"id": self.id}
@@ -79,10 +79,10 @@ class Guild(ModelBase):
 @dataclass
 class User(ModelBase):
     id: str
-    name: Optional[str] = None
-    nick: Optional[str] = None
-    avatar: Optional[str] = None
-    is_bot: Optional[bool] = None
+    name: str | None = None
+    nick: str | None = None
+    avatar: str | None = None
+    is_bot: bool | None = None
 
     def dump(self):
         res: dict[str, Any] = {"id": self.id}
@@ -99,10 +99,10 @@ class User(ModelBase):
 
 @dataclass
 class Member(ModelBase):
-    user: Optional[User] = None
-    nick: Optional[str] = None
-    avatar: Optional[str] = None
-    joined_at: Optional[datetime] = None
+    user: User | None = None
+    nick: str | None = None
+    avatar: str | None = None
+    joined_at: datetime | None = None
 
     __converter__ = {"user": User.parse, "joined_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000)}
 
@@ -122,7 +122,7 @@ class Member(ModelBase):
 @dataclass
 class Role(ModelBase):
     id: str
-    name: Optional[str] = None
+    name: str | None = None
 
     def dump(self):
         res = {"id": self.id}
@@ -188,8 +188,8 @@ class Login(ModelBase):
 
 @dataclass
 class LoginPartial(Login):
-    platform: Optional[str] = None
-    user: Optional[User] = None
+    platform: str | None = None
+    user: User | None = None
 
 
 @dataclass
@@ -227,8 +227,8 @@ class Opcode(IntEnum):
 
 @dataclass
 class Identify(ModelBase):
-    token: Optional[str] = None
-    sn: Optional[int] = None
+    token: str | None = None
+    sn: int | None = None
 
     @classmethod
     def parse(cls, raw: dict):
@@ -237,7 +237,7 @@ class Identify(ModelBase):
         return super().parse(raw)
 
     @property
-    def sequence(self) -> Optional[int]:
+    def sequence(self) -> int | None:
         return self.sn
 
     def dump(self):
@@ -282,24 +282,24 @@ class Meta(ModelBase):
 class MessageObject(ModelBase):
     id: str
     content: str
-    channel: Optional[Channel] = None
-    guild: Optional[Guild] = None
-    member: Optional[Member] = None
-    user: Optional[User] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    channel: Channel | None = None
+    guild: Guild | None = None
+    member: Member | None = None
+    user: User | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     @classmethod
     def from_elements(
         cls,
         id: str,
         content: list[Element],
-        channel: Optional[Channel] = None,
-        guild: Optional[Guild] = None,
-        member: Optional[Member] = None,
-        user: Optional[User] = None,
-        created_at: Optional[datetime] = None,
-        updated_at: Optional[datetime] = None,
+        channel: Channel | None = None,
+        guild: Guild | None = None,
+        member: Member | None = None,
+        user: User | None = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
     ):
         obj = cls(id, "".join(str(i) for i in content), channel, guild, member, user, created_at, updated_at)
         obj._parsed_message = content
@@ -353,22 +353,22 @@ class MessageObject(ModelBase):
 @dataclass
 class MessageReceipt(ModelBase):
     id: str
-    content: Optional[str] = None
+    content: str | None = None
 
     @classmethod
     def from_elements(
         cls,
         id: str,
-        content: Optional[list[Element]] = None,
+        content: list[Element] | None = None,
     ):
         return cls(id, "".join(str(i) for i in content) if content else None)
 
     @property
-    def message(self) -> Optional[list[Element]]:
+    def message(self) -> list[Element] | None:
         return transform(parse(self.content)) if self.content else None
 
     @message.setter
-    def message(self, value: Optional[list[Element]]):
+    def message(self, value: list[Element] | None):
         self.content = "".join(str(i) for i in value) if value else None
 
     @classmethod
@@ -390,18 +390,18 @@ class Event(ModelBase):
     type: str
     timestamp: datetime
     login: Login
-    argv: Optional[ArgvInteraction] = None
-    button: Optional[ButtonInteraction] = None
-    channel: Optional[Channel] = None
-    guild: Optional[Guild] = None
-    member: Optional[Member] = None
-    message: Optional[MessageObject] = None
-    operator: Optional[User] = None
-    role: Optional[Role] = None
-    user: Optional[User] = None
+    argv: ArgvInteraction | None = None
+    button: ButtonInteraction | None = None
+    channel: Channel | None = None
+    guild: Guild | None = None
+    member: Member | None = None
+    message: MessageObject | None = None
+    operator: User | None = None
+    role: Role | None = None
+    user: User | None = None
 
-    _type: Optional[str] = None
-    _data: Optional[dict] = None
+    _type: str | None = None
+    _data: dict | None = None
 
     sn: int = 0
 
@@ -480,10 +480,10 @@ T = TypeVar("T", bound=ModelBase)
 @dataclass
 class PageResult(ModelBase, Generic[T]):
     data: list[T]
-    next: Optional[str] = None
+    next: str | None = None
 
     @classmethod
-    def parse(cls, raw: dict, parser: Optional[Callable[[dict], T]] = None) -> "PageResult[T]":
+    def parse(cls, raw: dict, parser: Callable[[dict], T] | None = None) -> "PageResult[T]":
         data = [(parser or ModelBase.parse)(item) for item in raw["data"]]
         return cls(data, raw.get("next"))  # type: ignore
 
@@ -496,10 +496,10 @@ class PageResult(ModelBase, Generic[T]):
 
 @dataclass
 class PageDequeResult(PageResult[T]):
-    prev: Optional[str] = None
+    prev: str | None = None
 
     @classmethod
-    def parse(cls, raw: dict, parser: Optional[Callable[[dict], T]] = None) -> "PageDequeResult[T]":
+    def parse(cls, raw: dict, parser: Callable[[dict], T] | None = None) -> "PageDequeResult[T]":
         data = [(parser or ModelBase.parse)(item) for item in raw["data"]]
         return cls(data, raw.get("next"), raw.get("prev"))  # type: ignore
 
@@ -514,7 +514,7 @@ class PageDequeResult(PageResult[T]):
 
 class IterablePageResult(Generic[T], AsyncIterable[T], Awaitable[PageResult[T]]):
     def __init__(
-        self, func: Callable[[Optional[str]], Awaitable[PageResult[T]]], initial_page: Optional[str] = None
+        self, func: Callable[[str | None], Awaitable[PageResult[T]]], initial_page: str | None = None
     ):
         self.func = func
         self.next_page = initial_page
@@ -541,9 +541,9 @@ Order: TypeAlias = Literal["asc", "desc"]
 
 @dataclass
 class Upload:
-    file: Union[bytes, IO[bytes], PathLike]
+    file: bytes | IO[bytes] | PathLike
     mimetype: str = "image/png"
-    name: Optional[str] = None
+    name: str | None = None
 
     def __post_init__(self):
         if isinstance(self.file, PathLike):

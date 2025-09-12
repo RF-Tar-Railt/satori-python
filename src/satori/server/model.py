@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Optional, Protocol, TypeVar, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, runtime_checkable
 
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response
@@ -11,7 +11,6 @@ from satori.model import Event, Login
 if TYPE_CHECKING:
     from .route import RouteCall
 
-JsonType = Union[list, dict, str, int, bool, float, None]
 TA = TypeVar("TA", str, Api)
 TP = TypeVar("TP")
 
@@ -38,7 +37,7 @@ class Provider(Protocol):
 
     async def handle_internal(self, request: Request, path: str) -> Response: ...
 
-    async def handle_proxied(self, prefix: str, url: str) -> Optional[Response]: ...
+    async def handle_proxied(self, prefix: str, url: str) -> Response | None: ...
 
 
 @runtime_checkable
@@ -49,5 +48,5 @@ class Router(Protocol):
 @dataclass
 class WebhookEndpoint:
     url: str
-    token: Optional[str] = None
-    timeout: Optional[float] = None
+    token: str | None = None
+    timeout: float | None = None

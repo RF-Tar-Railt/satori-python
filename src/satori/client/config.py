@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from yarl import URL
 
@@ -10,7 +9,7 @@ class Config:
         raise NotImplementedError
 
     @property
-    def token(self) -> Optional[str]:
+    def token(self) -> str | None:
         raise NotImplementedError
 
     @property
@@ -23,8 +22,8 @@ class WebsocketsInfo(Config):
     host: str = "localhost"
     port: int = 5140
     path: str = ""
-    token: Optional[str] = None
-    timeout: Optional[float] = None
+    token: str | None = None
+    timeout: float | None = None
 
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):
@@ -48,11 +47,11 @@ class WebhookInfo(Config):
     host: str = "127.0.0.1"
     port: int = 8080
     path: str = "v1/events"
-    token: Optional[str] = None
+    token: str | None = None
     server_host: str = "localhost"
     server_port: int = 5140
     server_path: str = ""
-    timeout: Optional[float] = None
+    timeout: float | None = None
 
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):

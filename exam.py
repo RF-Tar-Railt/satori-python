@@ -45,3 +45,23 @@ print(message)
 from satori import E
 
 print(E("<qq:passive id={ id }/>", {"id": "123456789"}))
+
+from satori import register_element, transform
+from satori.parser import parse
+from satori.element import Element
+from dataclasses import dataclass
+
+
+@dataclass(repr=False)
+class QQPassive(Element):
+    id: str
+
+    @property
+    def tag(self) -> str:
+        return "qq:passive"
+
+
+register_element(QQPassive, "qq:passive")
+
+print(QQPassive(id="123456789"))
+print(transform(parse("<qq:passive id='123456789'/>")))

@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional, cast
+from typing import cast
 
 from launart import Launart, any_completed
 from launart.status import Phase
@@ -21,7 +21,7 @@ class SatoriAdapter(BaseAdapter):
         host: str = "localhost",
         port: int = 5140,
         path: str = "",
-        token: Optional[str] = None,
+        token: str | None = None,
         post_upload: bool = False,
     ):
         super().__init__()

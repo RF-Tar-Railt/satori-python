@@ -8,13 +8,13 @@ import secrets
 import signal
 import threading
 import urllib.parse
-from collections.abc import Awaitable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from contextlib import suppress
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from traceback import print_exc
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 import aiohttp
 from aiohttp import ClientTimeout

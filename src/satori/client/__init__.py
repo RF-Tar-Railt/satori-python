@@ -4,9 +4,9 @@ import asyncio
 import functools
 import signal
 import threading
-from collections.abc import Awaitable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 from creart import it
 from graia.amnesia.builtins.aiohttp import AiohttpClientService

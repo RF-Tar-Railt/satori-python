@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 
 from satori import Api
 from satori.model import Channel, ChannelType, Guild, Login, Member, MessageObject, PageResult, Role, User

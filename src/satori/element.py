@@ -1,9 +1,10 @@
 from base64 import b64encode
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import InitVar, dataclass, field
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Callable, ClassVar, Final, Optional, TypeVar, Union, final, get_args, overload
+from types import UnionType
+from typing import Any, ClassVar, Final, TypeVar, Union, final, get_args, get_origin, overload
 from typing_extensions import override
 
 from .parser import Element as RawElement
@@ -34,7 +35,16 @@ class Element:
         for name, typ in annotations.items():
             if name.startswith("_"):
                 continue
-            _type = get_args(typ)[0] if hasattr(typ, "__origin__") else typ
+            # _type = get_args(typ)[0] if hasattr(typ, "__origin__") else typ
+            orig = get_origin(typ)
+            if orig in (Union, UnionType):
+                args = get_args(typ)
+                if len(args) == 2 and type(None) in args:
+                    _type = args[0] if args[1] is type(None) else args[1]
+                else:
+                    _type = args[0]
+            else:
+                _type = typ
             if _type is not str:
                 if _type is bool:
                     cls.__convert_fields__[name] = conv_bool
@@ -65,6 +75,9 @@ class Element:
         obj = cls(**{k: v for k, v in data.items() if names is None or k in names})  # type: ignore
         obj._attrs.update(data)
         return obj
+
+    def __post_init__(self):
+        self._attrs = {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
 
     def attributes(self) -> str:
         def _attr(key: str, value: Any):
@@ -100,7 +113,7 @@ class Element:
             elem += ", { " + ", ".join(repr(i) for i in self._children) + " }"
         return elem + ")"
 
-    def __call__(self, *content: Union[str, "Element"]):
+    def __call__(self, *content: "str | Element"):
         self._children.extend(Text(i) if isinstance(i, str) else i for i in content)
         self.__post_call__()
         return self
@@ -126,15 +139,15 @@ class Text(Element):
 class At(Element):
     """<at> 元素用于提及某个或某些用户。"""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    role: Optional[str] = None
-    type: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    role: str | None = None
+    type: str | None = None
 
     @staticmethod
     def role_(
         role: str,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> "At":
         return At(role=role, name=name)
 
@@ -148,7 +161,7 @@ class Sharp(Element):
     """<sharp> 元素用于提及某个频道。"""
 
     id: str
-    name: Optional[str] = None
+    name: str | None = None
 
 
 @dataclass(repr=False)
@@ -177,26 +190,26 @@ class Link(Element):
 @dataclass(repr=False)
 class Resource(Element):
     src: str
-    title: Optional[str] = None
-    extra: InitVar[Optional[dict[str, Any]]] = None
-    cache: Optional[bool] = None
-    timeout: Optional[int] = None
+    title: str | None = None
+    extra: InitVar[dict[str, Any] | None] = None
+    cache: bool | None = None
+    timeout: int | None = None
 
     __names__ = ("src", "title")
 
     @classmethod
     def of(
         cls,
-        url: Optional[str] = None,
-        path: Optional[Union[str, Path]] = None,
-        raw: Optional[Union[bytes, BytesIO]] = None,
-        mime: Optional[str] = None,
-        name: Optional[str] = None,
-        duration: Optional[float] = None,
-        poster: Optional[str] = None,
-        extra: Optional[dict[str, Any]] = None,
-        cache: Optional[bool] = None,
-        timeout: Optional[int] = None,
+        url: str | None = None,
+        path: str | Path | None = None,
+        raw: bytes | BytesIO | None = None,
+        mime: str | None = None,
+        name: str | None = None,
+        duration: float | None = None,
+        poster: str | None = None,
+        extra: dict[str, Any] | None = None,
+        cache: bool | None = None,
+        timeout: int | None = None,
         **kwargs,
     ):
         data: dict[str, Any] = {"extra": extra or kwargs}
@@ -221,7 +234,8 @@ class Resource(Element):
             data["timeout"] = timeout
         return cls(**data)
 
-    def __post_init__(self, extra: Optional[dict[str, Any]] = None):
+    def __post_init__(self, extra: dict[str, Any] | None = None):
+        super().__post_init__()
         if extra:
             self._attrs.update(extra)
 
@@ -230,8 +244,8 @@ class Resource(Element):
 class Image(Resource):
     """<img> 元素用于表示图片。"""
 
-    width: Optional[int] = None
-    height: Optional[int] = None
+    width: int | None = None
+    height: int | None = None
 
     __names__ = ("src", "title", "width", "height")
 
@@ -245,8 +259,8 @@ class Image(Resource):
 class Audio(Resource):
     """<audio> 元素用于表示语音。"""
 
-    duration: Optional[float] = None
-    poster: Optional[str] = None
+    duration: float | None = None
+    poster: str | None = None
 
     __names__ = ("src", "title", "duration", "poster")
 
@@ -255,10 +269,10 @@ class Audio(Resource):
 class Video(Resource):
     """<video> 元素用于表示视频。"""
 
-    width: Optional[int] = None
-    height: Optional[int] = None
-    duration: Optional[float] = None
-    poster: Optional[str] = None
+    width: int | None = None
+    height: int | None = None
+    duration: float | None = None
+    poster: str | None = None
 
     __names__ = ("src", "title", "width", "height", "duration", "poster")
 
@@ -267,7 +281,7 @@ class Video(Resource):
 class File(Resource):
     """<file> 元素用于表示文件。"""
 
-    poster: Optional[str] = None
+    poster: str | None = None
 
     __names__ = ("src", "title", "poster")
 
@@ -278,7 +292,7 @@ class Style(Element):
 
     __names__ = ()
 
-    def __init__(self, *text: Union[str, Text, "Style"]):
+    def __init__(self, *text: "str | Text | Style"):
         super().__init__()
         self.__call__(*text)
 
@@ -385,14 +399,14 @@ class Message(Element):
     子元素对应于消息的内容。如果其没有子元素，则消息不会被发送。
     """
 
-    id: Optional[str]
-    forward: Optional[bool]
+    id: str | None
+    forward: bool | None
 
     def __init__(
         self,
-        id: Optional[str] = None,
-        forward: Optional[bool] = None,
-        content: Optional[list[Union[str, Element]]] = None,
+        id: str | None = None,
+        forward: bool | None = None,
+        content: list[str | Element] | None = None,
     ):
         self.id = id
         self.forward = forward
@@ -414,8 +428,8 @@ class Author(Element):
     """<author> 元素用于表示消息的作者。它的子元素会被渲染为作者的名字。"""
 
     id: str
-    name: Optional[str] = None
-    avatar: Optional[str] = None
+    name: str | None = None
+    avatar: str | None = None
 
 
 @dataclass(repr=False)
@@ -423,21 +437,21 @@ class Button(Element):
     """<button> 元素用于表示一个按钮。它的子元素会被渲染为按钮的文本。"""
 
     type: str
-    id: Optional[str] = None
-    href: Optional[str] = None
-    text: Optional[str] = None
-    theme: Optional[str] = None
+    id: str | None = None
+    href: str | None = None
+    text: str | None = None
+    theme: str | None = None
 
     @classmethod
-    def action(cls, button_id: str, theme: Optional[str] = None):
+    def action(cls, button_id: str, theme: str | None = None):
         return Button("action", id=button_id, theme=theme)
 
     @classmethod
-    def link(cls, url: str, theme: Optional[str] = None):
+    def link(cls, url: str, theme: str | None = None):
         return Button("link", href=url, theme=theme)
 
     @classmethod
-    def input(cls, text: str, theme: Optional[str] = None):
+    def input(cls, text: str, theme: str | None = None):
         return Button("input", text=text, theme=theme)
 
     def attributes(self) -> str:
@@ -470,11 +484,10 @@ class Custom(Element):
     def __init__(
         self,
         type: str,
-        attrs: Optional[dict[str, Any]] = None,
-        children: Optional[Sequence[Union[str, Element]]] = None,
+        attrs: dict[str, Any] | None = None,
+        children: Sequence[str | Element] | None = None,
     ):
         self.type = type
-        super().__init__()
         if not hasattr(self, "_attrs"):
             self._attrs = attrs or {}
         else:
@@ -501,6 +514,17 @@ class Raw(Element):
     @override
     def dumps(self, strip: bool = False):
         return self.content if strip else escape(self.content)
+
+
+def register_element(cls: type[TE], tag: str | None = None) -> type[TE]:
+    """注册一个自定义元素类，使其可以被 `transform` 函数识别。
+
+    该类必须继承自 `Element`; 必要时还需要定义 `__names__` 类变量以指定可接受的属性名。
+    """
+    if not issubclass(cls, Element):
+        raise TypeError("cls must be a subclass of Element")
+    ELEMENT_TYPE_MAP[tag or cls.__name__.lower()] = cls
+    return cls
 
 
 ELEMENT_TYPE_MAP = {
@@ -574,14 +598,14 @@ def transform(elements: list[RawElement]) -> list[Element]:
 
 
 @overload
-def select(elements: Union[Element, list[Element]], query: type[TE]) -> list[TE]: ...
+def select(elements: Element | list[Element], query: type[TE]) -> list[TE]: ...
 
 
 @overload
-def select(elements: Union[Element, list[Element]], query: str) -> list[Element]: ...
+def select(elements: Element | list[Element], query: str) -> list[Element]: ...
 
 
-def select(elements: Union[Element, list[Element]], query: Union[type[TE], str]):
+def select(elements: Element | list[Element], query: type[TE] | str):
     if not elements:
         return []
     if isinstance(elements, Element):
@@ -633,7 +657,7 @@ class _E:
         self.input_button = Button.input
         self.select = select
 
-    def __call__(self, elem: str, context: Optional[dict] = None) -> Custom:
+    def __call__(self, elem: str, context: dict | None = None) -> Custom:
         """创建一个自定义元素"""
         e = parse(elem, context)[0]
         return Custom(e.type, e.attrs, transform(e.children))

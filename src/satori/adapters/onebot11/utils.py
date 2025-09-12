@@ -1,8 +1,8 @@
-from typing import Optional, Protocol
+from typing import Protocol
 
 
 class OneBotNetwork(Protocol):
-    async def call_api(self, action: str, params: Optional[dict] = None) -> Optional[dict]: ...
+    async def call_api(self, action: str, params: dict | None = None) -> dict | None: ...
 
 
 SPECIAL_POST_TYPE = {"message_sent": "message"}

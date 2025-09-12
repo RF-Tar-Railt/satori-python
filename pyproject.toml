@@ -82,7 +82,7 @@ extra_standard_library = ["typing_extensions"]
 
 [tool.ruff]
 line-length = 110
-target-version = "py39"
+target-version = "py310"
 exclude = ["exam.py"]
 
 [tool.ruff.lint]

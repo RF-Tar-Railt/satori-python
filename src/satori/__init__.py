@@ -23,6 +23,7 @@ from .element import Superscript as Superscript
 from .element import Text as Text
 from .element import Underline as Underline
 from .element import Video as Video
+from .element import register_element as register_element
 from .element import select as select
 from .element import transform as transform
 from .model import ArgvInteraction as ArgvInteraction

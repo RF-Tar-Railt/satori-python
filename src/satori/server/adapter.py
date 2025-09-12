@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union
 
 from launart import Service
 from starlette.responses import Response
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from . import Server
 
 
-LoginType = Union[Login, LoginPartial]
+LoginType = Union[Login, LoginPartial]  # noqa: UP007
 
 
 class Adapter(Service, RouterMixin):
@@ -38,7 +38,7 @@ class Adapter(Service, RouterMixin):
     @abstractmethod
     async def handle_internal(self, request: Request, path: str) -> Response: ...
 
-    async def handle_proxied(self, prefix: str, url: str) -> Optional[Response]:
+    async def handle_proxied(self, prefix: str, url: str) -> Response | None:
         async with self.server.session.get(url, ssl=ctx) as resp:
             return Response(await resp.read())
 
