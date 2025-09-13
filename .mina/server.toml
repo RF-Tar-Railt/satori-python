@@ -1,5 +1,5 @@
 includes = ["src/satori/server"]
-raw-dependencies = ["satori-python-core >= 0.16.3"]
+raw-dependencies = ["satori-python-core >= 0.17.0"]
 
 [project]
 name = "satori-python-server"
@@ -10,7 +10,7 @@ authors = [
 dependencies = [
     "aiohttp",
     "launart",
-    "graia-amnesia[standard]",
+    "graia-amnesia[uvicorn]",
     "starlette[python-multipart]",
     "websockets",
     "python-multipart",
