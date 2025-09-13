@@ -40,7 +40,6 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
             else:
                 logger.trace(f"Failed to parse event: {raw}\nCaused by {e!r}")
         else:
-            # logger.trace(f"Received event: {event}")
             self.sequence = event.sn
             await self.app.post(event, self)
 
@@ -54,7 +53,6 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                 return
             elif msg.type == aiohttp.WSMsgType.TEXT:
                 data: dict = decode(cast(str, msg.data))
-                logger.trace(f"Received payload: {data}")
                 if data["op"] == Opcode.EVENT:
                     asyncio.create_task(self.event_parse_task(data["body"]))
                 elif data["op"] == Opcode.META:
@@ -64,6 +62,8 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                         account.proxy_urls = payload.proxy_urls.copy()
                 elif data["op"] > 5:
                     logger.warning(f"Received unknown event: {data}")
+                else:
+                    logger.trace(f"Received payload: {data}")
                 continue
         else:
             await self.connection_closed()

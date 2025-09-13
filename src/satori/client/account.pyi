@@ -32,9 +32,7 @@ TP1 = TypeVar("TP1", bound="ApiProtocol", default=ApiProtocol)
 class Api(Protocol):
     token: str | None = None
     timeout: float | None = None
-
-    @property
-    def api_base(self) -> URL: ...
+    api_base: URL
 
 class ApiInfo(Api):
     def __init__(

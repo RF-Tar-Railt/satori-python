@@ -216,8 +216,6 @@ class App(Service):
             await asyncio.gather(*(callback(account, state) for callback in self.lifecycle_callbacks))
 
     async def post(self, event: Event, conn: BaseNetwork):
-        if not self.event_callbacks:
-            return
         if event.type == EventType.LOGIN_ADDED:
             if TYPE_CHECKING:
                 assert isinstance(event, events.LoginEvent)
@@ -290,7 +288,8 @@ class App(Service):
                 return
             account = self.accounts[login_sn]
 
-        await asyncio.gather(*(callback(account, event) for callback in self.event_callbacks))
+        if self.event_callbacks:
+            await asyncio.gather(*(callback(account, event) for callback in self.event_callbacks))
 
         if event.type == EventType.LOGIN_REMOVED:
             logger.info(f"account removed: {account}")

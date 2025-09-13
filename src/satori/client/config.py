@@ -24,18 +24,14 @@ class WebsocketsInfo(Config):
     path: str = ""
     token: str | None = None
     timeout: float | None = None
+    identity: str = None  # type: ignore
+    api_base: URL = None  # type: ignore
 
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
-
-    @property
-    def identity(self):
-        return f"{self.host}:{self.port}"
-
-    @property
-    def api_base(self):
-        return URL(f"http://{self.host}:{self.port}{self.path}") / "v1"
+        self.identity = f"{self.host}:{self.port}"
+        self.api_base = URL(f"http://{self.host}:{self.port}{self.path}") / "v1"
 
     @property
     def ws_base(self):
@@ -52,17 +48,13 @@ class WebhookInfo(Config):
     server_port: int = 5140
     server_path: str = ""
     timeout: float | None = None
+    identity: str = None  # type: ignore
+    api_base: URL = None  # type: ignore
 
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
         if self.server_path and not self.server_path.startswith("/"):
             self.server_path = f"/{self.server_path}"
-
-    @property
-    def identity(self):
-        return f"{self.host}:{self.port}{self.path}"
-
-    @property
-    def api_base(self):
-        return URL(f"http://{self.server_host}:{self.server_port}{self.server_path}") / "v1"
+        self.identity = f"{self.host}:{self.port}{self.path}"
+        self.api_base = URL(f"http://{self.server_host}:{self.server_port}{self.server_path}") / "v1"

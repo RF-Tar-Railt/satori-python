@@ -25,10 +25,7 @@ class ApiInfo:
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
-
-    @property
-    def api_base(self):
-        return URL(f"http://{self.host}:{self.port}{self.path}") / "v1"
+        self.api_base = URL(f"http://{self.host}:{self.port}{self.path}") / "v1"
 
 
 class Account(Generic[TP]):

@@ -146,6 +146,7 @@ class Server(Service, RouterMixin):
         self.stream_chunk_size = stream_chunk_size
         self.resources: dict[str, Path] = {}
         self.app = Starlette()
+        self.asgi_service = UvicornASGIService(self.host, self.port, options=self.uvicorn_options)
         super().__init__()
 
     def replace_app(self, app: ASGIApp | asgitypes.ASGI3Application):
@@ -447,7 +448,6 @@ class Server(Service, RouterMixin):
             self.routes[Api.UPLOAD_CREATE.value] = self._default_upload_create_handler
 
         async with self.stage("preparing"):
-            asgi_service = manager.get_component(UvicornASGIService)
             self.app.routes.extend(
                 [
                     *chain.from_iterable(ada.get_routes() for ada in self._adapters),
@@ -481,7 +481,7 @@ class Server(Service, RouterMixin):
             )
             for path, file in self.resources.items():
                 self.app.mount(path, StaticFiles(directory=file.parent, html=file.suffix == ".html"))
-            asgi_service.middleware.mounts[""] = self.app  # type: ignore
+            self.asgi_service.middleware.mounts[""] = self.app  # type: ignore
 
         async def event_task(_provider: Provider):
             async for event in _provider.publisher():
@@ -511,7 +511,7 @@ class Server(Service, RouterMixin):
 
         async with self.stage("cleanup"):
             with suppress(KeyError):
-                del asgi_service.middleware.mounts[""]
+                del self.asgi_service.middleware.mounts[""]
             await self.session.close()
             self._tempdir.cleanup()
 
@@ -524,7 +524,7 @@ class Server(Service, RouterMixin):
     ):
         if manager is None:
             manager = it(Launart)
-        manager.add_component(UvicornASGIService(self.host, self.port, options=self.uvicorn_options))
+        manager.add_component(self.asgi_service)
         manager.add_component(self)
         with suppress(ValueError):
             manager.add_component(AiohttpClientService())
@@ -537,7 +537,7 @@ class Server(Service, RouterMixin):
     ):
         if manager is None:
             manager = it(Launart)
-        manager.add_component(UvicornASGIService(self.host, self.port, options=self.uvicorn_options))
+        manager.add_component(self.asgi_service)
         manager.add_component(self)
         with suppress(ValueError):
             manager.add_component(AiohttpClientService())

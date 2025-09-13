@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast, overload
 from typing_extensions import deprecated
 
-from aiohttp import ClientTimeout, FormData
+from aiohttp import ClientTimeout, ClientSession, FormData
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart import Launart
 
@@ -39,6 +39,11 @@ if TYPE_CHECKING:
 class ApiProtocol:
     def __init__(self, account: Account):
         self.account = account
+        try:
+            self.session = Launart.current().get_component(AiohttpClientService).session
+        except (LookupError, ValueError):
+            self.session = ClientSession()
+        self.timeout = ClientTimeout(self.account.config.timeout or 300)
 
     async def download(self, url: str):
         """访问资源链接。"""
@@ -67,7 +72,7 @@ class ApiProtocol:
             "Satori-Platform": self.account.platform,
             "Satori-User-ID": self.account.self_id,
         }
-        aio = Launart.current().get_component(AiohttpClientService)
+
         if multipart:
             data = FormData(quote_fields=False)
             if params is None:
@@ -78,19 +83,19 @@ class ApiProtocol:
                     data.add_field(k, v["value"], filename=v.get("filename"), content_type=v["content_type"])
                 else:
                     data.add_field(k, v)
-            async with aio.session.post(
+            async with self.session.post(
                 endpoint,
                 data=data,
                 headers=headers,
-                timeout=ClientTimeout(self.account.config.timeout or 300),
+                timeout=self.timeout,
             ) as resp:
                 return await validate_response(resp)
-        async with aio.session.request(
+        async with self.session.request(
             method,
             endpoint,
             json=params or {},
             headers=headers,
-            timeout=ClientTimeout(self.account.config.timeout or 300),
+            timeout=self.timeout,
         ) as resp:
             return await validate_response(resp)
 

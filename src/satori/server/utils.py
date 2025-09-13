@@ -33,6 +33,9 @@ if __name__ == "__main__":
     d.append(0)
     d.append(1)
     d.append(2)
+    print(d.after(0))  # noqa: T201
     d.append(3)
     d.append(4)
     d.append(5)
+    print(d.data)  # noqa: T201
+    print(d.after(2))  # noqa: T201

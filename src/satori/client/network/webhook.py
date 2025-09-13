@@ -64,7 +64,6 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
                 logger.trace(f"Failed to parse event: {body}\nCaused by {e!r}")
             return web.Response(status=500, reason=f"Failed to parse event caused by {e!r}")
         else:
-            logger.trace(f"Received event: {event}")
             self.sequence = event.sn
         asyncio.create_task(self.app.post(event, self))
         return web.Response()
