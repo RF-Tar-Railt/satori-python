@@ -215,7 +215,7 @@ class Server(Service, RouterMixin):
         """在指定路径挂载静态文件"""
         self.resources[route_path] = file
 
-    async def event_callback(self, event: Event):
+    async def post(self, event: Event):
         event.sn = self._sequence
         self._event_cache.append(event)
         self._sequence += 1
@@ -484,8 +484,12 @@ class Server(Service, RouterMixin):
             self.asgi_service.middleware.mounts[""] = self.app  # type: ignore
 
         async def event_task(_provider: Provider):
-            async for event in _provider.publisher():
-                await self.event_callback(event)
+            async for event in _provider.publisher():  # type: ignore
+                await self.post(event)
+
+        event_tasks = [
+            event_task(_provider) for _provider in self.providers if hasattr(_provider, "publisher")
+        ]
 
         async with self.stage("blocking"):
             proxy_urls = []
@@ -505,7 +509,7 @@ class Server(Service, RouterMixin):
                     resp.raise_for_status()
             await any_completed(
                 manager.status.wait_for_sigexit(),
-                *(event_task(provider) for provider in self.providers),
+                *event_tasks,
                 *(_adapter.status.wait_for("blocking-completed") for _adapter in self._adapters),
             )
 

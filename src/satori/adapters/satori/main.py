@@ -1,4 +1,3 @@
-import asyncio
 from typing import cast
 
 from launart import Launart, any_completed
@@ -26,11 +25,10 @@ class SatoriAdapter(BaseAdapter):
     ):
         super().__init__()
         self.app = App(WebsocketsInfo(host, port, path, token), main_app=False)
-        self.queue = asyncio.Queue()
 
         @self.app.register
         async def _(acc, event):
-            await self.queue.put(event)
+            await self.server.post(event)
 
         self.routes |= {api.value: self._handle_request for api in Api.__members__.values()}
         if not post_upload:
@@ -48,11 +46,6 @@ class SatoriAdapter(BaseAdapter):
         if acc := self.account:
             return acc.self_info.platform
         return "satori"
-
-    async def publisher(self):
-        while True:
-            event = await self.queue.get()
-            yield event
 
     def ensure(self, platform: str, self_id: str) -> bool:
         if not (acc := self.account):

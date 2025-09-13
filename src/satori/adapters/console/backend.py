@@ -68,7 +68,7 @@ class SatoriConsoleBackend(Backend):
             )
             self.sn += 1
             self.logins[bot.id] = login
-            await self._adapter.queue.put(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+            await self._adapter.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
 
     async def on_console_mount(self):
         logger.success("Console mounted.")
@@ -83,7 +83,7 @@ class SatoriConsoleBackend(Backend):
             self._origin_sink = None
         for login in self.logins.values():
             login.status = LoginStatus.OFFLINE
-            await self._adapter.queue.put(
+            await self._adapter.server.post(
                 Event(
                     EventType.LOGIN_REMOVED,
                     datetime.now(),
@@ -107,7 +107,7 @@ class SatoriConsoleBackend(Backend):
         if isinstance(event, ConsoleMessageEvent):
             message = MessageObject(event.message_id, encode_message(event.message))
             if event.channel == DIRECT:
-                await self._adapter.queue.put(
+                await self._adapter.server.post(
                     Event(
                         EventType.MESSAGE_CREATED,
                         event.time,
@@ -132,7 +132,7 @@ class SatoriConsoleBackend(Backend):
                     type=ChannelType.TEXT,
                     name=event.channel.name,
                 )
-                await self._adapter.queue.put(
+                await self._adapter.server.post(
                     Event(
                         EventType.MESSAGE_CREATED,
                         event.time,
@@ -145,7 +145,7 @@ class SatoriConsoleBackend(Backend):
                     )
                 )
         else:
-            await self._adapter.queue.put(
+            await self._adapter.server.post(
                 Event(
                     EventType.INTERNAL,
                     event.time,

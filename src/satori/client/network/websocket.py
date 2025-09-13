@@ -85,7 +85,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
         """鉴权连接"""
         if not self.connection:
             raise RuntimeError("connection is not established")
-        payload = Identify(self.config.token)
+        payload = Identify(token=self.config.token)
         if self.sequence > -1:
             payload.sn = self.sequence
         try:

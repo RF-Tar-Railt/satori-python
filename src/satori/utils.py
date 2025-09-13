@@ -14,11 +14,15 @@ def get_public_ip():
 
 
 try:
-    from msgspec.json import decode  # noqa: F401
-    from msgspec.json import encode as msgspec_encode
+    from msgspec.json import Decoder, Encoder  # noqa: F401
+
+    decoder = Decoder()
+    encoder = Encoder()
+
+    decode = decoder.decode
 
     def encode(obj):
-        return msgspec_encode(obj).decode()
+        return encoder.encode(obj).decode()
 
 except ImportError:
     import json

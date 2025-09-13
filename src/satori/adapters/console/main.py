@@ -22,7 +22,6 @@ class ConsoleAdapter(BaseAdapter):
             ConsoleSetting(**kwargs),
         )
         self.app.backend.set_adapter(self)
-        self.queue = asyncio.Queue()
         self._logger_id = logger_id
         apply(self)
 
@@ -32,11 +31,6 @@ class ConsoleAdapter(BaseAdapter):
 
     def get_platform(self) -> str:
         return "console"
-
-    async def publisher(self):
-        while True:
-            event = await self.queue.get()
-            yield event
 
     def ensure(self, platform: str, self_id: str) -> bool:
         return platform == "console" and self_id in self.app.backend.logins

@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast, overload
 from typing_extensions import deprecated
 
-from aiohttp import ClientTimeout, ClientSession, FormData
+from aiohttp import ClientSession, ClientTimeout, FormData
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart import Launart
 

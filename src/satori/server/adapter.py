@@ -1,12 +1,11 @@
 from abc import abstractmethod
-from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Union
 
 from launart import Service
 from starlette.responses import Response
 from starlette.routing import BaseRoute
 
-from satori.model import Event, Login, LoginPartial
+from satori.model import Login, LoginPartial
 
 from .model import Request
 from .route import RouterMixin
@@ -24,9 +23,6 @@ class Adapter(Service, RouterMixin):
 
     @abstractmethod
     def get_platform(self) -> str: ...
-
-    @abstractmethod
-    def publisher(self) -> AsyncIterator[Event]: ...
 
     @abstractmethod
     def ensure(self, platform: str, self_id: str) -> bool: ...

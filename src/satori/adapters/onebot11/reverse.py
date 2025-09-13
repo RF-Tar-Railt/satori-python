@@ -62,7 +62,7 @@ class _Connection:
                             features=["guild.plain"],
                         )
                         self.adapter.logins[self_id] = login
-                        self.adapter.queue.put_nowait(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+                        await self.adapter.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
                 elif event_type == "meta_event.lifecycle.enable":
                     logger.warning(
                         f"received lifecycle.enable event that is only supported in http adapter: {data}"
@@ -90,7 +90,7 @@ class _Connection:
                             features=["guild.plain"],
                         )
                         self.adapter.logins[self_id] = login
-                        self.adapter.queue.put_nowait(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+                        await self.adapter.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
                     logger.trace(f"received heartbeat from {self_id}")
                 else:
                     self_id = str(data["self_id"])
@@ -104,7 +104,7 @@ class _Connection:
                     else:
                         event = await handler(login, self, data)
                     if event:
-                        self.adapter.queue.put_nowait(event)
+                        await self.adapter.server.post(event)
 
             asyncio.create_task(event_parse_task(data))
 
@@ -140,16 +140,10 @@ class OneBot11ReverseAdapter(BaseAdapter):
         super().__init__()
         self.endpoint = URL(prefix) / path / endpoint
         self.access_token = access_token
-        self.queue: asyncio.Queue[Event] = asyncio.Queue()
         self.logins: dict[str, Login] = {}
         self.connections: dict[str, _Connection] = {}
 
         apply(self, lambda _: self.connections[_], lambda _: self.logins[_])
-
-    async def publisher(self):
-        while True:
-            event = await self.queue.get()
-            yield event
 
     def ensure(self, platform: str, self_id: str) -> bool:
         return platform == "onebot" and self_id in self.logins
@@ -189,7 +183,7 @@ class OneBot11ReverseAdapter(BaseAdapter):
             del self.connections[account_id]
             logger.info(f"Websocket {ws} closed")
             self.logins[account_id].status = LoginStatus.OFFLINE
-            self.queue.put_nowait(Event(EventType.LOGIN_REMOVED, datetime.now(), self.logins[account_id]))
+            await self.server.post(Event(EventType.LOGIN_REMOVED, datetime.now(), self.logins[account_id]))
             await asyncio.sleep(1)
 
     async def launch(self, manager: Launart):

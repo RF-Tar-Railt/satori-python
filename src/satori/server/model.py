@@ -1,4 +1,3 @@
-from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, runtime_checkable
 
@@ -6,7 +5,7 @@ from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response
 
 from satori.const import Api
-from satori.model import Event, Login
+from satori.model import Login
 
 if TYPE_CHECKING:
     from .route import RouteCall
@@ -26,8 +25,6 @@ class Request(Generic[TP]):
 
 @runtime_checkable
 class Provider(Protocol):
-    def publisher(self) -> AsyncIterator[Event]: ...
-
     async def get_logins(self) -> list[Login]: ...
 
     @staticmethod

@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 
-from launart import Launart
+from launart import Launart, any_completed
 
 from satori import Api, Channel, ChannelType, Event, User
 from satori.model import Login, LoginStatus, MessageObject
@@ -35,20 +35,24 @@ class ExampleAdapter(Adapter):
         async def _(request: Request[route.MessageParam]):
             return [MessageObject("1234", request.params["content"])]
 
-    async def publisher(self):
+    async def publish(self):
         seq = 0
         while True:
             await asyncio.sleep(2)
-            yield Event(
-                "message-created",
-                datetime.now(),
-                (await self.get_logins())[0],
-                channel=Channel("345678", ChannelType.TEXT),
-                user=User("9876543210"),
-                message=MessageObject(f"msg_{seq}", "test"),
+            await self.server.post(
+                Event(
+                    "message-created",
+                    datetime.now(),
+                    (await self.get_logins())[0],
+                    channel=Channel("345678", ChannelType.TEXT),
+                    user=User("9876543210"),
+                    message=MessageObject(f"msg_{seq}", "test"),
+                )
             )
             seq += 1
 
     async def launch(self, manager: Launart):
         async with self.stage("blocking"):
-            await manager.status.wait_for_sigexit()
+            event_task = asyncio.create_task(self.publish())
+            exit_task = asyncio.create_task(manager.status.wait_for_sigexit())
+            await any_completed(event_task, exit_task)
