@@ -642,9 +642,7 @@ class ApiProtocol:
             {"channel_id": channel_id, "message_id": message_id, "emoji": emoji},
         )
 
-    async def reaction_delete(
-        self, channel_id: str, message_id: str, emoji: str, user_id: str | None = None
-    ) -> None:
+    async def reaction_delete(self, channel_id: str, message_id: str, emoji: str, user_id: str | None = None) -> None:
         """从特定消息删除某个用户添加的特定表态。
 
         如果没有传入用户 ID 则表示删除自己的表态。

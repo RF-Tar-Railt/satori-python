@@ -75,9 +75,7 @@ class App(Service):
     def register_config(cls, tc: type[TConfig], tn: type[BaseNetwork[TConfig]]):
         MAPPING[tc] = tn
 
-    def __init__(
-        self, *configs: Config, default_api_cls: type[ApiProtocol] = ApiProtocol, main_app: bool = True
-    ):
+    def __init__(self, *configs: Config, default_api_cls: type[ApiProtocol] = ApiProtocol, main_app: bool = True):
         global _app
 
         if _app is not None and main_app:
@@ -136,9 +134,7 @@ class App(Service):
     @overload
     def register_on(
         self,
-        event_type: Literal[
-            EventType.GUILD_ROLE_CREATED, EventType.GUILD_ROLE_DELETED, EventType.GUILD_ROLE_UPDATED
-        ],
+        event_type: Literal[EventType.GUILD_ROLE_CREATED, EventType.GUILD_ROLE_DELETED, EventType.GUILD_ROLE_UPDATED],
     ) -> Callable[
         [Callable[[Account, events.GuildRoleEvent], Awaitable[Any]]],
         Callable[[Account, events.GuildRoleEvent], Awaitable[Any]],
@@ -162,9 +158,7 @@ class App(Service):
     ]: ...
 
     @overload
-    def register_on(
-        self, event_type: Literal[EventType.REACTION_ADDED, EventType.REACTION_REMOVED]
-    ) -> Callable[
+    def register_on(self, event_type: Literal[EventType.REACTION_ADDED, EventType.REACTION_REMOVED]) -> Callable[
         [Callable[[Account, events.ReactionEvent], Awaitable[Any]]],
         Callable[[Account, events.ReactionEvent], Awaitable[Any]],
     ]: ...
@@ -190,14 +184,10 @@ class App(Service):
     @overload
     def register_on(
         self, event_type: str
-    ) -> Callable[
-        [Callable[[Account, Event], Awaitable[Any]]], Callable[[Account, Event], Awaitable[Any]]
-    ]: ...
+    ) -> Callable[[Callable[[Account, Event], Awaitable[Any]]], Callable[[Account, Event], Awaitable[Any]]]: ...
 
     def register_on(self, event_type: str | EventType):
-        def decorator(
-            func: Callable[[Account, Any], Awaitable[Any]], /
-        ) -> Callable[[Account, Any], Awaitable[Any]]:
+        def decorator(func: Callable[[Account, Any], Awaitable[Any]], /) -> Callable[[Account, Any], Awaitable[Any]]:
             @wraps(func)
             async def wrapper(account: Account, event: Event) -> Any:
                 if event.type == event_type:

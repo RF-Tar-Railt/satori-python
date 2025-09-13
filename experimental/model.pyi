@@ -3,8 +3,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import IntEnum
 from os import PathLike
-from typing import IO, Any, Callable, Generic, Literal, Optional, TypeVar, Union, AsyncIterator
-from typing_extensions import TypeAlias, Self
+from typing import IO, Any, Generic, Literal, TypeVar
+from collections.abc import Callable, AsyncIterator
+from typing_extensions import Self
+from typing import TypeAlias
 
 from satori.element import Element
 
@@ -27,41 +29,41 @@ class ChannelType(IntEnum):
 class Channel(ModelBase):
     id: str
     type: ChannelType = ChannelType.TEXT
-    name: Optional[str] = None
-    parent_id: Optional[str] = None
+    name: str | None = None
+    parent_id: str | None = None
 
 
 @dataclass(kw_only=True)
 class Guild(ModelBase):
     id: str
-    name: Optional[str] = None
-    avatar: Optional[str] = None
+    name: str | None = None
+    avatar: str | None = None
 
 
 
 @dataclass(kw_only=True)
 class User(ModelBase):
     id: str
-    name: Optional[str] = None
-    nick: Optional[str] = None
-    avatar: Optional[str] = None
-    is_bot: Optional[bool] = None
+    name: str | None = None
+    nick: str | None = None
+    avatar: str | None = None
+    is_bot: bool | None = None
 
 
 
 @dataclass(kw_only=True)
 class Member(ModelBase):
-    user: Optional[User] = None
-    nick: Optional[str] = None
-    avatar: Optional[str] = None
-    joined_at: Optional[datetime] = None
+    user: User | None = None
+    nick: str | None = None
+    avatar: str | None = None
+    joined_at: datetime | None = None
 
 
 
 @dataclass(kw_only=True)
 class Role(ModelBase):
     id: str
-    name: Optional[str] = None
+    name: str | None = None
 
 
 
@@ -93,8 +95,8 @@ class Login(ModelBase):
 
 @dataclass(kw_only=True)
 class LoginPartial(Login):
-    platform: Optional[str] = None
-    user: Optional[User] = None
+    platform: str | None = None
+    user: User | None = None
 
 
 @dataclass(kw_only=True)
@@ -126,12 +128,12 @@ class Opcode(IntEnum):
 
 @dataclass(kw_only=True)
 class Identify(ModelBase):
-    token: Optional[str] = None
-    sn: Optional[int] = None
+    token: str | None = None
+    sn: int | None = None
 
 
     @property
-    def sequence(self) -> Optional[int]: ...
+    def sequence(self) -> int | None: ...
 
 @dataclass(kw_only=True)
 class Ready(ModelBase):
@@ -159,25 +161,25 @@ class Meta(ModelBase):
 class MessageObject(ModelBase):
     id: str
     content: str
-    channel: Optional[Channel] = None
-    guild: Optional[Guild] = None
-    member: Optional[Member] = None
-    user: Optional[User] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    channel: Channel | None = None
+    guild: Guild | None = None
+    member: Member | None = None
+    user: User | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     @classmethod
     def from_elements(
         cls,
         id: str,
         content: list[Element],
-        channel: Optional[Channel] = None,
-        guild: Optional[Guild] = None,
-        member: Optional[Member] = None,
-        user: Optional[User] = None,
-        created_at: Optional[datetime] = None,
-        updated_at: Optional[datetime] = None,
-    ) -> "MessageObject": ...
+        channel: Channel | None = None,
+        guild: Guild | None = None,
+        member: Member | None = None,
+        user: User | None = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
+    ) -> MessageObject: ...
 
     @property
     def message(self) -> list[Element]: ...
@@ -189,20 +191,20 @@ class MessageObject(ModelBase):
 @dataclass(kw_only=True)
 class MessageReceipt(ModelBase):
     id: str
-    content: Optional[str] = None
+    content: str | None = None
 
     @classmethod
     def from_elements(
         cls,
         id: str,
-        content: Optional[list[Element]] = None,
-    ) -> "MessageReceipt": ...
+        content: list[Element] | None = None,
+    ) -> MessageReceipt: ...
 
     @property
-    def message(self) -> Optional[list[Element]]: ...
+    def message(self) -> list[Element] | None: ...
 
     @message.setter
-    def message(self, value: Optional[list[Element]]): ...
+    def message(self, value: list[Element] | None): ...
 
 
 @dataclass(kw_only=True)
@@ -210,18 +212,18 @@ class Event(ModelBase):
     type: str
     timestamp: datetime
     login: Login
-    argv: Optional[ArgvInteraction] = None
-    button: Optional[ButtonInteraction] = None
-    channel: Optional[Channel] = None
-    guild: Optional[Guild] = None
-    member: Optional[Member] = None
-    message: Optional[MessageObject] = None
-    operator: Optional[User] = None
-    role: Optional[Role] = None
-    user: Optional[User] = None
+    argv: ArgvInteraction | None = None
+    button: ButtonInteraction | None = None
+    channel: Channel | None = None
+    guild: Guild | None = None
+    member: Member | None = None
+    message: MessageObject | None = None
+    operator: User | None = None
+    role: Role | None = None
+    user: User | None = None
 
-    _type: Optional[str] = None
-    _data: Optional[dict] = None
+    _type: str | None = None
+    _data: dict | None = None
 
     sn: int = 0
 
@@ -239,25 +241,25 @@ T = TypeVar("T", bound=ModelBase)
 @dataclass
 class PageResult(ModelBase, Generic[T]):
     data: list[T]
-    next: Optional[str] = None
+    next: str | None = None
 
     @classmethod
-    def parse(cls, raw: dict, parser: Optional[Callable[[dict], T]] = None) -> "PageResult[T]": ...
+    def parse(cls, raw: dict, parser: Callable[[dict], T] | None = None) -> PageResult[T]: ...
 
 
 @dataclass
 class PageDequeResult(PageResult[T]):
-    prev: Optional[str] = None
+    prev: str | None = None
 
     @classmethod
-    def parse(cls, raw: dict, parser: Optional[Callable[[dict], T]] = None) -> "PageDequeResult[T]": ...
+    def parse(cls, raw: dict, parser: Callable[[dict], T] | None = None) -> PageDequeResult[T]: ...
 
 
 class IterablePageResult(Generic[T], AsyncIterable[T], Awaitable[PageResult[T]]):
-    func: Callable[[Optional[str]], Awaitable[PageResult[T]]]
-    next_page: Optional[str]
+    func: Callable[[str | None], Awaitable[PageResult[T]]]
+    next_page: str | None
 
-    def __init__(self, func: Callable[[Optional[str]], Awaitable[PageResult[T]]], initial_page: Optional[str] = None): ...
+    def __init__(self, func: Callable[[str | None], Awaitable[PageResult[T]]], initial_page: str | None = None): ...
 
     def __await__(self): ...
 
@@ -270,8 +272,8 @@ Order: TypeAlias = Literal["asc", "desc"]
 
 @dataclass
 class Upload:
-    file: Union[bytes, IO[bytes], PathLike]
+    file: bytes | IO[bytes] | PathLike
     mimetype: str = "image/png"
-    name: Optional[str] = None
+    name: str | None = None
 
     def dump(self) -> dict[str, Any]: ...

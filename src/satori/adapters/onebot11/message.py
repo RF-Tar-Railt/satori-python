@@ -233,9 +233,7 @@ class OneBot11MessageEncoder:
             if "type" in attrs and attrs["type"] == "all":
                 self.children.append({"type": "at", "data": {"qq": "all"}})
             else:
-                self.children.append(
-                    {"type": "at", "data": {"qq": int(attrs["id"]), "name": attrs.get("name")}}
-                )
+                self.children.append({"type": "at", "data": {"qq": int(attrs["id"]), "name": attrs.get("name")}})
         elif type_ == "sharp":
             if "id" in attrs:
                 self.children.append({"type": "text", "data": {"text": attrs["id"]}})
@@ -333,9 +331,7 @@ async def _decode(content: list[MessageSegment], net: OneBotNetwork) -> list[Ele
                     msg["sender"]["nickname"],
                     USER_AVATAR_URL.format(uin=msg["sender"]["user_id"]),
                 )
-                result.append(
-                    E.quote(seg_data["id"], content=[author, *(await _decode(msg["message"], net))])
-                )
+                result.append(E.quote(seg_data["id"], content=[author, *(await _decode(msg["message"], net))]))
         else:
             result.append(Custom(f"onebot:{seg_type}", seg_data))
     return result

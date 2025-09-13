@@ -28,15 +28,11 @@ def camel_case(source: str) -> str:
 
 
 def param_case(source: str) -> str:
-    return re.sub(
-        ".[A-Z]+", lambda mat: mat[0][0] + "-" + mat[0][1:].lower(), uncapitalize(source).replace("_", "-")
-    )
+    return re.sub(".[A-Z]+", lambda mat: mat[0][0] + "-" + mat[0][1:].lower(), uncapitalize(source).replace("_", "-"))
 
 
 def snake_case(source: str) -> str:
-    return re.sub(
-        ".[A-Z]", lambda mat: mat[0][0] + "_" + mat[0][1:].lower(), uncapitalize(source).replace("-", "_")
-    )
+    return re.sub(".[A-Z]", lambda mat: mat[0][0] + "_" + mat[0][1:].lower(), uncapitalize(source).replace("-", "_"))
 
 
 def ensure_list(value: T | list[T] | None) -> list[T]:
@@ -236,9 +232,7 @@ tag_pat2 = re.compile(
     r"(?P<comment><!--[\s\S]*?-->)|(?P<tag><(/?)([^!\s>/]*)([^>]*?)\s*(/?)>)|(?P<curly>\{(?P<derivative>[@:/#][^\s\}]*)?[\s\S]*?\})"
 )
 attr_pat1 = re.compile(r"([^\s=]+)(?:=\"(?P<value1>[^\"]*)\"|='(?P<value2>[^']*)')?", re.S)
-attr_pat2 = re.compile(
-    r"([^\s=]+)(?:=\"(?P<value1>[^\"]*)\"|='(?P<value2>[^']*)'|=\{(?P<curly>[^\}]+)\})?", re.S
-)
+attr_pat2 = re.compile(r"([^\s=]+)(?:=\"(?P<value1>[^\"]*)\"|='(?P<value2>[^']*)'|=\{(?P<curly>[^\}]+)\})?", re.S)
 
 
 class Position(IntEnum):

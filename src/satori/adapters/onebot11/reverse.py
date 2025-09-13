@@ -64,14 +64,10 @@ class _Connection:
                         self.adapter.logins[self_id] = login
                         await self.adapter.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
                 elif event_type == "meta_event.lifecycle.enable":
-                    logger.warning(
-                        f"received lifecycle.enable event that is only supported in http adapter: {data}"
-                    )
+                    logger.warning(f"received lifecycle.enable event that is only supported in http adapter: {data}")
                     return
                 elif event_type == "meta_event.lifecycle.disable":
-                    logger.warning(
-                        f"received lifecycle.disable event that is only supported in http adapter: {data}"
-                    )
+                    logger.warning(f"received lifecycle.disable event that is only supported in http adapter: {data}")
                     return
                 elif event_type == "meta_event.heartbeat":
                     self_id = str(data["self_id"])
@@ -207,9 +203,7 @@ class OneBot11ReverseAdapter(BaseAdapter):
     async def handle_internal(self, request: Request, path: str) -> Response:
         if path.startswith("_api"):
             self_id = request.self_id
-            return JSONResponse(
-                await self.connections[self_id].call_api(path[5:], decode(await request.origin.body()))
-            )
+            return JSONResponse(await self.connections[self_id].call_api(path[5:], decode(await request.origin.body())))
         async with self.server.session.get(path) as resp:
             return Response(await resp.read())
 

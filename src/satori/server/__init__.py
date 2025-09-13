@@ -60,9 +60,7 @@ _T_ws_endpoint = TypeVar("_T_ws_endpoint", bound=Callable[[WebSocket], Awaitable
 StarletteResponse = Response
 
 
-async def _request_handler(
-    action: str, request: StarletteRequest, func: RouteCall, platform: str, self_id: str
-):
+async def _request_handler(action: str, request: StarletteRequest, func: RouteCall, platform: str, self_id: str):
     if action == Api.UPLOAD_CREATE.value:
         async with request.form() as form:
             res = await func(
@@ -170,9 +168,7 @@ class Server(Service, RouterMixin):
         """
 
         def wrapper(endpoint: _T_endpoint, /) -> _T_endpoint:
-            self.app.add_route(
-                path, endpoint, methods=methods, name=name, include_in_schema=include_in_schema
-            )
+            self.app.add_route(path, endpoint, methods=methods, name=name, include_in_schema=include_in_schema)
             return endpoint
 
         return wrapper
@@ -321,8 +317,7 @@ class Server(Service, RouterMixin):
             resp = await self.fetch_proxy(url, request)
             # if content size > stream_limit, use streaming response
             if (
-                isinstance(resp, (PlainTextResponse, HTMLResponse, JSONResponse))
-                or resp.__class__ is Response
+                isinstance(resp, (PlainTextResponse, HTMLResponse, JSONResponse)) or resp.__class__ is Response
             ) and len(resp.body) > self.stream_threshold:
 
                 async def iter_content(body: bytes):
@@ -487,9 +482,7 @@ class Server(Service, RouterMixin):
             async for event in _provider.publisher():  # type: ignore
                 await self.post(event)
 
-        event_tasks = [
-            event_task(_provider) for _provider in self.providers if hasattr(_provider, "publisher")
-        ]
+        event_tasks = [event_task(_provider) for _provider in self.providers if hasattr(_provider, "publisher")]
 
         async with self.stage("blocking"):
             proxy_urls = []

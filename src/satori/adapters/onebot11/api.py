@@ -82,9 +82,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
                 channel=Channel(f"private:{sender['user_id']}", ChannelType.DIRECT, sender["nickname"]),
             )
         member = Member(user, sender["nickname"], USER_AVATAR_URL.format(uin=sender["user_id"]))
-        guild = Guild(
-            request.params["channel_id"], avatar=GROUP_AVATAR_URL.format(group=request.params["channel_id"])
-        )
+        guild = Guild(request.params["channel_id"], avatar=GROUP_AVATAR_URL.format(group=request.params["channel_id"]))
         channel = Channel(request.params["channel_id"], ChannelType.TEXT)
         return MessageObject(
             request.params["message_id"],
@@ -120,9 +118,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
         result = await net.call_api("get_group_info", {"group_id": int(request.params["guild_id"])})
         if not result:
             raise RuntimeError(f"Failed to get group {request.params['guild_id']}")
-        return Guild(
-            str(result["group_id"]), result["group_name"], GROUP_AVATAR_URL.format(group=result["group_id"])
-        )
+        return Guild(str(result["group_id"]), result["group_name"], GROUP_AVATAR_URL.format(group=result["group_id"]))
 
     @adapter.route(Api.USER_CHANNEL_CREATE)
     async def user_channel_create(request: Request[UserChannelCreateParam]):
@@ -151,9 +147,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
         result: list[dict] = await net.call_api("get_group_list", {})  # type: ignore
         return PageResult(
             [
-                Guild(
-                    str(item["group_id"]), item["group_name"], GROUP_AVATAR_URL.format(group=item["group_id"])
-                )
+                Guild(str(item["group_id"]), item["group_name"], GROUP_AVATAR_URL.format(group=item["group_id"]))
                 for item in result
             ]
         )
@@ -190,9 +184,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
             raise RuntimeError(
                 f"Failed to get member {request.params['user_id']} in group {request.params['guild_id']}"
             )
-        user = User(
-            str(result["user_id"]), result["nickname"], avatar=USER_AVATAR_URL.format(uin=result["user_id"])
-        )
+        user = User(str(result["user_id"]), result["nickname"], avatar=USER_AVATAR_URL.format(uin=result["user_id"]))
         return Member(user, result["card"], user.avatar, datetime.fromtimestamp(result["join_time"]))
 
     @adapter.route(Api.GUILD_MEMBER_LIST)

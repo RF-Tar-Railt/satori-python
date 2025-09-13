@@ -69,19 +69,19 @@ source = "file"
 path = "src/satori/__init__.py"
 
 [tool.black]
-line-length = 110
+line-length = 120
 include = '\.pyi?$'
 extend-exclude = '''
 '''
 
 [tool.isort]
 profile = "black"
-line_length = 110
+line_length = 120
 skip_gitignore = true
 extra_standard_library = ["typing_extensions"]
 
 [tool.ruff]
-line-length = 110
+line-length = 120
 target-version = "py310"
 exclude = ["exam.py"]
 

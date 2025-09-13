@@ -51,9 +51,7 @@ class Account(Generic[TP]):
     def self_id(self):
         return self.self_info.user.id
 
-    def custom(
-        self, config: ApiInfo | None = None, protocol_cls: type[TP1] = ApiProtocol, **kwargs
-    ) -> Account[TP1]:
+    def custom(self, config: ApiInfo | None = None, protocol_cls: type[TP1] = ApiProtocol, **kwargs) -> Account[TP1]:
         return Account(
             self.self_info,
             config or (ApiInfo(**kwargs) if kwargs else self.config),

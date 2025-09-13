@@ -81,9 +81,7 @@ class SatoriAdapter(BaseAdapter):
             except ActionFailed as e:
                 return Response(str(e), status_code=500)
         if acc := self.account:
-            return Response(
-                await self.account.protocol.download(f"internal:{acc.platform}/{acc.self_id}/{path}")
-            )
+            return Response(await self.account.protocol.download(f"internal:{acc.platform}/{acc.self_id}/{path}"))
         async with self.server.session.get(path) as resp:
             return Response(await resp.read())
 

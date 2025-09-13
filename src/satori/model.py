@@ -513,9 +513,7 @@ class PageDequeResult(PageResult[T]):
 
 
 class IterablePageResult(Generic[T], AsyncIterable[T], Awaitable[PageResult[T]]):
-    def __init__(
-        self, func: Callable[[str | None], Awaitable[PageResult[T]]], initial_page: str | None = None
-    ):
+    def __init__(self, func: Callable[[str | None], Awaitable[PageResult[T]]], initial_page: str | None = None):
         self.func = func
         self.next_page = initial_page
 

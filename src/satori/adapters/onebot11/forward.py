@@ -89,14 +89,10 @@ class OneBot11ForwardAdapter(BaseAdapter):
                         self.logins[self_id] = login
                         await self.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
                 elif event_type == "meta_event.lifecycle.enable":
-                    logger.warning(
-                        f"received lifecycle.enable event that is only supported in http adapter: {data}"
-                    )
+                    logger.warning(f"received lifecycle.enable event that is only supported in http adapter: {data}")
                     return
                 elif event_type == "meta_event.lifecycle.disable":
-                    logger.warning(
-                        f"received lifecycle.disable event that is only supported in http adapter: {data}"
-                    )
+                    logger.warning(f"received lifecycle.disable event that is only supported in http adapter: {data}")
                     return
                 elif event_type == "meta_event.heartbeat":
                     self_id = str(data["self_id"])
