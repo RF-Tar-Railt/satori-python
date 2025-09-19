@@ -23,7 +23,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
 
     @property
     def id(self):
-        return f"satori/network/ws/{self.config.identity}#{id(self)}"
+        return f"satori/net/ws/{self.config.identity}#{id(self):x}"
 
     connection: aiohttp.ClientWebSocketResponse | None = None
 
@@ -107,7 +107,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
         for login in ready.logins:
             if not login.user:
                 continue
-            login_sn = f"{login.user.id}@{id(self)}"
+            login_sn = f"{login.user.id}@{id(self):x}"
             if login_sn in self.app.accounts:
                 account = self.app.accounts[login_sn]
                 self.accounts[login_sn] = account
@@ -162,7 +162,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                         self.close_signal.set()
                         self.connection = None
                         for v in list(self.app.accounts.values()):
-                            if (identity := f"{v.self_id}@{id(self)}") in self.accounts:
+                            if (identity := f"{v.self_id}@{id(self):x}") in self.accounts:
                                 v.connected.clear()
                                 await self.app.account_update(v, LoginStatus.OFFLINE)
                                 del self.app.accounts[identity]
@@ -170,7 +170,7 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                         return
                     if close_task in done:
                         receiver_task.cancel()
-                        logger.warning(f"{self} Connection closed by server, will reconnect in 5 seconds...")
+                        logger.warning(f"{self.id} Connection closed by server, will reconnect in 5 seconds...")
                         for k in self.accounts.keys():
                             logger.debug(f"Unregistering satori account {k}...")
                             account = self.app.accounts[k]
@@ -178,12 +178,12 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                             await self.app.account_update(account, LoginStatus.RECONNECT)
                         self.accounts.clear()
                         await asyncio.sleep(5)
-                        logger.info(f"{self} Reconnecting...")
+                        logger.info(f"{self.id} Reconnecting...")
                         continue
             except Exception as e:
-                logger.error(f"{self} Error while connecting: {e}")
+                logger.error(f"{self.id} Error while connecting: {e}")
                 await asyncio.sleep(5)
-                logger.info(f"{self} Reconnecting...")
+                logger.info(f"{self.id} Reconnecting...")
 
     async def launch(self, manager: Launart):
         async with self.stage("preparing"):

@@ -264,7 +264,7 @@ class Server(Service, RouterMixin):
             {"op": Opcode.READY, "body": {"logins": [lo.dump() for lo in logins], "proxy_urls": proxy_urls}}
         )
         self.connections.append(connection)
-        logger.debug(f"New connection: {id(connection)}")
+        logger.debug(f"New connection: {id(connection):x}")
         heartbeat_task = asyncio.create_task(connection.heartbeat())
         close_task = asyncio.create_task(connection.close_signal.wait())
         try:
@@ -281,7 +281,7 @@ class Server(Service, RouterMixin):
             await any_completed(heartbeat_task, close_task)
         finally:
             await connection.connection_closed()
-            logger.debug(f"Connection closed: {id(connection)}")
+            logger.debug(f"Connection closed: {id(connection):x}")
             heartbeat_task.cancel()
             close_task.cancel()
             self.connections.remove(connection)

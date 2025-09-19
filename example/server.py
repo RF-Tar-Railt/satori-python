@@ -38,7 +38,7 @@ class ExampleProvider:
                 (await self.get_logins())[0],
                 channel=Channel("345678", ChannelType.TEXT),
                 user=User("9876543210"),
-                message=MessageObject(f"msg_{seq}", "/hitokoto"),
+                message=MessageObject(f"msg_{seq}", "<i>123</i>"),
             )
             seq += 1
 

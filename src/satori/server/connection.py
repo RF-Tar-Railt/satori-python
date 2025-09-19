@@ -29,7 +29,7 @@ class WebsocketConnection:
                     continue
                 await self.connection.send_text(encode({"op": Opcode.PONG}))
             except asyncio.TimeoutError:
-                logger.warning(f"Connection {id(self)} heartbeat timeout, closing connection.")
+                logger.warning(f"Connection {id(self):x} heartbeat timeout, closing connection.")
                 await self.connection.close()
                 await self.connection_closed()
                 break

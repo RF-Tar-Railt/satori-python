@@ -1,5 +1,8 @@
 includes = ["src/satori/client"]
-raw-dependencies = ["satori-python-core >= 0.17.0"]
+raw-dependencies = [
+    "satori-python-core >= 0.17.0",
+    "graia-amnesia >= 0.11.0",
+]
 
 [project]
 name = "satori-python-client"
@@ -10,7 +13,6 @@ authors = [
 dependencies = [
     "aiohttp",
     "launart",
-    "graia-amnesia",
 ]
 description = "Satori Protocol SDK for python, specify client part"
 license = {text = "MIT"}
