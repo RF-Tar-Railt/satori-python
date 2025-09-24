@@ -73,9 +73,7 @@ class SatoriAdapter(BaseAdapter):
                 return Response("No account found", status_code=404)
             try:
                 return JSONResponse(
-                    await acc.protocol.call_api(
-                        path[5:], await request.origin.json(), method=request.origin.method
-                    )
+                    await acc.protocol.call_api(path[5:], await request.origin.json(), method=request.origin.method)
                 )
             except ActionFailed as e:
                 return Response(str(e), status_code=500)

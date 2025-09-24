@@ -35,7 +35,6 @@ class Api(Protocol):
     api_base: URL
 
 class ApiInfo(Api):
-    
     def __init__(
         self,
         host: str = "localhost",
