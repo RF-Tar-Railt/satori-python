@@ -60,6 +60,16 @@ _T_ws_endpoint = TypeVar("_T_ws_endpoint", bound=Callable[[WebSocket], Awaitable
 StarletteResponse = Response
 
 
+async def _json(self: StarletteRequest) -> Any:
+    if not hasattr(self, "_json"):
+        body = await self.body()
+        self._json = decode(body)
+    return self._json
+
+
+StarletteRequest.json = _json
+
+
 async def _request_handler(action: str, request: StarletteRequest, func: RouteCall, platform: str, self_id: str):
     if action == Api.UPLOAD_CREATE.value:
         async with request.form() as form:
@@ -78,7 +88,7 @@ async def _request_handler(action: str, request: StarletteRequest, func: RouteCa
             Request(
                 request,
                 action,
-                decode(await request.body()),
+                await request.json(),
                 platform=platform,
                 self_id=self_id,
             )
@@ -407,7 +417,7 @@ class Server(Service, RouterMixin):
         return JSONResponse(content=Meta(logins, proxy_urls).dump())
 
     async def webhook_create_handler(self, request: StarletteRequest):
-        body = decode(await request.body())
+        body = await request.json()
         url = body["url"]
         token = body.get("token")
         self.webhooks.append(WebhookEndpoint(url, token))
@@ -427,7 +437,7 @@ class Server(Service, RouterMixin):
         return Response()
 
     async def webhook_delete_handler(self, request: StarletteRequest):
-        body = decode(await request.body())
+        body = await request.json()
         url = body["url"]
         for endpoint in self.webhooks:
             if endpoint.url == url:

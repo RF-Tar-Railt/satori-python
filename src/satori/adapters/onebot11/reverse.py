@@ -31,7 +31,7 @@ class _Connection:
         self.response_waiters: dict[str, asyncio.Future] = {}
 
     async def message_receive(self):
-        async for msg in self.ws.iter_bytes():
+        async for msg in self.ws.iter_text():
             yield self, decode(msg)
         else:
             self.close_signal.set()
@@ -203,7 +203,7 @@ class OneBot11ReverseAdapter(BaseAdapter):
     async def handle_internal(self, request: Request, path: str) -> Response:
         if path.startswith("_api"):
             self_id = request.self_id
-            return JSONResponse(await self.connections[self_id].call_api(path[5:], decode(await request.origin.body())))
+            return JSONResponse(await self.connections[self_id].call_api(path[5:], await request.origin.json()))
         async with self.server.session.get(path) as resp:
             return Response(await resp.read())
 

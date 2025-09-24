@@ -213,7 +213,7 @@ class OneBot11ForwardAdapter(BaseAdapter):
 
     async def handle_internal(self, request: Request, path: str) -> Response:
         if path.startswith("_api"):
-            return JSONResponse(await self.call_api(path[5:], decode(await request.origin.body())))
+            return JSONResponse(await self.call_api(path[5:], await request.origin.json()))
         async with self.session.get(path) as resp:
             return Response(await resp.read())
 
