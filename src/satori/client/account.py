@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing_extensions import Generic, TypeVar  # noqa: UP035
 
 from yarl import URL
@@ -10,8 +10,8 @@ from satori.model import Login
 
 from .protocol import ApiProtocol
 
-TP = TypeVar("TP", bound="ApiProtocol", default=ApiProtocol)
-TP1 = TypeVar("TP1", bound="ApiProtocol", default=ApiProtocol)
+TP = TypeVar("TP", bound="ApiProtocol", default=ApiProtocol, covariant=True)
+TP1 = TypeVar("TP1", bound="ApiProtocol", default=ApiProtocol, covariant=True)
 
 
 @dataclass
@@ -21,6 +21,7 @@ class ApiInfo:
     path: str = ""
     token: str | None = None
     timeout: float | None = None
+    api_base: URL = field(init=False)
 
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):

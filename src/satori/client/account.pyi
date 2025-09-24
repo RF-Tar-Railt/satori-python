@@ -26,8 +26,8 @@ from satori.model import (
 
 from .protocol import ApiProtocol
 
-TP = TypeVar("TP", bound="ApiProtocol", default=ApiProtocol)
-TP1 = TypeVar("TP1", bound="ApiProtocol", default=ApiProtocol)
+TP = TypeVar("TP", bound="ApiProtocol", default=ApiProtocol, covariant=True)
+TP1 = TypeVar("TP1", bound="ApiProtocol", default=ApiProtocol, covariant=True)
 
 class Api(Protocol):
     token: str | None = None
@@ -35,6 +35,7 @@ class Api(Protocol):
     api_base: URL
 
 class ApiInfo(Api):
+    
     def __init__(
         self,
         host: str = "localhost",
@@ -42,7 +43,8 @@ class ApiInfo(Api):
         path: str = "",
         token: str | None = None,
         timeout: float | None = None,
-    ): ...
+    ):
+        self.api_base: URL = ...
 
 class Account(Generic[TP]):
     adapter: str
