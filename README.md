@@ -52,6 +52,7 @@ pip install satori-python-server
 | Satori     | `pip install satori-python-adapter-satori`   | satori.adapters.satori                                             |
 | OneBot V11 | `pip install satori-python-adapter-onebot11` | satori.adapters.onebot11.forward, satori.adapters.onebot11.reverse |
 | Console    | `pip install satori-python-adapter-console`  | satori.adapters.console                                            |
+| Milky      | `pip install satori-python-adapter-milky`    | satori.adapters.milky.main, satori.adapters.milky.webhook          |
 
 ### 社区适配器
 
