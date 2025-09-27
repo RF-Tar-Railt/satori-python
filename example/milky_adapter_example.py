@@ -3,6 +3,7 @@
 Example usage of the Milky adapter for satori-python.
 
 This demonstrates how to set up both forward and reverse Milky adapters.
+Based on the milky protocol (https://milky.ntqqrev.org/) implementation.
 """
 
 import sys
@@ -17,7 +18,10 @@ from satori.adapters.milky import MilkyAdapter, MilkyReverseAdapter
 
 
 def create_server_with_forward_adapter():
-    """Create a server with MilkyAdapter (forward/WebSocket client)."""
+    """Create a server with MilkyAdapter (forward/WebSocket client).
+    
+    This adapter connects to an existing Milky server and acts as a client.
+    """
     server = Server(host="localhost", port=5140, path="")
     
     # Create milky adapter that connects to a milky server
@@ -32,11 +36,19 @@ def create_server_with_forward_adapter():
     async def handle_channel_get(*args, **kwargs):
         return Channel("1234567890", ChannelType.TEXT, "test").dump()
     
+    @server.route(Api.MESSAGE_CREATE)
+    async def handle_message_create(*args, **kwargs):
+        # Message creation will be handled by the adapter
+        return {"success": True}
+    
     return server
 
 
 def create_server_with_reverse_adapter():
-    """Create a server with MilkyReverseAdapter (reverse/WebSocket server)."""
+    """Create a server with MilkyReverseAdapter (reverse/WebSocket server).
+    
+    This adapter accepts connections from Milky clients and acts as a server.
+    """
     server = Server(host="localhost", port=5141, path="")
     
     # Create reverse milky adapter that accepts connections from milky clients
@@ -50,31 +62,41 @@ def create_server_with_reverse_adapter():
     async def handle_channel_get(*args, **kwargs):
         return Channel("1234567890", ChannelType.TEXT, "test").dump()
     
+    @server.route(Api.MESSAGE_CREATE)
+    async def handle_message_create(*args, **kwargs):
+        # Message creation will be handled by the adapter
+        return {"success": True}
+    
     return server
 
 
 if __name__ == "__main__":
     import asyncio
     
-    print("Milky Adapter Example")
+    print("Milky Adapter Example for satori-python")
+    print("=" * 40)
     print("1. Forward adapter (connects to milky server)")
     print("2. Reverse adapter (accepts milky client connections)")
+    print()
     
     choice = input("Choose adapter type (1 or 2): ").strip()
     
     if choice == "1":
-        print("Starting server with MilkyAdapter...")
+        print("\nStarting server with MilkyAdapter...")
         print("This will try to connect to ws://localhost:8080/milky")
+        print("Make sure a Milky server is running on that endpoint.")
         server = create_server_with_forward_adapter()
     elif choice == "2":
-        print("Starting server with MilkyReverseAdapter...")
+        print("\nStarting server with MilkyReverseAdapter...")
         print("Milky clients can connect to ws://localhost:5141/milky")
+        print("The server will accept WebSocket connections on that endpoint.")
         server = create_server_with_reverse_adapter()
     else:
         print("Invalid choice")
         sys.exit(1)
     
     try:
+        print("Starting server... (Ctrl+C to stop)")
         server.run()
     except KeyboardInterrupt:
         print("\nServer stopped.")
