@@ -96,7 +96,7 @@ def apply(
             {
                 "message_scene": scene,
                 "peer_id": peer_id,
-                "start_message_seq": int(params["next"]) if params.get("next") else None,
+                "start_message_seq": int(params["next"]) if params.get("next") else None,  # type: ignore
                 "limit": params.get("limit"),
             },
         )

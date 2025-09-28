@@ -52,3 +52,27 @@ async def message_recall(login, net, raw):
         operator=operator,
         message=message,
     )
+
+
+@register_event("group_message_reaction")
+async def group_message_reaction(login, net, raw):
+    data = raw["data"]
+    guild_id = str(data["group_id"])
+    guild = Guild(guild_id, avatar=group_avatar(guild_id))
+    channel = Channel(guild_id, ChannelType.TEXT)
+    user = User(str(data["user_id"]), avatar=user_avatar(data["user_id"]))
+    face_id = data["face_id"]
+    message = MessageObject(str(data["message_seq"]), f"<milky:face id='{face_id}'>", channel=channel, guild=guild, user=user)
+    if data["is_add"]:
+        event_type = EventType.REACTION_ADDED
+    else:
+        event_type = EventType.REACTION_REMOVED
+    return Event(
+        event_type,
+        datetime.fromtimestamp(raw["time"]),
+        login,
+        channel=channel,
+        guild=guild,
+        user=user,
+        message=message,
+    )

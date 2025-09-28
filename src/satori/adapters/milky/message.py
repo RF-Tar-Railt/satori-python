@@ -112,7 +112,7 @@ class MilkyMessageEncoder:
         if not self.segments:
             return
         scene, peer_id = get_scene_and_peer(self.channel_id)
-        payload = {"message": self.segments}
+        payload: dict = {"message": self.segments}
         if scene == "group":
             payload["group_id"] = peer_id
             resp = await self.net.call_api("send_group_message", payload)

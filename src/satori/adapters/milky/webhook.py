@@ -42,8 +42,8 @@ class MilkyWebhookAdapter(BaseAdapter):
         *,
         token: str | None = None,
         headers: dict[str, str] | None = None,
-        webhook_path: str = "/milky",
-        webhook_token: str | None = None,
+        path: str = "/milky",
+        self_token: str | None = None,
     ):
         super().__init__()
         self.base_url = URL(str(endpoint))
@@ -55,8 +55,8 @@ class MilkyWebhookAdapter(BaseAdapter):
         self.logins: dict[str, Login] = {}
         self.networks: dict[str, MilkyNetwork] = {}
         self.features = list(DEFAULT_FEATURES)
-        self.webhook_token = webhook_token if webhook_token is not None else token
-        self.webhook_paths = self._normalize_webhook_paths(webhook_path)
+        self.webhook_token = self_token if self_token is not None else token
+        self.webhook_paths = self._normalize_webhook_paths(path)
         apply(self, self._get_network, self._get_login)
 
     def get_platform(self) -> str:
@@ -134,7 +134,7 @@ class MilkyWebhookAdapter(BaseAdapter):
         if self_id not in self.logins:
             await self.refresh_login()
         if self_id not in self.logins:
-            logger.debug(f"Ignoring event for unknown self_id {self_id}")
+            logger.warning(f"Ignoring event for unknown self_id {self_id}")
             return
         login = self.logins[self_id]
         handler = event_handlers.get(event_type)
@@ -150,7 +150,7 @@ class MilkyWebhookAdapter(BaseAdapter):
                 EventType.INTERNAL,
                 datetime.fromtimestamp(payload.get("time", datetime.now().timestamp())),
                 login,
-                _type=f"milky/{event_type}",
+                _type=event_type,
                 _data=body,
             )
         if event:
