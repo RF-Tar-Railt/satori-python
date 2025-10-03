@@ -1,4 +1,7 @@
-from satori import At, Link, Sharp, Text
+from satori import At, Link, Sharp, Text, transform
+from satori.parser import parse
+
+print(transform(parse('<at id="12345" name="abcd-def"/> foobar')))
 
 a = Text("1234<foo>")
 role = At.role_("admin")
@@ -46,8 +49,7 @@ from satori import E
 
 print(E("<qq:passive id={ id }/>", {"id": "123456789"}))
 
-from satori import register_element, transform
-from satori.parser import parse
+from satori import register_element
 from satori.element import Element
 from dataclasses import dataclass
 

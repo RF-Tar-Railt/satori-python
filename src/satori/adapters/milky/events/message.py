@@ -62,7 +62,9 @@ async def group_message_reaction(login, net, raw):
     channel = Channel(guild_id, ChannelType.TEXT)
     user = User(str(data["user_id"]), avatar=user_avatar(data["user_id"]))
     face_id = data["face_id"]
-    message = MessageObject(str(data["message_seq"]), f"<milky:face id='{face_id}'>", channel=channel, guild=guild, user=user)
+    message = MessageObject(
+        str(data["message_seq"]), f"<milky:face id='{face_id}'>", channel=channel, guild=guild, user=user
+    )
     if data["is_add"]:
         event_type = EventType.REACTION_ADDED
     else:

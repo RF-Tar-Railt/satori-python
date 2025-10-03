@@ -306,7 +306,7 @@ def parse_tokens(tokens: list[str | Token], context: dict | None = None) -> list
             while mat := attr_pat.search(token.extra):
                 key = mat.group(1)
                 groupdict = mat.groupdict()
-                v2 = groupdict.get("value2", groupdict.get("value1"))
+                v2 = groupdict.get("value2") or groupdict.get("value1")
                 curly = groupdict.get("curly")
                 if curly and context is not None:
                     attrs[key] = interpolate(curly, context)
