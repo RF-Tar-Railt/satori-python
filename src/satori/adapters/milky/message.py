@@ -64,7 +64,7 @@ class MilkyMessageEncoder:
                     "group_id": peer_id,
                     "file_uri": uri,
                     "file_name": name,
-                }
+                },
             )
         else:
             await self.net.call_api(
@@ -73,7 +73,7 @@ class MilkyMessageEncoder:
                     "user_id": peer_id,
                     "file_uri": uri,
                     "file_name": name,
-                }
+                },
             )
         self.results.append(MessageObject("", ""))
 
@@ -223,9 +223,15 @@ class MilkyMessageEncoder:
             return
         if type_ == "forward":
             if "seq" in author:
-                origin = await self.net.call_api("get_message", {"message_scene": scene, "peer_id": peer_id, "message_seq": author["seq"]})
+                origin = await self.net.call_api(
+                    "get_message", {"message_scene": scene, "peer_id": peer_id, "message_seq": author["seq"]}
+                )
                 segments = origin["message"]["segments"]
-                nickname = origin["message"]["friend"]["nickname"] if scene == "friend" else origin["message"]["group_member"]["nickname"]
+                nickname = (
+                    origin["message"]["friend"]["nickname"]
+                    if scene == "friend"
+                    else origin["message"]["group_member"]["nickname"]
+                )
                 self.stack[1].children.append(
                     {
                         "user_id": origin["message"]["sender_id"],
@@ -238,7 +244,7 @@ class MilkyMessageEncoder:
                     {
                         "user_id": int(author.get("id", self.login.id)),
                         "sender_name": author.get("name", self.login.user.name or self.login.id),
-                        "segments": self.segments
+                        "segments": self.segments,
                     }
                 )
             self.segments = []
@@ -260,19 +266,37 @@ class MilkyMessageEncoder:
     async def sendable(self, segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
         new = []
         for seg in segments:
-            if seg["type"] in ("image", "record", "video") and "resource_id" in seg["data"] and "uri" not in seg["data"]:
+            if (
+                seg["type"] in ("image", "record", "video")
+                and "resource_id" in seg["data"]
+                and "uri" not in seg["data"]
+            ):
                 data = seg["data"]
                 if "temp_url" not in data:
-                    data["uri"] = (await self.net.call_api("get_resource_temp_url", {"resource_id": data["resource_id"]}))["url"]
+                    data["uri"] = (
+                        await self.net.call_api("get_resource_temp_url", {"resource_id": data["resource_id"]})
+                    )["url"]
                 else:
                     data["uri"] = data["temp_url"]
                 new.append({"type": seg["type"], "data": data})
             elif seg["type"] == "forward" and "forward_id" in seg["data"]:
                 forward_id = seg["data"]["forward_id"]
                 messages = (await self.net.call_api("get_forwarded_messages", {"forward_id": forward_id}))["messages"]
-                new.append({"type": "forward", "data": {"messages": [
-                    {"user_id": int(self.login.id), "sender_name": msg["sender_name"], "segments": await self.sendable(msg["segments"])} for msg in messages
-                ]}})
+                new.append(
+                    {
+                        "type": "forward",
+                        "data": {
+                            "messages": [
+                                {
+                                    "user_id": int(self.login.id),
+                                    "sender_name": msg["sender_name"],
+                                    "segments": await self.sendable(msg["segments"]),
+                                }
+                                for msg in messages
+                            ]
+                        },
+                    }
+                )
             elif seg["type"] in ("market_face", "light_app", "xml"):
                 continue
         return new

@@ -116,7 +116,7 @@ class MilkyAdapter(BaseAdapter):
             content = await resp.read()
             return Response(content=content, media_type=resp.headers.get("Content-Type"))
 
-    async def call_api(self, action: str, params: dict | None = None) -> dict | None:
+    async def call_api(self, action: str, params: dict | None = None) -> dict:
         if not self.session:
             raise RuntimeError("HTTP session not initialized")
         url = self.api_base.with_path(f"{self.api_base.path.rstrip('/')}/{action}")

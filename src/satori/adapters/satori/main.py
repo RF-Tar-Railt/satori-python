@@ -29,6 +29,7 @@ class SatoriAdapter(BaseAdapter):
         async def _(acc, event):
             await self.server.post(event)
 
+        self.routes["internal/*"] = self._handle_request
         self.routes |= {api.value: self._handle_request for api in Api.__members__.values()}
         if not post_upload:
             self.routes.pop(Api.UPLOAD_CREATE.value, None)

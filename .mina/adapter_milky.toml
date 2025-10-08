@@ -3,7 +3,7 @@ raw-dependencies = ["satori-python-server >= 0.17.2"]
 
 [project]
 name = "satori-python-adapter-milky"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
   {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
 ]

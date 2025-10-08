@@ -16,6 +16,7 @@ from satori.exception import ActionFailed
 from satori.model import Event, Login, LoginStatus
 from satori.server.adapter import Adapter as BaseAdapter
 from satori.server.model import Request
+from satori.utils import decode, encode
 
 from .api import apply
 from .events import event_handlers
@@ -109,17 +110,18 @@ class MilkyWebhookAdapter(BaseAdapter):
             content = await resp.read()
             return Response(content=content, media_type=resp.headers.get("Content-Type"))
 
-    async def call_api(self, action: str, params: dict | None = None) -> dict | None:
+    async def call_api(self, action: str, params: dict | None = None) -> dict:
         if not self.session:
             raise RuntimeError("HTTP session not initialized")
         url = self.api_base.with_path(f"{self.api_base.path.rstrip('/')}/{action}")
         headers = self.headers.copy()
+        headers["Content-Type"] = "application/json"
         if self.token:
             headers.setdefault("Authorization", f"Bearer {self.token}")
-        async with self.session.post(url, json=params or {}, headers=headers) as resp:
+        async with self.session.post(url, data=encode(params or {}), headers=headers) as resp:
             resp.raise_for_status()
-            data = await resp.json()
-        if data.get("status") == "failed":
+            data = decode(await resp.text())
+        if data.get("status") == "failed" or data.get("retcode", 0) != 0:
             raise ActionFailed(f"{data.get('retcode')}: {data.get('message')}", data)
         return data.get("data")
 
