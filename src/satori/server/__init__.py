@@ -308,17 +308,27 @@ class Server(Service, RouterMixin):
         self_id: str = request.headers.get("X-Self-ID") or request.headers.get("Satori-User-ID")  # type: ignore
 
         for _router in self._adapters:
-            if action not in _router.routes:
+            if action in _router.routes:
+                func = _router.routes[action]
+            elif action.startswith("internal") and "internal/*" in _router.routes:
+                func = _router.routes["internal/*"]
+            else:
                 continue
             if not _router.ensure(platform, self_id):
                 continue
-            return await _request_handler(action, request, _router.routes[action], platform, self_id)
+            return await _request_handler(action, request, func, platform, self_id)
         if action in self.routes:
             return await _request_handler(action, request, self.routes[action], platform, self_id)
+        if action.startswith("internal") and "internal/*" in self.routes:
+            return await _request_handler(action, request, self.routes["internal/*"], platform, self_id)
         for _router in self.routers:
-            if action not in _router.routes:
+            if action in _router.routes:
+                func = _router.routes[action]
+            elif action.startswith("internal") and "internal/*" in _router.routes:
+                func = _router.routes["internal/*"]
+            else:
                 continue
-            return await _request_handler(action, request, _router.routes[action], platform, self_id)
+            return await _request_handler(action, request, func, platform, self_id)
         return Response(status_code=404, content=action)
 
     async def proxy_url_handler(self, request: StarletteRequest):

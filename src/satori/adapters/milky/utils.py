@@ -10,7 +10,7 @@ GROUP_AVATAR_URL = "https://p.qlogo.cn/gh/{group}/{group}/640"
 
 
 class MilkyNetwork(Protocol):
-    async def call_api(self, action: str, params: dict | None = None) -> dict | None: ...
+    async def call_api(self, action: str, params: dict | None = None) -> dict: ...
 
 
 def user_avatar(uin: int | str) -> str:

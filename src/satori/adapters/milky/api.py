@@ -309,3 +309,8 @@ def apply(
             payload["reason"] = request.params.get("comment")
             await net.call_api("reject_friend_request", payload)
         return
+
+    @adapter.route("*")
+    async def internal_api(request: Request[dict]):
+        net = net_getter(request.self_id)
+        return await net.call_api(request.action.removeprefix("internal/"), request.params)

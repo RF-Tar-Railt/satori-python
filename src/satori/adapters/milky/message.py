@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from satori.element import Custom, E, Element
 from satori.model import Channel, ChannelType, Login, MessageObject, User
@@ -15,14 +16,66 @@ from .utils import MilkyNetwork, decode_guild, decode_guild_channel_id, decode_m
 _BASE64_RE = re.compile(r"^data:([\w/.+-]+);base64,")
 
 
+@dataclass
+class State:
+    type: Literal["message", "reply", "forward"]
+    children: list[dict[str, Any]] = field(default_factory=list)
+    author: dict[str, Any] = field(default_factory=dict)
+
+
 class MilkyMessageEncoder:
     def __init__(self, login: Login, net: MilkyNetwork, channel_id: str):
         self.login = login
         self.net = net
         self.channel_id = channel_id
         self.segments: list[dict[str, Any]] = []
-        self.elements: list[Element] = []
+        self.stack = [State("message")]
         self.results: list[MessageObject] = []
+
+    async def send_forward(self):
+        if not self.stack[0].children:
+            return
+        scene, peer_id = get_scene_and_peer(self.channel_id)
+        seg = {"type": "forward", "data": {"messages": self.stack[0].children}}
+        if scene == "group":
+            resp = await self.net.call_api("send_group_message", {"group_id": peer_id, "message": [seg]})
+        else:
+            resp = await self.net.call_api("send_private_message", {"user_id": peer_id, "message": [seg]})
+        if resp:
+            channel_type = ChannelType.TEXT if scene == "group" else ChannelType.DIRECT
+            channel_id = str(peer_id) if scene == "group" else self.channel_id
+            channel = Channel(channel_id, channel_type)
+            created_at = datetime.fromtimestamp(resp.get("time", datetime.now().timestamp()))
+            message = MessageObject(str(resp.get("message_seq", "")), "", channel=channel, created_at=created_at)
+            self.results.append(message)
+
+    async def _send_file(self, attrs: dict[str, Any]):
+        uri = attrs.get("src") or attrs.get("url")
+        if not uri:
+            return
+        name = attrs.get("title") or uri.split("/")[-1][:32]
+        if match := _BASE64_RE.match(uri):
+            uri = f"base64://{uri[len(match.group(0)) :]}"
+        scene, peer_id = get_scene_and_peer(self.channel_id)
+        if scene == "group":
+            await self.net.call_api(
+                "upload_group_file",
+                {
+                    "group_id": peer_id,
+                    "file_uri": uri,
+                    "file_name": name,
+                }
+            )
+        else:
+            await self.net.call_api(
+                "upload_private_file",
+                {
+                    "user_id": peer_id,
+                    "file_uri": uri,
+                    "file_name": name,
+                }
+            )
+        self.results.append(MessageObject("", ""))
 
     async def send(self, content: str) -> list[MessageObject]:
         raw_elements = parse(content)
@@ -44,40 +97,39 @@ class MilkyMessageEncoder:
                 self.segments.append({"type": "text", "data": {"text": text}})
             else:
                 self.segments[-1]["data"]["text"] += text
-            self.elements.append(E.text(text))
         elif type_ == "br":
             if not self.segments or self.segments[-1]["type"] != "text":
                 self.segments.append({"type": "text", "data": {"text": "\n"}})
             else:
                 self.segments[-1]["data"]["text"] += "\n"
-            self.elements.append(E.text("\n"))
         elif type_ == "p":
+            prev = self.segments[-1] if self.segments else None
+            if prev and prev["type"] == "text":
+                if not prev["data"]["text"].endswith("\n"):
+                    prev["data"]["text"] += "\n"
+            else:
+                self.segments.append({"type": "text", "data": {"text": "\n"}})
             await self.render(children)
-            if self.segments:
-                if self.segments[-1]["type"] == "text":
+            if self.segments and self.segments[-1]["type"] == "text":
+                if not self.segments[-1]["data"]["text"].endswith("\n"):
                     self.segments[-1]["data"]["text"] += "\n"
-                else:
-                    self.segments.append({"type": "text", "data": {"text": "\n"}})
-            self.elements.append(E.text("\n"))
+            else:
+                self.segments.append({"type": "text", "data": {"text": "\n"}})
         elif type_ == "at":
             if attrs.get("type") == "all":
                 self.segments.append({"type": "mention_all", "data": {}})
-                self.elements.append(E.at_all())
             elif "id" in attrs:
                 target = attrs["id"]
                 self.segments.append({"type": "mention", "data": {"user_id": int(target)}})
-                self.elements.append(E.at(str(target)))
-        elif type_ == "quote":
-            quote_id = attrs.get("id")
-            if quote_id is not None:
-                try:
-                    seq = int(quote_id)
-                except ValueError:
-                    seq = None
-                if seq is not None:
-                    self.segments.append({"type": "reply", "data": {"message_seq": seq}})
-                    self.elements.append(E.quote(str(seq), content=[E.text("")]))
+        elif type_ == "sharp":
+            self.segments.append({"type": "text", "data": {"text": attrs["id"]}})
+        elif type_ == "a":
             await self.render(children)
+            if "href" in attrs:
+                if not self.segments or self.segments[-1]["type"] != "text":
+                    self.segments.append({"type": "text", "data": {"text": f" ({attrs['href']})"}})
+                else:
+                    self.segments[-1]["data"]["text"] += f" ({attrs['href']})"
         elif type_ in {"img", "image"}:
             uri = attrs.get("src") or attrs.get("url")
             if not uri:
@@ -85,7 +137,6 @@ class MilkyMessageEncoder:
             if match := _BASE64_RE.match(uri):
                 uri = f"base64://{uri[len(match.group(0)) :]}"
             self.segments.append({"type": "image", "data": {"uri": uri, "sub_type": attrs.get("sub_type", "normal")}})
-            self.elements.append(E.image(uri))
         elif type_ == "audio":
             uri = attrs.get("src") or attrs.get("url")
             if not uri:
@@ -93,7 +144,6 @@ class MilkyMessageEncoder:
             if match := _BASE64_RE.match(uri):
                 uri = f"base64://{uri[len(match.group(0)) :]}"
             self.segments.append({"type": "record", "data": {"uri": uri}})
-            self.elements.append(E.audio(uri))
         elif type_ == "video":
             uri = attrs.get("src") or attrs.get("url")
             if not uri:
@@ -104,32 +154,128 @@ class MilkyMessageEncoder:
             if poster := attrs.get("poster"):
                 payload["thumb_uri"] = poster
             self.segments.append({"type": "video", "data": payload})
-            self.elements.append(E.video(uri))
+        elif type_ == "milky:face":
+            self.segments.append({"type": "face", "data": {"face_id": attrs["id"]}})
+        elif type_ == "file":
+            await self.flush()
+            await self._send_file(attrs)
+        elif type_ == "author":
+            self.stack[0].author.update(attrs)
+        elif type_ == "quote":
+            await self.flush()
+            self.segments.append({"type": "reply", "data": {"message_seq": int(attrs["id"])}})
+        elif type_ == "message":
+            await self.flush()
+            if "forward" in attrs:
+                self.stack.insert(0, State("forward"))
+                await self.render(children)
+                await self.flush()
+                self.stack.pop(0)
+                await self.send_forward()
+            elif "id" in attrs:
+                self.stack[0].author["seq"] = int(attrs["id"])
+            else:
+                payload = {}
+                if "name" in attrs:
+                    payload["name"] = attrs["name"]
+                if "nickname" in attrs:
+                    payload["name"] = attrs["nickname"]
+                if "username" in attrs:
+                    payload["name"] = attrs["username"]
+                if "id" in attrs:
+                    payload["id"] = int(attrs["id"])
+                if "user_id" in attrs:
+                    payload["id"] = int(attrs["user_id"])
+                if "time" in attrs:
+                    payload["time"] = int(attrs["time"])
+                self.stack[0].author.update(payload)
+                await self.render(children)
+                await self.flush()
         else:
             await self.render(children)
 
     async def flush(self):
         if not self.segments:
             return
+
+        while True:
+            first = self.segments[0]
+            if first["type"] != "text":
+                break
+            first["data"]["text"] = first["data"]["text"].lstrip()
+            if first["data"]["text"]:
+                break
+            self.segments.pop(0)
+
+        while True:
+            last = self.segments[-1]
+            if last["type"] != "text":
+                break
+            last["data"]["text"] = last["data"]["text"].rstrip()
+            if last["data"]["text"]:
+                break
+            self.segments.pop()
+
         scene, peer_id = get_scene_and_peer(self.channel_id)
-        payload: dict = {"message": self.segments}
+        slot = self.stack[0]
+        type_, author = slot.type, slot.author
+        if not self.segments and "seq" not in author:
+            return
+        if type_ == "forward":
+            if "seq" in author:
+                origin = await self.net.call_api("get_message", {"message_scene": scene, "peer_id": peer_id, "message_seq": author["seq"]})
+                segments = origin["message"]["segments"]
+                nickname = origin["message"]["friend"]["nickname"] if scene == "friend" else origin["message"]["group_member"]["nickname"]
+                self.stack[1].children.append(
+                    {
+                        "user_id": origin["message"]["sender_id"],
+                        "sender_name": nickname,
+                        "segments": await self.sendable(segments),
+                    }
+                )
+            else:
+                self.stack[1].children.append(
+                    {
+                        "user_id": int(author.get("id", self.login.id)),
+                        "sender_name": author.get("name", self.login.user.name or self.login.id),
+                        "segments": self.segments
+                    }
+                )
+            self.segments = []
+            return
+
         if scene == "group":
-            payload["group_id"] = peer_id
-            resp = await self.net.call_api("send_group_message", payload)
+            resp = await self.net.call_api("send_group_message", {"group_id": peer_id, "message": self.segments})
         else:
-            payload["user_id"] = peer_id
-            resp = await self.net.call_api("send_private_message", payload)
+            resp = await self.net.call_api("send_private_message", {"user_id": peer_id, "message": self.segments})
         if resp:
             channel_type = ChannelType.TEXT if scene == "group" else ChannelType.DIRECT
             channel_id = str(peer_id) if scene == "group" else self.channel_id
             channel = Channel(channel_id, channel_type)
             created_at = datetime.fromtimestamp(resp.get("time", datetime.now().timestamp()))
-            content = "".join(str(elem) for elem in self.elements)
-            message = MessageObject(str(resp.get("message_seq", "")), content, channel=channel, created_at=created_at)
-            message.message = list(self.elements)
+            message = MessageObject(str(resp.get("message_seq", "")), "", channel=channel, created_at=created_at)
             self.results.append(message)
         self.segments = []
-        self.elements = []
+
+    async def sendable(self, segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        new = []
+        for seg in segments:
+            if seg["type"] in ("image", "record", "video") and "resource_id" in seg["data"] and "uri" not in seg["data"]:
+                data = seg["data"]
+                if "temp_url" not in data:
+                    data["uri"] = (await self.net.call_api("get_resource_temp_url", {"resource_id": data["resource_id"]}))["url"]
+                else:
+                    data["uri"] = data["temp_url"]
+                new.append({"type": seg["type"], "data": data})
+            elif seg["type"] == "forward" and "forward_id" in seg["data"]:
+                forward_id = seg["data"]["forward_id"]
+                messages = (await self.net.call_api("get_forwarded_messages", {"forward_id": forward_id}))["messages"]
+                new.append({"type": "forward", "data": {"messages": [
+                    {"user_id": int(self.login.id), "sender_name": msg["sender_name"], "segments": await self.sendable(msg["segments"])} for msg in messages
+                ]}})
+            elif seg["type"] in ("market_face", "light_app", "xml"):
+                continue
+        return new
 
 
 async def decode_message(net: MilkyNetwork, payload: dict) -> MessageObject:

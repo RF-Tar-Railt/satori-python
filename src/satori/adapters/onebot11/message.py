@@ -279,7 +279,7 @@ class OneBot11MessageEncoder:
             await self.flush()
             self.children.append({"type": "xml", "data": attrs})
         elif type_ == "author":
-            self.stack[0].author = attrs.copy()
+            self.stack[0].author.update(attrs)
         elif type_ == "quote":
             await self.flush()
             self.children.append({"type": "reply", "data": attrs})
@@ -294,9 +294,20 @@ class OneBot11MessageEncoder:
             elif "id" in attrs:
                 self.stack[0].author["message_id"] = str(attrs["id"])
             else:
-                self.stack[0].author = {
-                    k: v for k, v in attrs.items() if k in ("user_id", "username", "nickname", "time")
-                }
+                payload = {}
+                if "name" in attrs:
+                    payload["name"] = attrs["name"]
+                if "nickname" in attrs:
+                    payload["name"] = attrs["nickname"]
+                if "username" in attrs:
+                    payload["name"] = attrs["username"]
+                if "id" in attrs:
+                    payload["id"] = int(attrs["id"])
+                if "user_id" in attrs:
+                    payload["id"] = int(attrs["user_id"])
+                if "time" in attrs:
+                    payload["time"] = int(attrs["time"])
+                self.stack[0].author.update(payload)
                 await self.render(_children)
                 await self.flush()
         else:

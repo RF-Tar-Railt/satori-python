@@ -27,31 +27,6 @@ from satori.server.route import (
 from .message import OneBot11MessageEncoder, decode
 from .utils import GROUP_AVATAR_URL, USER_AVATAR_URL, OneBotNetwork
 
-INTERNAL_API = [
-    "get_forward_msg",
-    "send_like",
-    "set_group_card",
-    "set_group_leave",
-    "set_group_special_title",
-    "get_login_info",
-    "get_group_honor_info",
-    "get_cookies",
-    "get_csrf_token",
-    "get_credentials",
-    "get_record",
-    "get_image",
-    "can_send_image",
-    "can_send_record",
-    "get_status",
-    "get_version_info",
-    "set_restart",
-    "clean_cache",
-    # additional
-    "group_poke",
-    "friend_poke",
-    "set_group_reaction",
-]
-
 
 def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_getter: Callable[[str], Login]):
     @adapter.route(Api.LOGIN_GET)
@@ -335,9 +310,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
         )
         return
 
-    for api in INTERNAL_API:
-
-        @adapter.route(api)
-        async def internal_api(request: Request[dict]):
-            net = net_getter(request.self_id)
-            return await net.call_api(api, request.params)
+    @adapter.route("*")
+    async def internal_api(request: Request[dict]):
+        net = net_getter(request.self_id)
+        return await net.call_api(request.action.removeprefix("internal/"), request.params)
