@@ -104,7 +104,7 @@ class _Connection:
 
             asyncio.create_task(event_parse_task(data))
 
-    async def call_api(self, action: str, params: dict | None = None) -> dict | None:
+    async def call_api(self, action: str, params: dict | None = None) -> dict:
         if not self.ws:
             raise RuntimeError("connection is not established")
 
@@ -121,7 +121,7 @@ class _Connection:
         if result["status"] != "ok":
             raise ActionFailed(f"{result['retcode']}: {result}", result)
 
-        return result.get("data")
+        return result.get("data", {})
 
 
 class OneBot11ReverseAdapter(BaseAdapter):

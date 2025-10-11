@@ -43,8 +43,6 @@ class SatoriAdapter(BaseAdapter):
         return next(iter(self.app.accounts.values()), None)
 
     def get_platform(self) -> str:
-        if acc := self.account:
-            return acc.self_info.platform
         return "satori"
 
     def ensure(self, platform: str, self_id: str) -> bool:

@@ -217,7 +217,7 @@ class OneBot11ForwardAdapter(BaseAdapter):
         async with self.session.get(path) as resp:
             return Response(await resp.read())
 
-    async def call_api(self, action: str, params: dict | None = None) -> dict | None:
+    async def call_api(self, action: str, params: dict | None = None) -> dict:
         if not self.connection:
             raise RuntimeError("connection is not established")
 
@@ -234,7 +234,7 @@ class OneBot11ForwardAdapter(BaseAdapter):
         if result["status"] != "ok":
             raise ActionFailed(f"{result['retcode']}: {result}", result)
 
-        return result.get("data")
+        return result.get("data", {})
 
     def __str__(self):
         return self.id

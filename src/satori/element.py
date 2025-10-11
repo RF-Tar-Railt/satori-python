@@ -7,11 +7,11 @@ from types import UnionType
 from typing import Any, ClassVar, Final, TypeVar, Union, final, get_args, get_origin, overload
 from typing_extensions import override
 
+from ._vendor.fleep import get
 from .parser import Element as RawElement
 from .parser import escape, param_case, parse
 from .parser import select as select_raw
 from .utils import decode
-from ._vendor.fleep import get
 
 TE = TypeVar("TE", bound="Element")
 

@@ -83,7 +83,7 @@ extra_standard_library = ["typing_extensions"]
 [tool.ruff]
 line-length = 120
 target-version = "py310"
-exclude = ["exam_qps.py", "exam1.py", "exam2.py"]
+exclude = ["exam_qps.py", "exam1.py", "exam2.py", "src/satori/_vendor/*"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "UP", "C", "T", "Q"]

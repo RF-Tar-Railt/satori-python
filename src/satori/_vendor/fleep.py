@@ -5,6 +5,7 @@ Author: Mykyta Paliienko
 License: MIT
 """
 
+# fmt: off
 
 data = [
     {"type": "raster-image", "extension": "bmp", "mime": "image/bmp", "offset": 0, "signature": ["42 4D"]},
@@ -113,6 +114,8 @@ data = [
     {"type": "system", "extension": "reg", "mime": "application/vnd.microsoft.portable-executable", "offset": 0, "signature": ["52 45 47 45 44 49 54", "57 69 6E 64 6F 77 73 20 52 65 67 69 73 74 72 79"]},
     {"type": "database", "extension": "sqlite", "mime": "application/x-sqlite3", "offset": 0, "signature": ["53 51 4C 69 74 65 20 66 6F 72 6D 61 74 20 33 00"]}
 ]
+
+# fmt: on
 
 
 class Info:

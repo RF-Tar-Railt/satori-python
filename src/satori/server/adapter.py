@@ -22,7 +22,11 @@ class Adapter(Service, RouterMixin):
     server: "Server"
 
     @abstractmethod
-    def get_platform(self) -> str: ...
+    def get_platform(self) -> str:
+        """该方法仅用于自动标识适配器类型
+
+        若你继承该类并且重写了 `id`, 该方法可以返回任意字符串
+        """
 
     @abstractmethod
     def ensure(self, platform: str, self_id: str) -> bool: ...
