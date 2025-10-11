@@ -11,6 +11,7 @@ from .parser import Element as RawElement
 from .parser import escape, param_case, parse
 from .parser import select as select_raw
 from .utils import decode
+from ._vendor.fleep import get
 
 TE = TypeVar("TE", bound="Element")
 
@@ -217,8 +218,14 @@ class Resource(Element):
             data |= {"src": url}
         elif path:
             data |= {"src": Path(path).as_uri()}
-        elif raw and mime:
+        elif raw:
             bd = raw.getvalue() if isinstance(raw, BytesIO) else raw
+            if mime is None:
+                info = get(bd)
+                if info.mimes:
+                    mime = info.mimes[0]
+                else:
+                    raise ValueError("Cannot detect mime type, please specify it")
             data |= {"src": f"data:{mime};base64,{b64encode(bd).decode('utf-8')}"}
         else:
             raise ValueError(f"{cls} need at least one of url, path and raw")

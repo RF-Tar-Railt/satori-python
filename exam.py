@@ -18,6 +18,8 @@ from satori import Image, Video
 
 image = Image.of(url="https://example.com/image.png", name="image.png")
 print(image)
+image1 = Image.of(raw=b"\x89PNG\r\n\x1a\n...", name="image.png")
+print(image1)
 print(
     repr(Video.unpack(
         {
