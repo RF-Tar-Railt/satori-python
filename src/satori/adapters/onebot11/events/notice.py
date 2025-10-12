@@ -176,16 +176,18 @@ from loguru import logger
 from satori import EventType
 from satori.model import Channel, ChannelType, Event, Guild, Login, Member, Role, User
 
-from ..utils import GROUP_AVATAR_URL, USER_AVATAR_URL, OneBotNetwork
+from ..utils import GROUP_AVATAR_URL, ROLE_MAPPING, USER_AVATAR_URL, OneBotNetwork
 from .base import register_event
 
 
 @register_event("notice.group_admin.set")
 async def group_admin_set(login: Login, net: OneBotNetwork, raw: dict):
-    guild = Guild(str(raw["group_id"]), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"]))
-    channel = Channel(str(raw["group_id"]), ChannelType.TEXT)
-    user = User(str(raw["user_id"]), avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
-    member = Member(user, avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
+    group_info = await net.call_api("get_group_info", {"group_id": raw["group_id"]})
+    member_info = await net.call_api("get_group_member_info", {"group_id": raw["group_id"], "user_id": raw["user_id"]})
+    guild = Guild(str(raw["group_id"]), group_info.get("group_name"), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"]))
+    channel = Channel(str(raw["group_id"]), ChannelType.TEXT, group_info.get("group_name"))
+    user = User(str(raw["user_id"]), member_info["nickname"], avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
+    member = Member(user, member_info.get("card"), avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
     role = Role("ADMINISTRATOR", "管理员")
     return Event(
         EventType.GUILD_MEMBER_UPDATED,
@@ -201,11 +203,13 @@ async def group_admin_set(login: Login, net: OneBotNetwork, raw: dict):
 
 @register_event("notice.group_admin.unset")
 async def group_admin_unset(login: Login, net: OneBotNetwork, raw: dict):
-    guild = Guild(str(raw["group_id"]), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"]))
-    channel = Channel(str(raw["group_id"]), ChannelType.TEXT)
-    user = User(str(raw["user_id"]), avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
-    member = Member(user, avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
-    role = Role("MEMBER", "成员")
+    group_info = await net.call_api("get_group_info", {"group_id": raw["group_id"]})
+    member_info = await net.call_api("get_group_member_info", {"group_id": raw["group_id"], "user_id": raw["user_id"]})
+    guild = Guild(str(raw["group_id"]), group_info.get("group_name"), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"]))
+    channel = Channel(str(raw["group_id"]), ChannelType.TEXT, group_info.get("group_name"))
+    user = User(str(raw["user_id"]), member_info["nickname"], avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
+    member = Member(user, member_info.get("card"), avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
+    role = Role("MEMBER", "群成员")
     return Event(
         EventType.GUILD_MEMBER_UPDATED,
         datetime.now(),
@@ -224,11 +228,14 @@ async def member_leave(login: Login, net: OneBotNetwork, raw: dict):
     if raw["user_id"] == 0:
         logger.warning(f"Received invalid user_id 0 in event {raw}")
         return
-    guild = Guild(str(raw["group_id"]), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"]))
-    channel = Channel(str(raw["group_id"]), ChannelType.TEXT)
-    user = User(str(raw["user_id"]), avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
-    member = Member(user, avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
-    operator = User(str(raw["operator_id"]), avatar=USER_AVATAR_URL.format(uin=raw["operator_id"]))
+    group_info = await net.call_api("get_group_info", {"group_id": raw["group_id"]})
+    member_info = await net.call_api("get_group_member_info", {"group_id": raw["group_id"], "user_id": raw["user_id"]})
+    operator_info = await net.call_api("get_group_member_info", {"group_id": raw["group_id"], "user_id": raw["operator_id"]})
+    user = User(str(raw["user_id"]), member_info["nickname"], member_info.get("card"), USER_AVATAR_URL.format(uin=raw["user_id"]))
+    member = Member(user, member_info.get("card"), USER_AVATAR_URL.format(uin=raw["user_id"]))
+    guild = Guild(str(raw["group_id"]), group_info.get("group_name"), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"]))
+    channel = Channel(str(raw["group_id"]), ChannelType.TEXT, group_info.get("group_name"))
+    operator = User(str(raw["operator_id"]), operator_info["nickname"], operator_info.get("card"), USER_AVATAR_URL.format(uin=raw["operator_id"]))
     return Event(
         EventType.GUILD_MEMBER_REMOVED,
         datetime.now(),
@@ -238,6 +245,7 @@ async def member_leave(login: Login, net: OneBotNetwork, raw: dict):
         guild=guild,
         channel=channel,
         operator=operator,
+        role=ROLE_MAPPING[member_info["role"]],
     )
 
 
@@ -246,20 +254,23 @@ async def member_kick_me(login: Login, net: OneBotNetwork, raw: dict):
     if raw["user_id"] == 0:
         logger.warning(f"Received invalid user_id 0 in event {raw}")
         return
-    guild = Guild(str(raw["group_id"]), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"]))
-    channel = Channel(str(raw["group_id"]), ChannelType.TEXT)
-    user = User(str(raw["user_id"]), avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
-    member = Member(user, avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
-    operator = User(str(raw["operator_id"]), avatar=USER_AVATAR_URL.format(uin=raw["operator_id"]))
+    group_info = await net.call_api("get_group_info", {"group_id": raw["group_id"]})
+    member_info = await net.call_api("get_group_member_info", {"group_id": raw["group_id"], "user_id": raw["user_id"]})
+    operator_info = await net.call_api("get_group_member_info", {"group_id": raw["group_id"], "user_id": raw["operator_id"]})
+    member = Member(login.user, member_info.get("card", member_info["nickname"]), USER_AVATAR_URL.format(uin=raw["user_id"]))
+    guild = Guild(str(raw["group_id"]), group_info.get("group_name"), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"]))
+    channel = Channel(str(raw["group_id"]), ChannelType.TEXT, group_info.get("group_name"))
+    operator = User(str(raw["operator_id"]), operator_info["nickname"], operator_info.get("card"), USER_AVATAR_URL.format(uin=raw["operator_id"]))
     return Event(
         EventType.GUILD_REMOVED,
         datetime.now(),
         login=login,
-        user=user,
+        user=login.user,
         member=member,
         guild=guild,
         channel=channel,
         operator=operator,
+        role=ROLE_MAPPING[member_info["role"]],
     )
 
 
@@ -277,10 +288,16 @@ async def group_increase(login: Login, net: OneBotNetwork, raw: dict):
             member=Member(login.user, avatar=USER_AVATAR_URL.format(uin=login.user.id)),
             guild=guild,
             channel=channel,
+            role=Role("MEMBER", "群成员"),
         )
-    user = User(str(raw["user_id"]), avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
-    member = Member(user, avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
-    operator = User(str(raw["operator_id"]), avatar=USER_AVATAR_URL.format(uin=raw["operator_id"]))
+    group_info = await net.call_api("get_group_info", {"group_id": raw["group_id"]})
+    member_info = await net.call_api("get_group_member_info", {"group_id": raw["group_id"], "user_id": raw["user_id"]})
+    operator_info = await net.call_api("get_group_member_info", {"group_id": raw["group_id"], "user_id": raw["operator_id"]})
+    user = User(str(raw["user_id"]), member_info["nickname"], member_info.get("card"), USER_AVATAR_URL.format(uin=raw["user_id"]))
+    member = Member(user, member_info.get("card"), USER_AVATAR_URL.format(uin=raw["user_id"]))
+    guild = Guild(str(raw["group_id"]), group_info.get("group_name"), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"]))
+    channel = Channel(str(raw["group_id"]), ChannelType.TEXT, group_info.get("group_name"))
+    operator = User(str(raw["operator_id"]), operator_info["nickname"], operator_info.get("card"), USER_AVATAR_URL.format(uin=raw["operator_id"]))
     return Event(
         EventType.GUILD_MEMBER_ADDED,
         datetime.now(),
@@ -290,4 +307,5 @@ async def group_increase(login: Login, net: OneBotNetwork, raw: dict):
         guild=guild,
         channel=channel,
         operator=operator,
+        role=Role("MEMBER", "群成员")
     )

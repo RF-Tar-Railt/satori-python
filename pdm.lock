@@ -5,7 +5,7 @@
 groups = ["default", "dev", "msgspec"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:d5910cddf8f88ddd8375a26a5c194a90f5d283435da5fb0cede24b9a19690050"
+content_hash = "sha256:8c13338810b8010a8bc538817aa959fb17d5237cc38dd3d68722db5fbf400b1d"
 
 [[metadata.targets]]
 requires_python = "~=3.10"
@@ -900,29 +900,16 @@ files = [
 
 [[package]]
 name = "starlette"
-version = "0.37.2"
-requires_python = ">=3.8"
+version = "0.48.0"
+requires_python = ">=3.9"
 summary = "The little ASGI library that shines."
 dependencies = [
-    "anyio<5,>=3.4.0",
+    "anyio<5,>=3.6.2",
+    "typing-extensions>=4.10.0; python_version < \"3.13\"",
 ]
 files = [
-    {file = "starlette-0.37.2-py3-none-any.whl", hash = "sha256:6fe59f29268538e5d0d182f2791a479a0c64638e6935d1c6989e63fb2699c6ee"},
-    {file = "starlette-0.37.2.tar.gz", hash = "sha256:9af890290133b79fc3db55474ade20f6220a364a0402e0b556e7cd5e1e093823"},
-]
-
-[[package]]
-name = "starlette"
-version = "0.37.2"
-extras = ["python-multipart"]
-requires_python = ">=3.8"
-summary = "The little ASGI library that shines."
-dependencies = [
-    "starlette==0.37.2",
-]
-files = [
-    {file = "starlette-0.37.2-py3-none-any.whl", hash = "sha256:6fe59f29268538e5d0d182f2791a479a0c64638e6935d1c6989e63fb2699c6ee"},
-    {file = "starlette-0.37.2.tar.gz", hash = "sha256:9af890290133b79fc3db55474ade20f6220a364a0402e0b556e7cd5e1e093823"},
+    {file = "starlette-0.48.0-py3-none-any.whl", hash = "sha256:0764ca97b097582558ecb498132ed0c7d942f233f365b86ba37770e026510659"},
+    {file = "starlette-0.48.0.tar.gz", hash = "sha256:7e8cee469a8ab2352911528110ce9088fdc6a37d9876926e73da7ce4aa4c7a46"},
 ]
 
 [[package]]

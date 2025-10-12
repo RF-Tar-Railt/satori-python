@@ -39,11 +39,10 @@ from starlette.types import ASGIApp
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from yarl import URL
 
-from satori.const import Api
+from satori.const import Api, EventType
 from satori.model import Event, Meta, ModelBase, Opcode
 from satori.utils import decode
 
-from .. import EventType
 from .adapter import Adapter as Adapter
 from .connection import WebsocketConnection
 from .formdata import parse_content_disposition as parse_content_disposition
@@ -340,7 +339,7 @@ class Server(Service, RouterMixin):
                 isinstance(resp, (PlainTextResponse, HTMLResponse, JSONResponse)) or resp.__class__ is Response
             ) and len(resp.body) > self.stream_threshold:
 
-                async def iter_content(body: bytes):
+                async def iter_content(body: bytes | memoryview[int]):
                     for i in range(0, len(body), self.stream_chunk_size):
                         yield body[i : i + self.stream_chunk_size]
 
