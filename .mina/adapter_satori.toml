@@ -3,7 +3,7 @@ raw-dependencies = ["satori-python >= 0.17.2"]
 
 [project]
 name = "satori-python-adapter-satori"
-version = "0.2.2"
+version = "0.2.3"
 authors = [
   {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
 ]
