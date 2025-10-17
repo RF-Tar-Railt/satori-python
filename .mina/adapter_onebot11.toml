@@ -3,7 +3,7 @@ raw-dependencies = ["satori-python-server >= 0.17.2"]
 
 [project]
 name = "satori-python-adapter-onebot11"
-version = "0.2.4"
+version = "0.2.5"
 authors = [
   {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
 ]
