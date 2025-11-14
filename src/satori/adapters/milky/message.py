@@ -53,7 +53,7 @@ class MilkyMessageEncoder:
         uri = attrs.get("src") or attrs.get("url")
         if not uri:
             return
-        name = attrs.get("title") or uri.split("/")[-1][:32]
+        name = attrs.get("title") or uri.split("/")[-1]
         if match := _BASE64_RE.match(uri):
             uri = f"base64://{uri[len(match.group(0)) :]}"
         scene, peer_id = get_scene_and_peer(self.channel_id)
