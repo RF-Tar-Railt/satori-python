@@ -341,7 +341,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
                 "set_msg_emoji_like",
                 {
                     "message_id": int(request.params["message_id"]),
-                    "emoji": request.params["emoji"],
+                    "emoji_id": request.params["emoji"],
                     "set": True,
                 },
             )
