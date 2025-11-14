@@ -20,6 +20,8 @@ from satori.server.route import (
     GuildXXXListParam,
     MessageOpParam,
     MessageParam,
+    ReactionCreateParam,
+    ReactionDeleteParam,
     UserChannelCreateParam,
     UserGetParam,
 )
@@ -206,7 +208,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
             {
                 "group_id": int(request.params["guild_id"]),
                 "user_id": int(request.params["user_id"]),
-                "duration": request.params["duration"],
+                "duration": int(request.params["duration"] / 1000),
             },
         )
         return
@@ -308,6 +310,100 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
                 "approve": request.params["approve"],
             },
         )
+        return
+
+    @adapter.route(Api.REACTION_CREATE)
+    async def reaction_create(request: Request[ReactionCreateParam]):
+        net = net_getter(request.self_id)
+        channel_id = request.params["channel_id"]
+        info = await net.call_api("get_version_info", {})
+        app_name = info["app_name"]
+        if app_name == "LLOneBot":
+            await net.call_api(
+                "set_msg_emoji_like",
+                {
+                    "message_id": int(request.params["message_id"]),
+                    "emoji": request.params["emoji"],
+                },
+            )
+        elif app_name == "Lagrange.OneBot" and not channel_id.startswith("private:"):
+            await net.call_api(
+                "set_group_reaction",
+                {
+                    "group_id": int(channel_id),
+                    "message_id": int(request.params["message_id"]),
+                    "code": request.params["emoji"],
+                    "is_add": True,
+                },
+            )
+        elif app_name == "NapCat.Onebot":
+            await net.call_api(
+                "set_msg_emoji_like",
+                {
+                    "message_id": int(request.params["message_id"]),
+                    "emoji": request.params["emoji"],
+                    "set": True,
+                },
+            )
+        elif app_name == "ws-plugin" and not channel_id.startswith("private:"):
+            emj_type = 1 if int(request.params["emoji"]) < 5000 else 2
+            await net.call_api(
+                "set_reaction",
+                {
+                    "group_id": int(channel_id),
+                    "message_seq": int(request.params["message_id"]),
+                    "code": request.params["emoji"],
+                    "is_add": True,
+                    "type": emj_type,
+                },
+            )
+        return
+
+    @adapter.route(Api.REACTION_DELETE)
+    async def reaction_delete(request: Request[ReactionDeleteParam]):
+        net = net_getter(request.self_id)
+        channel_id = request.params["channel_id"]
+        info = await net.call_api("get_version_info", {})
+        app_name = info["app_name"]
+        if app_name == "LLOneBot":
+            await net.call_api(
+                "unset_msg_emoji_like",
+                {
+                    "message_id": int(request.params["message_id"]),
+                    "emoji": request.params["emoji"],
+                },
+            )
+        elif app_name == "Lagrange.OneBot" and not channel_id.startswith("private:"):
+            await net.call_api(
+                "set_group_reaction",
+                {
+                    "group_id": int(channel_id),
+                    "message_id": int(request.params["message_id"]),
+                    "code": request.params["emoji"],
+                    "is_add": False,
+                },
+            )
+        elif app_name == "NapCat.Onebot":
+            await net.call_api(
+                "set_msg_emoji_like",
+                {
+                    "message_id": int(request.params["message_id"]),
+                    "emoji": request.params["emoji"],
+                    "set": False,
+                },
+            )
+        elif app_name == "ws-plugin" and not channel_id.startswith("private:"):
+            emj_type = 1 if int(request.params["emoji"]) < 5000 else 2
+            await net.call_api(
+                "set_reaction",
+                {
+                    "group_id": int(channel_id),
+                    "message_seq": int(request.params["message_id"]),
+                    "code": request.params["emoji"],
+                    "is_add": False,
+                    "type": emj_type,
+                },
+            )
         return
 
     @adapter.route("*")

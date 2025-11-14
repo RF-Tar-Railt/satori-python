@@ -1,16 +1,11 @@
 from __future__ import annotations
 
 import re
-from base64 import b64decode
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any, Literal, TypedDict
 from urllib.parse import urlparse
-
-from graia.amnesia.builtins.aiohttp import AiohttpClientService
-from launart import Launart
 
 from satori.element import Custom, E, Element
 from satori.model import Login, MessageObject
@@ -34,7 +29,7 @@ def uri_to_path(uri):
         # 删除开头的 '/'，Windows 路径如 /C:/Users 需要转换为 C:/Users
         path_str = path_str[1:]
 
-    return Path(path_str)
+    return Path(path_str).resolve()
 
 
 # def escape(text: str, inline: bool = False) -> str:
@@ -168,23 +163,16 @@ class OneBot11MessageEncoder:
         self.children = []
 
     async def _send_file(self, attrs: dict[str, Any]):
-        manager = Launart.current()
-        aio = manager.get_component(AiohttpClientService)
         src = attrs.get("src") or attrs["url"]
-        name = attrs.get("title") or src.split("/")[-1][:32]
-        temp_dir = TemporaryDirectory()
         if src.startswith("file:"):
             file = uri_to_path(src)
+            name = file.name
+        elif mat := b64_cap.match(src):
+            file = f"base64://{src[len(mat[0]):]}"
+            name = attrs.get("title")
         else:
-            file = Path(temp_dir.name).joinpath(f"{id(src)}.tmp")
-            if src.startswith("data://"):
-                _, b64 = src[5:].split(";", 1)
-                with file.open("wb") as f:
-                    f.write(b64decode(b64[7:]))
-            else:
-                async with aio.session.get(src) as resp:
-                    with file.open("wb") as f:
-                        f.write(await resp.read())
+            file = src
+            name = attrs.get("title") or src.split("/")[-1][:32]
         if self.channel_id.startswith("private:"):
             await self.net.call_api(
                 "upload_private_file",

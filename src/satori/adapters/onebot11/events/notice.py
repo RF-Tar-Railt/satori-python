@@ -233,17 +233,17 @@ async def member_leave(login: Login, net: OneBotNetwork, raw: dict):
         logger.warning(f"Received invalid user_id 0 in event {raw}")
         return
     group_info = await net.call_api("get_group_info", {"group_id": raw["group_id"]})
-    member_info = await net.call_api("get_group_member_info", {"group_id": raw["group_id"], "user_id": raw["user_id"]})
+    user_info = await net.call_api("get_stranger_info", {"user_id": raw["user_id"]})
     operator_info = await net.call_api(
         "get_group_member_info", {"group_id": raw["group_id"], "user_id": raw["operator_id"]}
     )
     user = User(
         str(raw["user_id"]),
-        member_info["nickname"],
-        member_info.get("card"),
+        user_info["nickname"],
+        user_info.get("card"),
         USER_AVATAR_URL.format(uin=raw["user_id"]),
     )
-    member = Member(user, member_info.get("card"), USER_AVATAR_URL.format(uin=raw["user_id"]))
+    member = Member(user, user_info["nickname"], USER_AVATAR_URL.format(uin=raw["user_id"]))
     guild = Guild(
         str(raw["group_id"]), group_info.get("group_name"), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"])
     )
@@ -263,7 +263,6 @@ async def member_leave(login: Login, net: OneBotNetwork, raw: dict):
         guild=guild,
         channel=channel,
         operator=operator,
-        role=ROLE_MAPPING[member_info["role"]],
     )
 
 

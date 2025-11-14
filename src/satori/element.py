@@ -217,7 +217,7 @@ class Resource(Element):
         if url is not None:
             data |= {"src": url}
         elif path:
-            data |= {"src": Path(path).as_uri()}
+            data |= {"src": Path(path).resolve().as_uri()}
         elif raw:
             bd = raw.getvalue() if isinstance(raw, BytesIO) else raw
             if mime is None:

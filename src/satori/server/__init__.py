@@ -83,11 +83,15 @@ async def _request_handler(action: str, request: StarletteRequest, func: RouteCa
             )
             return JSONResponse(content=res)
     try:
+        if request.method == "GET":
+            params = dict(request.query_params)
+        else:
+            params = await request.json()
         res = await func(
             Request(
                 request,
                 action,
-                await request.json(),
+                params,
                 platform=platform,
                 self_id=self_id,
             )

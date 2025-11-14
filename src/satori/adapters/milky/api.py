@@ -214,7 +214,7 @@ def apply(
             {
                 "group_id": int(request.params["guild_id"]),
                 "user_id": int(request.params["user_id"]),
-                "duration": int(request.params["duration"]),
+                "duration": int(request.params["duration"] / 1000),
             },
         )
         return
