@@ -4,6 +4,7 @@ import asyncio
 import functools
 import signal
 import threading
+import traceback
 from collections.abc import Awaitable, Callable, Iterable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
@@ -279,7 +280,12 @@ class App(Service):
             account = self.accounts[login_sn]
 
         if self.event_callbacks:
-            await asyncio.gather(*(callback(account, event) for callback in self.event_callbacks))
+            task = asyncio.gather(*(callback(account, event) for callback in self.event_callbacks))
+            try:
+                await task
+            except Exception:
+                traceback.print_exc()
+                task.cancel()
 
         if event.type == EventType.LOGIN_REMOVED:
             logger.info(f"account removed: {account}")
