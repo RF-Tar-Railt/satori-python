@@ -2,7 +2,18 @@ from collections.abc import Callable
 from datetime import datetime
 
 from satori import Api
-from satori.model import Channel, ChannelType, Guild, Login, Member, MessageObject, PageResult, Role, User
+from satori.model import (
+    Channel,
+    ChannelType,
+    Guild,
+    Login,
+    Member,
+    MessageObject,
+    PageDequeResult,
+    PageResult,
+    Role,
+    User,
+)
 from satori.server import Adapter, Request
 from satori.server.route import (
     ApproveParam,
@@ -18,6 +29,7 @@ from satori.server.route import (
     GuildMemberMuteParam,
     GuildMemberRoleParam,
     GuildXXXListParam,
+    MessageListParam,
     MessageOpParam,
     MessageParam,
     ReactionCreateParam,
@@ -53,7 +65,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
         user = User(str(sender["user_id"]), sender["nickname"], USER_AVATAR_URL.format(uin=sender["user_id"]))
         if result["message_type"] == "private":
             return MessageObject(
-                request.params["message_id"],
+                str(result["message_id"]),
                 await decode(result["message"], net),
                 user=user,
                 channel=Channel(f"private:{sender['user_id']}", ChannelType.DIRECT, sender["nickname"]),
@@ -62,13 +74,119 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
         guild = Guild(request.params["channel_id"], avatar=GROUP_AVATAR_URL.format(group=request.params["channel_id"]))
         channel = Channel(request.params["channel_id"], ChannelType.TEXT)
         return MessageObject(
-            request.params["message_id"],
+            str(result["message_id"]),
             await decode(result["message"], net),
             user=user,
             member=member,
             guild=guild,
             channel=channel,
         )
+
+    @adapter.route(Api.MESSAGE_LIST)
+    async def message_list(request: Request[MessageListParam]):
+        net = net_getter(request.self_id)
+        params = request.params
+        direction = params.get("direction", "before")
+        if direction != "before":
+            raise RuntimeError("OneBot adapter only supports direction='before'")
+        info = await net.call_api("get_version_info", {})
+        app_name = info["app_name"]
+        if app_name == "NapCat.Onebot":
+            if params["channel_id"].startswith("private:"):
+                messages = await net.call_api(
+                    "get_friend_msg_history",
+                    {
+                        "user_id": params["channel_id"].removeprefix("private:"),
+                        "message_seq": params.get("next", "0"),
+                        "count": params.get("limit"),
+                    },
+                )
+            else:
+                messages = await net.call_api(
+                    "get_group_msg_history",
+                    {
+                        "group_id": int(params["channel_id"]),
+                        "message_seq": params.get("next", "0"),
+                        "count": params.get("limit"),
+                    },
+                )
+            next_ = str(len(messages) + int(params.get("next", "0")))
+        elif app_name == "Lagrange.OneBot" and (mid := params.get("next")):
+            if params["channel_id"].startswith("private:"):
+                messages = await net.call_api(
+                    "get_private_msg_history",
+                    {
+                        "user_id": params["channel_id"].removeprefix("private:"),
+                        "message_id": int(mid),
+                        "count": params.get("limit"),
+                    },
+                )
+            else:
+                messages = await net.call_api(
+                    "get_group_msg_history",
+                    {
+                        "group_id": int(params["channel_id"]),
+                        "message_id": int(mid),
+                        "count": params.get("limit"),
+                    },
+                )
+            next_ = messages[-1]["message_id"] if messages else mid
+        elif app_name == "LLOneBot":
+            if params["channel_id"].startswith("private:"):
+                messages = await net.call_api(
+                    "get_friend_msg_history",
+                    {
+                        "user_id": params["channel_id"].removeprefix("private:"),
+                        "message_seq": params.get("next", "0"),
+                        "count": params.get("limit"),
+                    },
+                )
+            else:
+                messages = await net.call_api(
+                    "get_group_msg_history",
+                    {
+                        "group_id": int(params["channel_id"]),
+                        "message_seq": params.get("next", "0"),
+                        "count": params.get("limit"),
+                    },
+                )
+            next_ = str(len(messages) + int(params.get("next", "0")))
+        else:
+            return PageDequeResult([])
+        if not messages:
+            return PageDequeResult([])
+        dq = PageDequeResult([], next=next_)
+        for result in messages:
+            sender: dict = result["sender"]
+            user = User(str(sender["user_id"]), sender["nickname"], USER_AVATAR_URL.format(uin=sender["user_id"]))
+            if result["message_type"] == "private":
+                dq.data.append(
+                    MessageObject(
+                        str(result["message_id"]),
+                        await decode(result["message"], net),
+                        user=user,
+                        channel=Channel(f"private:{sender['user_id']}", ChannelType.DIRECT, sender["nickname"]),
+                    )
+                )
+            else:
+                member = Member(user, sender["nickname"], USER_AVATAR_URL.format(uin=sender["user_id"]))
+                guild = Guild(
+                    request.params["channel_id"], avatar=GROUP_AVATAR_URL.format(group=request.params["channel_id"])
+                )
+                channel = Channel(request.params["channel_id"], ChannelType.TEXT)
+                dq.data.append(
+                    MessageObject(
+                        str(result["message_id"]),
+                        await decode(result["message"], net),
+                        user=user,
+                        member=member,
+                        guild=guild,
+                        channel=channel,
+                    )
+                )
+        if params.get("order") == "desc":
+            dq.data.reverse()
+        return dq
 
     @adapter.route(Api.MESSAGE_DELETE)
     async def message_delete(request: Request[MessageOpParam]):
