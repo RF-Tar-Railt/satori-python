@@ -332,7 +332,9 @@ class Server(Service, RouterMixin):
             else:
                 continue
             return await _request_handler(action, request, func, platform, self_id)
-        return Response(status_code=404, content=f"Action {action!r} is not supported in current platform {platform!r}.")
+        return Response(
+            status_code=404, content=f"Action {action!r} is not supported in current platform {platform!r}."
+        )
 
     async def proxy_url_handler(self, request: StarletteRequest):
         url = request.path_params["internal_url"]
