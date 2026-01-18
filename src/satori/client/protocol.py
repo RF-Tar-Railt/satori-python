@@ -114,39 +114,41 @@ class ApiProtocol:
         """
         if not event.channel:
             raise RuntimeError("Event cannot be replied to!")
-        return await self.send_message(event.channel.id, message)
+        return await self.send_message(event.channel.id, message, event.referrer)
 
     async def send_message(
-        self, channel: str | Channel, message: str | Iterable[str | Element]
+        self, channel: str | Channel, message: str | Iterable[str | Element], referrer: dict[str, Any] | None = None
     ) -> list[MessageReceipt]:
         """发送消息。返回一个 `MessageReceipt` 对象构成的数组。
 
         Args:
             channel (str | Channel): 要发送的频道 ID
             message (str | Iterable[str | Element]): 要发送的消息
+            referrer (dict[str, Any] | None): 消息来源信息，默认为 None
 
         Returns:
             list[MessageReceipt]: `MessageReceipt` 对象构成的数组
         """
         channel_id = channel.id if isinstance(channel, Channel) else channel
         msg = message if isinstance(message, str) else "".join(str(i) for i in message)
-        return await self.message_create(channel_id=channel_id, content=msg)
+        return await self.message_create(channel_id=channel_id, content=msg, referrer=referrer)
 
     async def send_private_message(
-        self, user: str | User, message: str | Iterable[str | Element]
+        self, user: str | User, message: str | Iterable[str | Element], referrer: dict[str, Any] | None = None
     ) -> list[MessageReceipt]:
         """发送私聊消息。返回一个 `MessageReceipt` 对象构成的数组。
 
         Args:
             user (str | User): 要发送的用户 ID
             message (str | Iterable[str | Element]): 要发送的消息
+            referrer (dict[str, Any] | None): 消息来源信息，默认为 None
 
         Returns:
             list[MessageReceipt]: `MessageReceipt` 对象构成的数组
         """
         user_id = user.id if isinstance(user, User) else user
         channel = await self.user_channel_create(user_id=user_id)
-        return await self.message_create(channel_id=channel.id, content="".join(str(i) for i in message))
+        return await self.message_create(channel_id=channel.id, content="".join(str(i) for i in message), referrer=referrer)
 
     async def update_message(
         self, channel: str | Channel, message_id: str, message: str | Iterable[str | Element]
@@ -169,19 +171,20 @@ class ApiProtocol:
             content=msg,
         )
 
-    async def message_create(self, channel_id: str, content: str) -> list[MessageReceipt]:
+    async def message_create(self, channel_id: str, content: str, referrer: dict[str, Any] | None = None) -> list[MessageReceipt]:
         """发送消息。返回一个 `MessageReceipt` 对象构成的数组。
 
         Args:
             channel_id (str): 频道 ID
             content (str): 消息内容
+            referrer (dict[str, Any] | None): 消息来源信息，默认为 None
 
         Returns:
             list[MessageReceipt]: `MessageReceipt` 对象构成的数组
         """
         res = await self.call_api(
             Api.MESSAGE_CREATE,
-            {"channel_id": channel_id, "content": content},
+            {"channel_id": channel_id, "content": content, "referrer": referrer},
         )
         res = cast("list[dict]", res)
         return [MessageReceipt.parse(i) for i in res]

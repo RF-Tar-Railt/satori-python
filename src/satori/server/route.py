@@ -36,6 +36,7 @@ INTERAL: TypeAlias = RouteCall[Any, ModelBase | list[ModelBase] | dict[str, Any]
 class MessageParam(TypedDict):
     channel_id: str
     content: str
+    referrer: NotRequired[dict[str, Any]]
 
 
 MESSAGE_CREATE: TypeAlias = RouteCall[MessageParam, list[MessageObject] | list[dict[str, Any]]]

@@ -354,6 +354,7 @@ class MessageObject(ModelBase):
 class MessageReceipt(ModelBase):
     id: str
     content: str | None = None
+    referrer: dict | None = None
 
     @classmethod
     def from_elements(
@@ -379,9 +380,11 @@ class MessageReceipt(ModelBase):
         return super().parse(raw)
 
     def dump(self):
-        res = {"id": self.id}
+        res: dict = {"id": self.id}
         if self.content:
             res["content"] = self.content
+        if self.referrer:
+            res["referrer"] = self.referrer
         return res
 
 
@@ -399,6 +402,7 @@ class Event(ModelBase):
     operator: User | None = None
     role: Role | None = None
     user: User | None = None
+    referrer: dict | None = None
 
     _type: str | None = None
     _data: dict | None = None
@@ -471,6 +475,8 @@ class Event(ModelBase):
             res["role"] = self.role.dump()
         if self.user:
             res["user"] = self.user.dump()
+        if self.referrer:
+            res["referrer"] = self.referrer
         if self._type:
             res["_type"] = self._type
         if self._data:

@@ -95,26 +95,28 @@ class Account(Generic[TP]):
         """
 
     async def send_message(
-        self, channel: str | Channel, message: str | Iterable[str | Element]
+        self, channel: str | Channel, message: str | Iterable[str | Element], referrer: dict[str, Any] | None = None
     ) -> list[MessageReceipt]:
         """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
             channel (str | Channel): 要发送的频道 ID
             message (str | Iterable[str | Element]): 要发送的消息
+            referrer (dict[str, Any] | None, optional): 消息来源信息，默认为 None
 
         Returns:
             list[MessageObject]: `MessageObject` 对象构成的数组
         """
 
     async def send_private_message(
-        self, user: str | User, message: str | Iterable[str | Element]
+        self, user: str | User, message: str | Iterable[str | Element], referrer: dict[str, Any] | None = None
     ) -> list[MessageReceipt]:
         """发送私聊消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
             user (str | User): 要发送的用户 ID
             message (str | Iterable[str | Element]): 要发送的消息
+            referrer (dict[str, Any] | None, optional): 消息来源信息，默认为 None
 
         Returns:
             list[MessageObject]: `MessageObject` 对象构成的数组
@@ -134,12 +136,13 @@ class Account(Generic[TP]):
             None: 该方法无返回值
         """
 
-    async def message_create(self, channel_id: str, content: str) -> list[MessageReceipt]:
+    async def message_create(self, channel_id: str, content: str, referrer: dict[str, Any] | None = None) -> list[MessageReceipt]:
         """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
             channel_id (str): 频道 ID
             content (str): 消息内容
+            referrer (dict[str, Any] | None, optional): 消息来源信息，默认为 None
 
         Returns:
             list[MessageObject]: `MessageObject` 对象构成的数组
