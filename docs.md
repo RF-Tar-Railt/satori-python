@@ -248,7 +248,7 @@ async def on_message_create(request: Request[route.MESSAGE_CREATE]):
     return [MessageObject(id="123456789", content="Hello, world!")]
 ```
 
-route 填入的若不属于 `Api` 中的枚举值，会被视为是[内部接口](https://satori.js.org/zh-CN/protocol/internal.html)的路由。
+route 填入的若不属于 `Api` 中的枚举值，会被视为是[内部接口](https://satori.chat/zh-CN/protocol/internal.html)的路由。
 
 route 装饰的函数的返回值既可以是 satori 中的模型，也可以是原始数据。
 
@@ -361,10 +361,10 @@ async def main():
 
 ## 基本类型
 
-- `Text`: 文本类型，对应 [纯文本](https://satori.js.org/zh-CN/protocol/elements.html#%E7%BA%AF%E6%96%87%E6%9C%AC).
-- `At`: 提及用户类型，对应 [提及用户](https://satori.js.org/zh-CN/protocol/elements.html#%E6%8F%90%E5%8F%8A%E7%94%A8%E6%88%B7).
-- `Sharp`: 提及频道类型，对应 [提及频道](https://satori.js.org/zh-CN/protocol/elements.html#%E6%8F%90%E5%8F%8A%E9%A2%91%E9%81%93).
-- `Link`: 链接类型，对应 [链接](https://satori.js.org/zh-CN/protocol/elements.html#%E9%93%BE%E6%8E%A5).
+- `Text`: 文本类型，对应 [纯文本](https://satori.chat/zh-CN/protocol/elements.html#%E7%BA%AF%E6%96%87%E6%9C%AC).
+- `At`: 提及用户类型，对应 [提及用户](https://satori.chat/zh-CN/protocol/elements.html#%E6%8F%90%E5%8F%8A%E7%94%A8%E6%88%B7).
+- `Sharp`: 提及频道类型，对应 [提及频道](https://satori.chat/zh-CN/protocol/elements.html#%E6%8F%90%E5%8F%8A%E9%A2%91%E9%81%93).
+- `Link`: 链接类型，对应 [链接](https://satori.chat/zh-CN/protocol/elements.html#%E9%93%BE%E6%8E%A5).
 
 ```python
 from satori import Text, At, Sharp, Link
@@ -380,7 +380,7 @@ link1 = Link("github.com/RF-Tar-Railt/satori-python")(
 
 ## 资源类型
 
-- `Image`, `Audio`, `Video`, `File`: 资源类型，对应 [资源元素](https://satori.js.org/zh-CN/protocol/elements.html#%E8%B5%84%E6%BA%90%E5%85%83%E7%B4%A0).
+- `Image`, `Audio`, `Video`, `File`: 资源类型，对应 [资源元素](https://satori.chat/zh-CN/protocol/elements.html#%E8%B5%84%E6%BA%90%E5%85%83%E7%B4%A0).
 
 资源类型元素可以用特殊的 `.of` 方法来创建:
 
@@ -410,7 +410,7 @@ image = Image.of(raw=data, mime="image/png")
 
 ## 修饰类型
 
-- `Bold`, `Italic`, `Underline`, `Strikethrough`, ...: 修饰类型，对应 [修饰元素](https://satori.js.org/zh-CN/protocol/elements.html#%E4%BF%AE%E9%A5%B0%E5%85%83%E7%B4%A0).
+- `Bold`, `Italic`, `Underline`, `Strikethrough`, ...: 修饰类型，对应 [修饰元素](https://satori.chat/zh-CN/protocol/elements.html#%E4%BF%AE%E9%A5%B0%E5%85%83%E7%B4%A0).
 
 ```python
 from satori import Bold, Italic, Underline, Paragraph
@@ -427,9 +427,9 @@ text = Bold(
 
 ## 排版类型
 
-- `Br`: 换行类型，对应 [换行](https://satori.js.org/zh-CN/protocol/elements.html#%E6%8D%A2%E8%A1%8C).
-- `Paragraph`: 段落类型，对应 [段落](https://satori.js.org/zh-CN/protocol/elements.html#%E6%AE%B5%E8%90%BD).
-- `Message`: 渲染消息，对应 [消息](https://satori.js.org/zh-CN/protocol/elements.html#%E6%B6%88%E6%81%AF).
+- `Br`: 换行类型，对应 [换行](https://satori.chat/zh-CN/protocol/elements.html#%E6%8D%A2%E8%A1%8C).
+- `Paragraph`: 段落类型，对应 [段落](https://satori.chat/zh-CN/protocol/elements.html#%E6%AE%B5%E8%90%BD).
+- `Message`: 渲染消息，对应 [消息](https://satori.chat/zh-CN/protocol/elements.html#%E6%B6%88%E6%81%AF).
 
 对于 `Message`，你可以通过 `content` 参数来传入子元素:
 
@@ -456,8 +456,8 @@ message = Message(forward=True)(
 
 ## 元信息类型
 
-- `Author`: 作者类型，对应 [作者](https://satori.js.org/zh-CN/protocol/elements.html#%E4%BD%9C%E8%80%85).
-- `Quote`: 引用类型，对应 [引用](https://satori.js.org/zh-CN/protocol/elements.html#%E5%BC%95%E7%94%A8).
+- `Author`: 作者类型，对应 [作者](https://satori.chat/zh-CN/protocol/elements.html#%E4%BD%9C%E8%80%85).
+- `Quote`: 引用类型，对应 [引用](https://satori.chat/zh-CN/protocol/elements.html#%E5%BC%95%E7%94%A8).
 
 `Quote` 的用法与 `Message` 一致。
 
@@ -480,7 +480,7 @@ authors = select(msg, Author)
 
 # 资源链接
 
-参考：[`资源链接(实验性)`](https://satori.js.org/zh-CN/advanced/resource.html)
+参考：[`资源链接(实验性)`](https://satori.chat/zh-CN/advanced/resource.html)
 
 ## 上传
 

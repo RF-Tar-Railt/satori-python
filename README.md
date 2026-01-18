@@ -5,11 +5,11 @@
 [![PyPI](https://img.shields.io/pypi/v/satori-python)](https://pypi.org/project/satori-python)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/satori-python)](https://www.python.org/)
 
-基于 [Satori](https://satori.js.org/zh-CN/) 协议的 Python 开发工具包
+基于 [Satori](https://satori.chat/zh-CN/) 协议的 Python 开发工具包
 
 ## 协议介绍
 
-[Satori Protocol](https://satori.js.org/zh-CN/)
+[Satori Protocol](https://satori.chat/zh-CN/)
 
 ### 协议端
 

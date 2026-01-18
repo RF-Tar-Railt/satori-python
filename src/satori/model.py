@@ -430,6 +430,10 @@ class Event(ModelBase):
                 "user": {"id": raw["self_id"]},
                 "status": LoginStatus.ONLINE,
             }
+        if "self_id" in raw and not raw.get("login", {}).get("user"):
+            if "login" not in raw:
+                raw["login"] = {"sn": 0, "status": LoginStatus.ONLINE, "platform": raw.get("platform", "unknown")}
+            raw["login"]["user"] = {"id": raw["self_id"]}
         return super().parse(raw)
 
     @property
