@@ -136,7 +136,9 @@ class Account(Generic[TP]):
             None: 该方法无返回值
         """
 
-    async def message_create(self, channel_id: str, content: str, referrer: dict[str, Any] | None = None) -> list[MessageReceipt]:
+    async def message_create(
+        self, channel_id: str, content: str, referrer: dict[str, Any] | None = None
+    ) -> list[MessageReceipt]:
         """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:

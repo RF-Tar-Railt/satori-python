@@ -213,7 +213,7 @@ class Resource(Element):
         timeout: int | None = None,
         **kwargs,
     ):
-        data: dict[str, Any] = {"extra": extra or kwargs}
+        data: dict[str, Any] = {"extra": extra, **kwargs}
         if url is not None:
             data |= {"src": url}
         elif path:

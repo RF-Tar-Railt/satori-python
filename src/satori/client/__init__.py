@@ -204,7 +204,12 @@ class App(Service):
 
     async def account_update(self, account: Account, state: LoginStatus):
         if self.lifecycle_callbacks:
-            await asyncio.gather(*(callback(account, state) for callback in self.lifecycle_callbacks))
+            task = asyncio.gather(*(callback(account, state) for callback in self.lifecycle_callbacks))
+            try:
+                await task
+            except Exception:
+                traceback.print_exc()
+                task.cancel()
 
     async def post(self, event: Event, conn: BaseNetwork):
         if event.type == EventType.LOGIN_ADDED:

@@ -148,7 +148,9 @@ class ApiProtocol:
         """
         user_id = user.id if isinstance(user, User) else user
         channel = await self.user_channel_create(user_id=user_id)
-        return await self.message_create(channel_id=channel.id, content="".join(str(i) for i in message), referrer=referrer)
+        return await self.message_create(
+            channel_id=channel.id, content="".join(str(i) for i in message), referrer=referrer
+        )
 
     async def update_message(
         self, channel: str | Channel, message_id: str, message: str | Iterable[str | Element]
@@ -171,7 +173,9 @@ class ApiProtocol:
             content=msg,
         )
 
-    async def message_create(self, channel_id: str, content: str, referrer: dict[str, Any] | None = None) -> list[MessageReceipt]:
+    async def message_create(
+        self, channel_id: str, content: str, referrer: dict[str, Any] | None = None
+    ) -> list[MessageReceipt]:
         """发送消息。返回一个 `MessageReceipt` 对象构成的数组。
 
         Args:
@@ -796,7 +800,8 @@ class ApiProtocol:
         Returns:
             list[Login]: `Login` 对象构成的数组
         """
-        return (await self.meta_get()).logins
+        res = await self.call_api("admin/login.list")
+        return [LoginPartial.parse(i) for i in res]
 
     async def webhook_create(self, url: str, token: str | None = None):
         """创建 Webhook。"""
