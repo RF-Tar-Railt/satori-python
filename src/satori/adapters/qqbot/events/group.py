@@ -20,7 +20,7 @@ async def friend_event(login, guild_login, net, payload: Payload):
     user = User(raw["openid"])
     return Event(
         t,
-        datetime.fromtimestamp(raw["timestamp"]),
+        datetime.fromtimestamp(int(raw["timestamp"])) if isinstance(raw["timestamp"], (int, float)) or raw["timestamp"].isdigit() else datetime.fromisoformat(str(raw["timestamp"])),
         login,
         user=user
     )
@@ -41,7 +41,7 @@ async def group_event(login, guild_login, net, payload: Payload):
     }[payload.type or ""]
     return Event(
         t,
-        datetime.fromtimestamp(raw["timestamp"]),
+        datetime.fromtimestamp(int(raw["timestamp"])) if isinstance(raw["timestamp"], (int, float)) or raw["timestamp"].isdigit() else datetime.fromisoformat(str(raw["timestamp"])),
         login,
         guild=guild,
         operator=operator

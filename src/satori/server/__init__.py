@@ -139,7 +139,6 @@ class Server(Service, RouterMixin):
         self.port = port
         self.version = version
         self.path = path
-        self.uvicorn_options = uvicorn_options
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
         if (self.host == "0.0.0.0" or self.host == "::") and not token:
@@ -157,8 +156,12 @@ class Server(Service, RouterMixin):
         self.stream_chunk_size = stream_chunk_size
         self.resources: dict[str, Path] = {}
         self.app = Starlette()
-        self.asgi_service = UvicornASGIService(self.host, self.port, options=self.uvicorn_options)
+        self.asgi_service = UvicornASGIService(self.host, self.port, options=uvicorn_options)
         super().__init__()
+
+    @property
+    def uvicorn_options(self) -> UvicornOptions:
+        return self.asgi_service.options
 
     def replace_app(self, app: ASGIApp | asgitypes.ASGI3Application):
         """替换当前的 Starlette 应用"""

@@ -33,7 +33,7 @@ async def at_message(login, guild_login, net, payload: Payload):
 
     return Event(
         EventType.MESSAGE_CREATED,
-        datetime.fromtimestamp(raw["timestamp"]),
+        datetime.fromtimestamp(int(raw["timestamp"])) if isinstance(raw["timestamp"], (int, float)) or raw["timestamp"].isdigit() else datetime.fromisoformat(str(raw["timestamp"])),
         guild_login,
         channel=channel,
         guild=guild,
@@ -64,7 +64,7 @@ async def direct_message_create(login, guild_login, net, payload: Payload):
     role = Role(raw["member"]["roles"][0])
     return Event(
         EventType.MESSAGE_CREATED,
-        datetime.fromtimestamp(raw["timestamp"]),
+        datetime.fromtimestamp(int(raw["timestamp"])) if isinstance(raw["timestamp"], (int, float)) or raw["timestamp"].isdigit() else datetime.fromisoformat(str(raw["timestamp"])),
         guild_login,
         channel=channel,
         guild=guild,
@@ -105,7 +105,7 @@ async def group_at_message_create(login, guild_login, net, payload: Payload):
             msg[1] = Text(text)
     return Event(
         EventType.MESSAGE_CREATED,
-        datetime.fromtimestamp(raw["timestamp"]),
+        datetime.fromtimestamp(int(raw["timestamp"])) if isinstance(raw["timestamp"], (int, float)) or raw["timestamp"].isdigit() else datetime.fromisoformat(str(raw["timestamp"])),
         login,
         channel=channel,
         guild=Guild(channel.id),
@@ -138,7 +138,7 @@ async def c2c_message_create(login, guild_login, net, payload: Payload):
     channel = Channel(f"private:{user.id}", ChannelType.DIRECT)
     return Event(
         EventType.MESSAGE_CREATED,
-        datetime.fromtimestamp(raw["timestamp"]),
+        datetime.fromtimestamp(int(raw["timestamp"])) if isinstance(raw["timestamp"], (int, float)) or raw["timestamp"].isdigit() else datetime.fromisoformat(str(raw["timestamp"])),
         login,
         channel=channel,
         user=user,

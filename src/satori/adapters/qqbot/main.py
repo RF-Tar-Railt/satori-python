@@ -21,6 +21,7 @@ from yarl import URL
 from satori import EventType
 from satori.exception import NetworkError
 from satori.model import Event, Login, LoginStatus
+from satori.server import Server
 from satori.server.adapter import Adapter as BaseAdapter
 from satori.server.model import Request
 from satori.utils import decode
@@ -31,7 +32,9 @@ from .exception import UnauthorizedException
 from .utils import CallMethod, validate_response, Payload, Opcode, decode_user
 from .audit_store import audit_result
 
-DEFAULT_FEATURES = ["reaction"]
+
+QQ_FEATURES = ['message.create', 'message.delete', 'upload.create', 'login.get', 'user.channel.create']
+QQ_GUILD_FEATURES = ['channel.get', 'channel.list', 'channel.create', 'message.create', 'message.delete', 'message.get', 'reaction.create', 'reaction.delete', 'reaction.list', 'upload.create', 'guild.get', 'guild.list', 'guild.member.get', 'guild.member.list', 'guild.member.kick', 'guild.member.mute', 'login.get', 'user.get', 'user.channel.create']
 
 
 class _QQNetwork:
@@ -168,8 +171,8 @@ class QQBotWebhookAdapter(BaseAdapter):
     def __init__(
         self,
         secrets: dict[str, str],  # app_id 对应的 secret
-        *,
         path: str = "/qqbot",
+        *,
         certfile: str | os.PathLike[str] | None = None,
         keyfile: str | os.PathLike[str] | None = None,
         verify_payload: bool = True,
@@ -181,13 +184,8 @@ class QQBotWebhookAdapter(BaseAdapter):
         super().__init__()
         self.api_base = URL(str(api_base if not is_sandbox else sandbox_api_base))
         self.auth_base = URL(str(auth_base))
-        self.ssl_context = None
-        if certfile and keyfile:
-            self.ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-            self.ssl_context.load_cert_chain(certfile, keyfile)
-        else:
-            logger.warning("SSL is not enabled. You may need to use a reverse proxy to apply SSL.")
-            self.ssl_context = None
+        self._ssl_certfile = certfile
+        self._ssl_keyfile = keyfile
         self.verify_payload = verify_payload
         self.secrets = secrets
         self.path = path
@@ -195,8 +193,15 @@ class QQBotWebhookAdapter(BaseAdapter):
         self.logins: list[Login] = []
         self.bot_id_mapping: dict[str, str] = {}  # login.id -> bot app_id
         self.networks: dict[str, _QQNetwork] = {}
-        self.features = list(DEFAULT_FEATURES)
         # apply(self, self._get_network, self._get_login)
+
+    def ensure_server(self, server: Server):
+        super().ensure_server(server)
+        if self._ssl_certfile and self._ssl_keyfile:
+            self.server.uvicorn_options["ssl_certfile"] = str(self._ssl_certfile)
+            self.server.uvicorn_options["ssl_keyfile"] = str(self._ssl_keyfile)
+        else:
+            logger.warning("SSL is not enabled. You may need to use a reverse proxy to apply SSL.")
 
     def get_platform(self) -> str:
         return "qq"
@@ -269,7 +274,7 @@ class QQBotWebhookAdapter(BaseAdapter):
             event = Event(
                 EventType.INTERNAL,
                 datetime.now(),
-                login,
+                guild_login,
             )
         if event:
             event._type = event_type
@@ -281,7 +286,7 @@ class QQBotWebhookAdapter(BaseAdapter):
         bot_info = await network.call_api("get", "users/@me")
         user = decode_user(bot_info)
         user.is_bot = True
-        login = Login(0, LoginStatus.ONLINE, "qqbot", platform="qq", user=user, features=self.features.copy())
+        login = Login(0, LoginStatus.ONLINE, "qqbot", platform="qq", user=user, features=QQ_FEATURES.copy())
         previous = next((lg for lg in self.logins if lg.id == login.id and lg.platform == "qq"), None)
         if previous:
             previous.user = login.user
@@ -293,7 +298,7 @@ class QQBotWebhookAdapter(BaseAdapter):
             self.bot_id_mapping[login.id] = app_id
             event_type = EventType.LOGIN_ADDED
         await self.server.post(Event(event_type, datetime.now(), login))
-        guild_login = Login(0, LoginStatus.ONLINE, "qqbot", platform="qqguild", user=user, features=self.features.copy())
+        guild_login = Login(0, LoginStatus.ONLINE, "qqbot", platform="qqguild", user=user, features=QQ_GUILD_FEATURES.copy())
         previous = next((lg for lg in self.logins if lg.id == guild_login.id and lg.platform == "qqguild"), None)
         if previous:
             previous.user = guild_login.user

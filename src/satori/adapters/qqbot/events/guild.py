@@ -37,7 +37,7 @@ async def channel_event(login, guild_login, net, payload: Payload):
 @register_event("GUILD_DELETE")
 async def guild_event(login, guild_login, net, payload: Payload):
     raw = payload.data
-    guild = decode_guild(raw["guild_id"])
+    guild = decode_guild(raw)
     t = {
         "GUILD_CREATE": EventType.GUILD_ADDED,
         "GUILD_UPDATE": EventType.GUILD_UPDATED,

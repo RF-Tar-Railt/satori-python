@@ -110,7 +110,7 @@ def decode_user(profile: dict) -> User:
     return User(
         profile["id"],
         profile["username"],
-        avatar=profile["avatar"],
+        avatar=profile.get("avatar"),
         is_bot=profile.get("bot", False),
     )
 
