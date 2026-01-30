@@ -27,6 +27,10 @@ class GuildEvent(Event):
     guild: Guild
 
 
+class ChannelEvent(GuildEvent):
+    channel: Channel
+
+
 class GuildMemberEvent(GuildEvent):
     user: User
     member: Member

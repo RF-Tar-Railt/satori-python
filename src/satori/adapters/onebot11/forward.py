@@ -121,10 +121,12 @@ class OneBot11ForwardAdapter(BaseAdapter):
                     login = self.logins[self_id]
                     handler = events.get(event_type)
                     if not handler:
-                        event = Event(EventType.INTERNAL, datetime.now(), login, _type=event_type, _data=data)
+                        event = Event(EventType.INTERNAL, datetime.now(), login)
                     else:
                         event = await handler(login, self, data)
                     if event:
+                        event._type = event_type
+                        event._data = data
                         await self.server.post(event)
 
             asyncio.create_task(event_parse_task(data))

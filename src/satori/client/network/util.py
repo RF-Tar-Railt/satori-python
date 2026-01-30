@@ -22,21 +22,23 @@ async def validate_response(resp: ClientResponse, noreturn: Literal[True]) -> No
 
 
 async def validate_response(resp: ClientResponse, noreturn=False):
-    if 200 <= resp.status < 300:
-        if noreturn:
-            return
-        return decode(content) if (content := await resp.text()) else {}
-    elif resp.status == 400:
-        raise BadRequestException(await resp.text())
-    elif resp.status == 401:
-        raise UnauthorizedException(await resp.text())
-    elif resp.status == 403:
-        raise ForbiddenException(await resp.text())
-    elif resp.status == 404:
-        raise NotFoundException(await resp.text())
-    elif resp.status == 405:
-        raise MethodNotAllowedException(await resp.text())
-    elif resp.status >= 500:
-        raise ServerException(await resp.text())
-    else:
-        resp.raise_for_status()
+    match resp.status:
+        case x if 200 <= x < 300:
+            if noreturn:
+                return
+            content = await resp.text()
+            return decode(content) if content else {}
+        case 400:
+            raise BadRequestException(await resp.text())
+        case 401:
+            raise UnauthorizedException(await resp.text())
+        case 403:
+            raise ForbiddenException(await resp.text())
+        case 404:
+            raise NotFoundException(await resp.text())
+        case 405:
+            raise MethodNotAllowedException(await resp.text())
+        case x if x >= 500:
+            raise ServerException(await resp.text())
+        case _:
+            resp.raise_for_status()

@@ -196,15 +196,14 @@ class MilkyAdapter(BaseAdapter):
         if handler:
             event = await handler(login, network, payload)
         else:
-            body = payload.get("data", {})
             event = Event(
                 EventType.INTERNAL,
                 datetime.fromtimestamp(payload.get("time", datetime.now().timestamp())),
                 login,
-                _type=event_type,
-                _data=body,
             )
         if event:
+            event._type = event_type
+            event._data = payload.get("data", {})
             await self.server.post(event)
 
     async def refresh_login(self):

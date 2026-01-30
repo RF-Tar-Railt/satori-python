@@ -266,15 +266,14 @@ class QQBotWebhookAdapter(BaseAdapter):
         if handler:
             event = await handler(login, guild_login, network, payload)
         else:
-            body = payload.data
             event = Event(
                 EventType.INTERNAL,
                 datetime.now(),
                 login,
-                _type=event_type,
-                _data=body,
             )
         if event:
+            event._type = event_type
+            event._data = payload.data
             await self.server.post(event)
 
     async def refresh_login(self, app_id: str):

@@ -204,102 +204,103 @@ class OneBot11MessageEncoder:
 
     async def visit(self, element: RawElement):
         type_, attrs, _children = element.type, element.attrs, element.children
-        if type_ == "text":
-            self.children.append({"type": "text", "data": {"text": attrs["text"]}})
-        elif type_ == "br":
-            self.children.append({"type": "text", "data": {"text": "\n"}})
-        elif type_ == "p":
-            prev = self.children[-1] if self.children else None
-            if prev and prev["type"] == "text":
-                if not prev["data"]["text"].endswith("\n"):
-                    prev["data"]["text"] += "\n"
-            else:
+        match type_:
+            case "text":
+                self.children.append({"type": "text", "data": {"text": attrs["text"]}})
+            case "br":
                 self.children.append({"type": "text", "data": {"text": "\n"}})
-            await self.render(_children)
-            self.children.append({"type": "text", "data": {"text": "\n"}})
-        elif type_ == "at":
-            if "type" in attrs and attrs["type"] == "all":
-                self.children.append({"type": "at", "data": {"qq": "all"}})
-            else:
-                self.children.append({"type": "at", "data": {"qq": str(attrs["id"]), "name": attrs.get("name")}})
-        elif type_ == "sharp":
-            if "id" in attrs:
-                self.children.append({"type": "text", "data": {"text": attrs["id"]}})
-        elif type_ == "onebot:face":
-            self.children.append({"type": "face", "data": {"id": int(attrs["id"])}})
-        elif type_ == "a":
-            await self.render(_children)
-            if "href" in attrs:
-                self.children.append({"type": "text", "data": {"text": f" ({attrs['href']})"}})
-        elif type_ in ("video", "audio", "img", "image"):
-            if type_ in ("video", "audio"):
-                await self.flush()
-            if type_ == "audio":
-                type_ = "record"
-            elif type_ == "img":
-                type_ = "image"
-            _data = {
-                "cache": 1 if "cache" in attrs and attrs["cache"] else 0,
-                "file": attrs.get("src") or attrs.get("url"),
-            }
-            if mat := b64_cap.match(_data["file"]):
-                _data["file"] = f"base64://{_data['file'][len(mat[0]):]}"
-            self.children.append({"type": type_, "data": _data})
-        elif type_ == "file":
-            await self.flush()
-            await self._send_file(attrs)
-        elif type_ == "onebot:music":
-            await self.flush()
-            self.children.append({"type": "music", "data": attrs})
-        elif type_ == "onebot:poke":
-            await self.flush()
-            self.children.append({"type": "poke", "data": attrs})
-        elif type_ == "onebot:gift":
-            await self.flush()
-            self.children.append({"type": "gift", "data": attrs})
-        elif type_ == "onebot:share":
-            await self.flush()
-            self.children.append({"type": "share", "data": attrs})
-        elif type_ == "onebot:json":
-            await self.flush()
-            self.children.append({"type": "json", "data": attrs})
-        elif type_ == "onebot:xml":
-            await self.flush()
-            self.children.append({"type": "xml", "data": attrs})
-        elif type_ == "author":
-            self.stack[0].author.update(attrs)
-        elif type_ == "quote":
-            await self.flush()
-            self.children.append({"type": "reply", "data": attrs})
-        elif type_ == "message":
-            await self.flush()
-            if "forward" in attrs:
-                self.stack.insert(0, State("forward"))
+            case "p":
+                prev = self.children[-1] if self.children else None
+                if prev and prev["type"] == "text":
+                    if not prev["data"]["text"].endswith("\n"):
+                        prev["data"]["text"] += "\n"
+                else:
+                    self.children.append({"type": "text", "data": {"text": "\n"}})
                 await self.render(_children)
-                await self.flush()
-                self.stack.pop(0)
-                await self.send_forward()
-            elif "id" in attrs:
-                self.stack[0].author["message_id"] = str(attrs["id"])
-            else:
-                payload = {}
-                if "name" in attrs:
-                    payload["name"] = attrs["name"]
-                if "nickname" in attrs:
-                    payload["name"] = attrs["nickname"]
-                if "username" in attrs:
-                    payload["name"] = attrs["username"]
+                self.children.append({"type": "text", "data": {"text": "\n"}})
+            case "at":
+                if "type" in attrs and attrs["type"] == "all":
+                    self.children.append({"type": "at", "data": {"qq": "all"}})
+                else:
+                    self.children.append({"type": "at", "data": {"qq": str(attrs["id"]), "name": attrs.get("name")}})
+            case "sharp":
                 if "id" in attrs:
-                    payload["id"] = int(attrs["id"])
-                if "user_id" in attrs:
-                    payload["id"] = int(attrs["user_id"])
-                if "time" in attrs:
-                    payload["time"] = int(attrs["time"])
-                self.stack[0].author.update(payload)
+                    self.children.append({"type": "text", "data": {"text": attrs["id"]}})
+            case "onebot:face":
+                self.children.append({"type": "face", "data": {"id": int(attrs["id"])}})
+            case "a":
                 await self.render(_children)
+                if "href" in attrs:
+                    self.children.append({"type": "text", "data": {"text": f" ({attrs['href']})"}})
+            case "video" | "audio" | "img" | "image":
+                if type_ in ("video", "audio"):
+                    await self.flush()
+                if type_ == "audio":
+                    type_ = "record"
+                elif type_ == "img":
+                    type_ = "image"
+                _data = {
+                    "cache": 1 if "cache" in attrs and attrs["cache"] else 0,
+                    "file": attrs.get("src") or attrs.get("url"),
+                }
+                if mat := b64_cap.match(_data["file"]):
+                    _data["file"] = f"base64://{_data['file'][len(mat[0]):]}"
+                self.children.append({"type": type_, "data": _data})
+            case "file":
                 await self.flush()
-        else:
-            await self.render(_children)
+                await self._send_file(attrs)
+            case "onebot:music":
+                await self.flush()
+                self.children.append({"type": "music", "data": attrs})
+            case "onebot:poke":
+                await self.flush()
+                self.children.append({"type": "poke", "data": attrs})
+            case "onebot:gift":
+                await self.flush()
+                self.children.append({"type": "gift", "data": attrs})
+            case "onebot:share":
+                await self.flush()
+                self.children.append({"type": "share", "data": attrs})
+            case "onebot:json":
+                await self.flush()
+                self.children.append({"type": "json", "data": attrs})
+            case "onebot:xml":
+                await self.flush()
+                self.children.append({"type": "xml", "data": attrs})
+            case "author":
+                self.stack[0].author.update(attrs)
+            case "quote":
+                await self.flush()
+                self.children.append({"type": "reply", "data": attrs})
+            case "message":
+                await self.flush()
+                if "forward" in attrs:
+                    self.stack.insert(0, State("forward"))
+                    await self.render(_children)
+                    await self.flush()
+                    self.stack.pop(0)
+                    await self.send_forward()
+                elif "id" in attrs:
+                    self.stack[0].author["message_id"] = str(attrs["id"])
+                else:
+                    payload = {}
+                    if "name" in attrs:
+                        payload["name"] = attrs["name"]
+                    if "nickname" in attrs:
+                        payload["name"] = attrs["nickname"]
+                    if "username" in attrs:
+                        payload["name"] = attrs["username"]
+                    if "id" in attrs:
+                        payload["id"] = int(attrs["id"])
+                    if "user_id" in attrs:
+                        payload["id"] = int(attrs["user_id"])
+                    if "time" in attrs:
+                        payload["time"] = int(attrs["time"])
+                    self.stack[0].author.update(payload)
+                    await self.render(_children)
+                    await self.flush()
+            case _:
+                await self.render(_children)
 
 
 async def _decode(content: list[MessageSegment], net: OneBotNetwork) -> list[Element]:
@@ -307,32 +308,33 @@ async def _decode(content: list[MessageSegment], net: OneBotNetwork) -> list[Ele
     for seg in content:
         seg_type = seg["type"]
         seg_data = seg["data"]
-        if seg_type == "text":
-            result.append(E.text(seg_data["text"]))
-        elif seg_type == "at":
-            qq = seg_data["qq"]
-            if qq == "all":
-                result.append(E.at_all())
-            else:
-                result.append(E.at(str(qq), name=seg_data.get("name")))
-        elif seg_type == "image":
-            result.append(E.image(seg_data.get("url") or seg_data.get("file")))
-        elif seg_type == "record":
-            result.append(E.audio(seg_data.get("url") or seg_data.get("file")))
-        elif seg_type == "video":
-            result.append(E.video(seg_data.get("url") or seg_data.get("file")))
-        elif seg_type == "file":
-            result.append(E.file(seg_data.get("url") or seg_data.get("file")))
-        elif seg_type == "reply":
-            if msg := (await net.call_api("get_msg", {"message_id": seg_data["id"]})):
-                author = E.author(
-                    str(msg["sender"]["user_id"]),
-                    msg["sender"]["nickname"],
-                    USER_AVATAR_URL.format(uin=msg["sender"]["user_id"]),
-                )
-                result.append(E.quote(seg_data["id"], content=[author, *(await _decode(msg["message"], net))]))
-        else:
-            result.append(Custom(f"onebot:{seg_type}", seg_data))
+        match seg_type:
+            case "text":
+                result.append(E.text(seg_data["text"]))
+            case "at":
+                qq = seg_data["qq"]
+                if qq == "all":
+                    result.append(E.at_all())
+                else:
+                    result.append(E.at(str(qq), name=seg_data.get("name")))
+            case "image":
+                result.append(E.image(seg_data.get("url") or seg_data.get("file")))
+            case "record":
+                result.append(E.audio(seg_data.get("url") or seg_data.get("file")))
+            case "video":
+                result.append(E.video(seg_data.get("url") or seg_data.get("file")))
+            case "file":
+                result.append(E.file(seg_data.get("url") or seg_data.get("file")))
+            case "reply":
+                if msg := (await net.call_api("get_msg", {"message_id": seg_data["id"]})):
+                    author = E.author(
+                        str(msg["sender"]["user_id"]),
+                        msg["sender"]["nickname"],
+                        USER_AVATAR_URL.format(uin=msg["sender"]["user_id"]),
+                    )
+                    result.append(E.quote(seg_data["id"], content=[author, *(await _decode(msg["message"], net))]))
+            case _:
+                result.append(Custom(f"onebot:{seg_type}", seg_data))
     return result
 
 

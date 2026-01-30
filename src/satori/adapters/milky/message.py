@@ -91,108 +91,109 @@ class MilkyMessageEncoder:
         type_ = element.type
         attrs = element.attrs
         children = element.children
-        if type_ == "text":
-            text = attrs.get("text", "")
-            if not self.segments or self.segments[-1]["type"] != "text":
-                self.segments.append({"type": "text", "data": {"text": text}})
-            else:
-                self.segments[-1]["data"]["text"] += text
-        elif type_ == "br":
-            if not self.segments or self.segments[-1]["type"] != "text":
-                self.segments.append({"type": "text", "data": {"text": "\n"}})
-            else:
-                self.segments[-1]["data"]["text"] += "\n"
-        elif type_ == "p":
-            prev = self.segments[-1] if self.segments else None
-            if prev and prev["type"] == "text":
-                if not prev["data"]["text"].endswith("\n"):
-                    prev["data"]["text"] += "\n"
-            else:
-                self.segments.append({"type": "text", "data": {"text": "\n"}})
-            await self.render(children)
-            if self.segments and self.segments[-1]["type"] == "text":
-                if not self.segments[-1]["data"]["text"].endswith("\n"):
-                    self.segments[-1]["data"]["text"] += "\n"
-            else:
-                self.segments.append({"type": "text", "data": {"text": "\n"}})
-        elif type_ == "at":
-            if attrs.get("type") == "all":
-                self.segments.append({"type": "mention_all", "data": {}})
-            elif "id" in attrs:
-                target = attrs["id"]
-                self.segments.append({"type": "mention", "data": {"user_id": int(target)}})
-        elif type_ == "sharp":
-            self.segments.append({"type": "text", "data": {"text": attrs["id"]}})
-        elif type_ == "a":
-            await self.render(children)
-            if "href" in attrs:
+        match type_:
+            case "text":
+                text = attrs.get("text", "")
                 if not self.segments or self.segments[-1]["type"] != "text":
-                    self.segments.append({"type": "text", "data": {"text": f" ({attrs['href']})"}})
+                    self.segments.append({"type": "text", "data": {"text": text}})
                 else:
-                    self.segments[-1]["data"]["text"] += f" ({attrs['href']})"
-        elif type_ in {"img", "image"}:
-            uri = attrs.get("src") or attrs.get("url")
-            if not uri:
-                return
-            if match := _BASE64_RE.match(uri):
-                uri = f"base64://{uri[len(match.group(0)) :]}"
-            self.segments.append({"type": "image", "data": {"uri": uri, "sub_type": attrs.get("sub_type", "normal")}})
-        elif type_ == "audio":
-            uri = attrs.get("src") or attrs.get("url")
-            if not uri:
-                return
-            if match := _BASE64_RE.match(uri):
-                uri = f"base64://{uri[len(match.group(0)) :]}"
-            self.segments.append({"type": "record", "data": {"uri": uri}})
-        elif type_ == "video":
-            uri = attrs.get("src") or attrs.get("url")
-            if not uri:
-                return
-            if match := _BASE64_RE.match(uri):
-                uri = f"base64://{uri[len(match.group(0)) :]}"
-            payload = {"uri": uri}
-            if poster := attrs.get("poster"):
-                payload["thumb_uri"] = poster
-            self.segments.append({"type": "video", "data": payload})
-        elif type_ == "milky:face":
-            self.segments.append({"type": "face", "data": {"face_id": attrs["id"]}})
-        elif type_ == "file":
-            await self.flush()
-            await self._send_file(attrs)
-        elif type_ == "author":
-            self.stack[0].author.update(attrs)
-        elif type_ == "quote":
-            await self.flush()
-            self.segments.append({"type": "reply", "data": {"message_seq": int(attrs["id"])}})
-        elif type_ == "message":
-            await self.flush()
-            if "forward" in attrs:
-                self.stack.insert(0, State("forward"))
+                    self.segments[-1]["data"]["text"] += text
+            case "br":
+                if not self.segments or self.segments[-1]["type"] != "text":
+                    self.segments.append({"type": "text", "data": {"text": "\n"}})
+                else:
+                    self.segments[-1]["data"]["text"] += "\n"
+            case "p":
+                prev = self.segments[-1] if self.segments else None
+                if prev and prev["type"] == "text":
+                    if not prev["data"]["text"].endswith("\n"):
+                        prev["data"]["text"] += "\n"
+                else:
+                    self.segments.append({"type": "text", "data": {"text": "\n"}})
                 await self.render(children)
-                await self.flush()
-                self.stack.pop(0)
-                await self.send_forward()
-            elif "id" in attrs:
-                self.stack[0].author["seq"] = int(attrs["id"])
-            else:
-                payload = {}
-                if "name" in attrs:
-                    payload["name"] = attrs["name"]
-                if "nickname" in attrs:
-                    payload["name"] = attrs["nickname"]
-                if "username" in attrs:
-                    payload["name"] = attrs["username"]
-                if "id" in attrs:
-                    payload["id"] = int(attrs["id"])
-                if "user_id" in attrs:
-                    payload["id"] = int(attrs["user_id"])
-                if "time" in attrs:
-                    payload["time"] = int(attrs["time"])
-                self.stack[0].author.update(payload)
+                if self.segments and self.segments[-1]["type"] == "text":
+                    if not self.segments[-1]["data"]["text"].endswith("\n"):
+                        self.segments[-1]["data"]["text"] += "\n"
+                else:
+                    self.segments.append({"type": "text", "data": {"text": "\n"}})
+            case "at":
+                if attrs.get("type") == "all":
+                    self.segments.append({"type": "mention_all", "data": {}})
+                elif "id" in attrs:
+                    target = attrs["id"]
+                    self.segments.append({"type": "mention", "data": {"user_id": int(target)}})
+            case "sharp":
+                self.segments.append({"type": "text", "data": {"text": attrs["id"]}})
+            case "a":
                 await self.render(children)
+                if "href" in attrs:
+                    if not self.segments or self.segments[-1]["type"] != "text":
+                        self.segments.append({"type": "text", "data": {"text": f" ({attrs['href']})"}})
+                    else:
+                        self.segments[-1]["data"]["text"] += f" ({attrs['href']})"
+            case "img" | "image":
+                uri = attrs.get("src") or attrs.get("url")
+                if not uri:
+                    return
+                if match := _BASE64_RE.match(uri):
+                    uri = f"base64://{uri[len(match.group(0)) :]}"
+                self.segments.append({"type": "image", "data": {"uri": uri, "sub_type": attrs.get("sub_type", "normal")}})
+            case "audio":
+                uri = attrs.get("src") or attrs.get("url")
+                if not uri:
+                    return
+                if match := _BASE64_RE.match(uri):
+                    uri = f"base64://{uri[len(match.group(0)) :]}"
+                self.segments.append({"type": "record", "data": {"uri": uri}})
+            case "video":
+                uri = attrs.get("src") or attrs.get("url")
+                if not uri:
+                    return
+                if match := _BASE64_RE.match(uri):
+                    uri = f"base64://{uri[len(match.group(0)) :]}"
+                payload = {"uri": uri}
+                if poster := attrs.get("poster"):
+                    payload["thumb_uri"] = poster
+                self.segments.append({"type": "video", "data": payload})
+            case "milky:face":
+                self.segments.append({"type": "face", "data": {"face_id": attrs["id"]}})
+            case "file":
                 await self.flush()
-        else:
-            await self.render(children)
+                await self._send_file(attrs)
+            case "author":
+                self.stack[0].author.update(attrs)
+            case "quote":
+                await self.flush()
+                self.segments.append({"type": "reply", "data": {"message_seq": int(attrs["id"])}})
+            case "message":
+                await self.flush()
+                if "forward" in attrs:
+                    self.stack.insert(0, State("forward"))
+                    await self.render(children)
+                    await self.flush()
+                    self.stack.pop(0)
+                    await self.send_forward()
+                elif "id" in attrs:
+                    self.stack[0].author["seq"] = int(attrs["id"])
+                else:
+                    payload = {}
+                    if "name" in attrs:
+                        payload["name"] = attrs["name"]
+                    if "nickname" in attrs:
+                        payload["name"] = attrs["nickname"]
+                    if "username" in attrs:
+                        payload["name"] = attrs["username"]
+                    if "id" in attrs:
+                        payload["id"] = int(attrs["id"])
+                    if "user_id" in attrs:
+                        payload["id"] = int(attrs["user_id"])
+                    if "time" in attrs:
+                        payload["time"] = int(attrs["time"])
+                    self.stack[0].author.update(payload)
+                    await self.render(children)
+                    await self.flush()
+            case _:
+                await self.render(children)
 
     async def flush(self):
         if not self.segments:
@@ -352,28 +353,29 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
     for segment in segments:
         seg_type = segment.get("type")
         data = segment.get("data", {})
-        if seg_type == "text":
-            result.append(E.text(data.get("text", "")))
-        elif seg_type == "mention":
-            result.append(E.at(str(data.get("user_id"))))
-        elif seg_type == "mention_all":
-            result.append(E.at_all())
-        elif seg_type == "image":
-            result.append(E.image(_resource_url(data)))
-        elif seg_type == "record":
-            result.append(E.audio(_resource_url(data)))
-        elif seg_type == "video":
-            result.append(E.video(_resource_url(data)))
-        elif seg_type == "file":
-            result.append(E.file(_resource_url(data)))
-        elif seg_type == "reply":
-            seq = data.get("message_seq")
-            if seq is not None:
-                quote = await _decode_reply(net, payload, int(seq))
-                if quote:
-                    result.append(quote)
-        else:
-            result.append(Custom(f"milky:{seg_type}", data))
+        match seg_type:
+            case "text":
+                result.append(E.text(data.get("text", "")))
+            case "mention":
+                result.append(E.at(str(data.get("user_id"))))
+            case "mention_all":
+                result.append(E.at_all())
+            case "image":
+                result.append(E.image(_resource_url(data)))
+            case "record":
+                result.append(E.audio(_resource_url(data)))
+            case "video":
+                result.append(E.video(_resource_url(data)))
+            case "file":
+                result.append(E.file(_resource_url(data)))
+            case "reply":
+                seq = data.get("message_seq")
+                if seq is not None:
+                    quote = await _decode_reply(net, payload, int(seq))
+                    if quote:
+                        result.append(quote)
+            case _:
+                result.append(Custom(f"milky:{seg_type}", data))
     return result
 
 

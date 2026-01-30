@@ -205,9 +205,13 @@ class ArgvInteraction(ModelBase):
 @dataclass
 class ButtonInteraction(ModelBase):
     id: str
+    data: str | None = None
 
     def dump(self):
-        return {"id": self.id}
+        res = {"id": self.id}
+        if self.data:
+            res["data"] = self.data
+        return res
 
 
 class Opcode(IntEnum):
