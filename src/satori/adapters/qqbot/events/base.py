@@ -2,7 +2,7 @@ from collections.abc import Awaitable, Callable
 
 from satori.model import Event, Login
 
-from ..utils import QQBotNetwork, Payload
+from ..utils import Payload, QQBotNetwork
 
 EventHandler = Callable[[Login, Login, QQBotNetwork, Payload], Awaitable[Event | None]]
 

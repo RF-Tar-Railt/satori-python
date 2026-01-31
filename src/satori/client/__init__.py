@@ -102,7 +102,9 @@ class App(Service):
         self.event_callbacks.append(callback)
 
     @overload
-    def register_on(self, event_type: Literal[EventType.FRIEND_ADDED, EventType.FRIEND_REMOVED, EventType.FRIEND_REQUEST]) -> Callable[
+    def register_on(
+        self, event_type: Literal[EventType.FRIEND_ADDED, EventType.FRIEND_REMOVED, EventType.FRIEND_REQUEST]
+    ) -> Callable[
         [Callable[[Account, events.UserEvent], Awaitable[Any]]],
         Callable[[Account, events.UserEvent], Awaitable[Any]],
     ]: ...
@@ -121,9 +123,7 @@ class App(Service):
     @overload
     def register_on(
         self,
-        event_type: Literal[
-            EventType.CHANNEL_ADDED, EventType.CHANNEL_REMOVED, EventType.CHANNEL_UPDATED
-        ],
+        event_type: Literal[EventType.CHANNEL_ADDED, EventType.CHANNEL_REMOVED, EventType.CHANNEL_UPDATED],
     ) -> Callable[
         [Callable[[Account, events.ChannelEvent], Awaitable[Any]]],
         Callable[[Account, events.ChannelEvent], Awaitable[Any]],

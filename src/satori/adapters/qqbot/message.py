@@ -1,21 +1,22 @@
 from __future__ import annotations
 
+import base64
 import json
+import random
 import re
-from collections.abc import Sequence
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Literal
+from pathlib import Path
 
-from satori.element import Custom, E, Element
-from satori.model import Channel, ChannelType, Login, MessageObject, User
+from loguru import logger
+
+from satori.element import Button, Custom, E, Element, select, transform
+from satori.model import Login, MessageReceipt
 from satori.parser import Element as RawElement
 from satori.parser import parse
 
+from .exception import AuditException
 from .utils import QQBotNetwork
 
 _BASE64_RE = re.compile(r"^data:([\w/.+-]+);base64,")
-
 
 
 def escape(s: str) -> str:
@@ -24,6 +25,10 @@ def escape(s: str) -> str:
 
 def unescape(s: str) -> str:
     return s.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+
+
+def escape_markdown(s: str) -> str:
+    return re.sub(r"([\\`*_{}\[\]()#+\-.!>~])", r"\\\1", s)
 
 
 def handle_text(msg: str):
@@ -70,237 +75,163 @@ def remove_empty(d: dict):
     return {k: (remove_empty(v) if isinstance(v, dict) else v) for k, v in d.items() if v is not None}
 
 
-
 class QQBotMessageEncoder:
     def __init__(self, login: Login, net: QQBotNetwork, channel_id: str, referrer: dict | None = None):
         self.login = login
         self.net = net
         self.channel_id = channel_id
         self.referrer = referrer
-        self.segments: list[dict[str, Any]] = []
-        self.results: list[MessageObject] = []
-    #
-    # async def _send_file(self, attrs: dict[str, Any]):
-    #     uri = attrs.get("src") or attrs.get("url")
-    #     if not uri:
-    #         return
-    #     name = attrs.get("title") or uri.split("/")[-1]
-    #     if match := _BASE64_RE.match(uri):
-    #         uri = f"base64://{uri[len(match.group(0)) :]}"
-    #     scene, peer_id = get_scene_and_peer(self.channel_id)
-    #     if scene == "group":
-    #         await self.net.call_api(
-    #             "upload_group_file",
-    #             {
-    #                 "group_id": peer_id,
-    #                 "file_uri": uri,
-    #                 "file_name": name,
-    #             },
-    #         )
-    #     else:
-    #         await self.net.call_api(
-    #             "upload_private_file",
-    #             {
-    #                 "user_id": peer_id,
-    #                 "file_uri": uri,
-    #                 "file_name": name,
-    #             },
-    #         )
-    #     self.results.append(MessageObject("", ""))
+        self.results: list[MessageReceipt] = []
+        self._raw_content = ""
 
-    async def send(self, content: str) -> list[MessageObject]:
-        raw_elements = parse(content)
-        await self.render(raw_elements)
+    async def send(self, content: str):
+        self._raw_content = content
+        msg = transform(parse(content))
+        btns = select(msg, Button)
+        btns = [btn for btn in btns if btn.type != "link" and not btn.id]
+        for btn in btns:
+            btn.id = random.randbytes(8).hex()
+        await self.render(parse("".join(map(str, msg))))
         await self.flush()
         return self.results
 
-    async def render(self, elements: Sequence[RawElement]):
+    async def flush(self): ...
+    async def visit(self, element: RawElement): ...
+
+    async def render(self, elements: list[RawElement]):
         for element in elements:
             await self.visit(element)
 
-    async def visit(self, element: RawElement):
-        type_ = element.type
-        attrs = element.attrs
-        children = element.children
-        if type_ == "text":
-            text = attrs.get("text", "")
-            if not self.segments or self.segments[-1]["type"] != "text":
-                self.segments.append({"type": "text", "data": {"text": text}})
-            else:
-                self.segments[-1]["data"]["text"] += text
-        elif type_ == "br":
-            if not self.segments or self.segments[-1]["type"] != "text":
-                self.segments.append({"type": "text", "data": {"text": "\n"}})
-            else:
-                self.segments[-1]["data"]["text"] += "\n"
-        elif type_ == "p":
-            prev = self.segments[-1] if self.segments else None
-            if prev and prev["type"] == "text":
-                if not prev["data"]["text"].endswith("\n"):
-                    prev["data"]["text"] += "\n"
-            else:
-                self.segments.append({"type": "text", "data": {"text": "\n"}})
-            await self.render(children)
-            if self.segments and self.segments[-1]["type"] == "text":
-                if not self.segments[-1]["data"]["text"].endswith("\n"):
-                    self.segments[-1]["data"]["text"] += "\n"
-            else:
-                self.segments.append({"type": "text", "data": {"text": "\n"}})
-        elif type_ == "at":
-            if attrs.get("type") == "all":
-                self.segments.append({"type": "mention_all", "data": {}})
-            elif "id" in attrs:
-                target = attrs["id"]
-                self.segments.append({"type": "mention", "data": {"user_id": int(target)}})
-        elif type_ == "sharp":
-            self.segments.append({"type": "text", "data": {"text": attrs["id"]}})
-        elif type_ == "a":
-            await self.render(children)
-            if "href" in attrs:
-                if not self.segments or self.segments[-1]["type"] != "text":
-                    self.segments.append({"type": "text", "data": {"text": f" ({attrs['href']})"}})
-                else:
-                    self.segments[-1]["data"]["text"] += f" ({attrs['href']})"
-        elif type_ in {"img", "image"}:
-            uri = attrs.get("src") or attrs.get("url")
-            if not uri:
-                return
-            if match := _BASE64_RE.match(uri):
-                uri = f"base64://{uri[len(match.group(0)) :]}"
-            self.segments.append({"type": "image", "data": {"uri": uri, "sub_type": attrs.get("sub_type", "normal")}})
-        elif type_ == "audio":
-            uri = attrs.get("src") or attrs.get("url")
-            if not uri:
-                return
-            if match := _BASE64_RE.match(uri):
-                uri = f"base64://{uri[len(match.group(0)) :]}"
-            self.segments.append({"type": "record", "data": {"uri": uri}})
-        elif type_ == "video":
-            uri = attrs.get("src") or attrs.get("url")
-            if not uri:
-                return
-            if match := _BASE64_RE.match(uri):
-                uri = f"base64://{uri[len(match.group(0)) :]}"
-            payload = {"uri": uri}
-            if poster := attrs.get("poster"):
-                payload["thumb_uri"] = poster
-            self.segments.append({"type": "video", "data": payload})
-        elif type_ == "milky:face":
-            self.segments.append({"type": "face", "data": {"face_id": attrs["id"]}})
-        elif type_ == "file":
-            await self.flush()
-            await self._send_file(attrs)
-        elif type_ == "author":
-            self.stack[0].author.update(attrs)
-        elif type_ == "quote":
-            await self.flush()
-            self.segments.append({"type": "reply", "data": {"message_seq": int(attrs["id"])}})
-        elif type_ == "message":
-            await self.flush()
-            if "forward" in attrs:
-                self.stack.insert(0, State("forward"))
-                await self.render(children)
-                await self.flush()
-                self.stack.pop(0)
-                await self.send_forward()
-            elif "id" in attrs:
-                self.stack[0].author["seq"] = int(attrs["id"])
-            else:
-                payload = {}
-                if "name" in attrs:
-                    payload["name"] = attrs["name"]
-                if "nickname" in attrs:
-                    payload["name"] = attrs["nickname"]
-                if "username" in attrs:
-                    payload["name"] = attrs["username"]
-                if "id" in attrs:
-                    payload["id"] = int(attrs["id"])
-                if "user_id" in attrs:
-                    payload["id"] = int(attrs["user_id"])
-                if "time" in attrs:
-                    payload["time"] = int(attrs["time"])
-                self.stack[0].author.update(payload)
-                await self.render(children)
-                await self.flush()
-        else:
-            await self.render(children)
+
+class QQGuildMessageEncoder(QQBotMessageEncoder):
+    def __init__(self, login: Login, net: QQBotNetwork, channel_id: str, referrer: dict | None = None):
+        super().__init__(login, net, channel_id, referrer)
+        self.reference = ""
+        self.content = ""
+        self.file_url = ""
+        self.file_data = {}  # value, content_type, filename
 
     async def flush(self):
-        if not self.segments:
+        if not self.content.strip() and not self.file_url and not self.file_data:
             return
-
-        while True:
-            first = self.segments[0]
-            if first["type"] != "text":
-                break
-            first["data"]["text"] = first["data"]["text"].lstrip()
-            if first["data"]["text"]:
-                break
-            self.segments.pop(0)
-
-        while True:
-            last = self.segments[-1]
-            if last["type"] != "text":
-                break
-            last["data"]["text"] = last["data"]["text"].rstrip()
-            if last["data"]["text"]:
-                break
-            self.segments.pop()
-
-        scene, peer_id = get_scene_and_peer(self.channel_id)
-        if not self.segments :
+        is_direct = "_" in self.channel_id or (self.referrer and self.referrer.get("direct", False))
+        endpoint = f"channels/{self.channel_id}/messages"
+        if is_direct:
+            endpoint = f"dms/{self.channel_id.split('_')[0]}/messages"
+        msg_id = self.referrer.get("msg_id") if self.referrer else None
+        msg_seq = self.referrer.get("msg_seq") if self.referrer else None
+        if isinstance(msg_seq, int) and msg_seq >= 5:
             return
+        try:
+            if self.file_data:
+                files = {"file_image": self.file_data}
+                message = {
+                    "content": self.content,
+                    "message_reference": {"message_id": self.reference} if self.reference else None,
+                    "msg_id": msg_id,
+                }
+                data_ = {}
+                for key, value in message.items():
+                    if isinstance(value, (list, dict)):
+                        files[key] = {
+                            "value": json.dumps({key: value}).encode("utf-8"),
+                            "content_type": "application/json",
+                            "filename": f"{key}.json",
+                        }
+                    else:
+                        data_[key] = value
+                resp = await self.net.call_api("multipart", endpoint, {"files": files, "data": data_})
+            else:
+                message = {
+                    "content": self.content,
+                    "message_reference": {"message_id": self.reference} if self.reference else None,
+                    "image": self.file_url if self.file_url else None,
+                    "msg_id": msg_id,
+                }
+                message = remove_empty(message)
+                resp = await self.net.call_api("post", endpoint, message)
+            referrer = self.referrer.copy() if self.referrer else {}
+            referrer |= {
+                "msg_id": resp["id"],
+                "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
+            }
+            self.results.append(MessageReceipt(resp["id"], self._raw_content, referrer))
+        except AuditException as e:
+            audit_res = await e.get_audit_result()
+            if not audit_res or not audit_res.message_id:
+                logger.error(f"Failed to send message to {self.channel_id}: {self._raw_content}")
+            else:
+                referrer = self.referrer.copy() if self.referrer else {}
+                referrer |= {
+                    "msg_id": audit_res.message_id,
+                    "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
+                }
+                self.results.append(MessageReceipt(audit_res.message_id, self._raw_content, referrer))
+        except Exception as e:
+            logger.error(f"Failed to send message to {self.channel_id}: {self._raw_content}\nError: {e}")
+        self.content = ""
+        self.file_url = ""
+        self.file_data = {}
+        self.reference = ""
 
-        if scene == "group":
-            resp = await self.net.call_api("send_group_message", {"group_id": peer_id, "message": self.segments})
-        else:
-            resp = await self.net.call_api("send_private_message", {"user_id": peer_id, "message": self.segments})
-        if resp:
-            channel_type = ChannelType.TEXT if scene == "group" else ChannelType.DIRECT
-            channel_id = str(peer_id) if scene == "group" else self.channel_id
-            channel = Channel(channel_id, channel_type)
-            created_at = datetime.fromtimestamp(resp.get("time", datetime.now().timestamp()))
-            message = MessageObject(str(resp.get("message_seq", "")), "", channel=channel, created_at=created_at)
-            self.results.append(message)
-        self.segments = []
-
-    async def sendable(self, segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        new = []
-        for seg in segments:
-            if (
-                seg["type"] in ("image", "record", "video")
-                and "resource_id" in seg["data"]
-                and "uri" not in seg["data"]
-            ):
-                data = seg["data"]
-                if "temp_url" not in data:
-                    data["uri"] = (
-                        await self.net.call_api("get_resource_temp_url", {"resource_id": data["resource_id"]})
-                    )["url"]
-                else:
-                    data["uri"] = data["temp_url"]
-                new.append({"type": seg["type"], "data": data})
-            elif seg["type"] == "forward" and "forward_id" in seg["data"]:
-                forward_id = seg["data"]["forward_id"]
-                messages = (await self.net.call_api("get_forwarded_messages", {"forward_id": forward_id}))["messages"]
-                new.append(
-                    {
-                        "type": "forward",
-                        "data": {
-                            "messages": [
-                                {
-                                    "user_id": int(self.login.id),
-                                    "sender_name": msg["sender_name"],
-                                    "segments": await self.sendable(msg["segments"]),
-                                }
-                                for msg in messages
-                            ]
-                        },
-                    }
+    async def visit(self, element: RawElement):
+        type_, attrs, children = element.type, element.attrs, element.children
+        match type_:
+            case "text":
+                self.content += attrs["text"]
+            case "at":
+                self.content += (
+                    "<qqbot-at-everyone />"
+                    if "type" in attrs and attrs["type"] == "all"
+                    else f"<qqbot-at-user id=\"{attrs['id']}\" />"
                 )
-            elif seg["type"] in ("market_face", "light_app", "xml"):
-                continue
-        return new
+            case "br":
+                self.content += "\n"
+            case "p":
+                if not self.content.endswith("\n"):
+                    self.content += "\n"
+                await self.render(children)
+                if not self.content.endswith("\n"):
+                    self.content += "\n"
+            case "sharp":
+                self.content += f"<#!{attrs['id']}>"
+            case "quote":
+                self.reference = attrs["id"]
+                await self.flush()
+            case "message":
+                await self.flush()
+                await self.render(children)
+                await self.flush()
+            case "img" | "image":
+                if "src" in attrs or "url" in attrs:
+                    await self.flush()
+                    self.resolve_file(attrs)
+                    await self.flush()
+            case "qq:emoji":
+                self.content += f"<emoji:{attrs['id']}>"
+            case _:
+                await self.render(children)
+
+    def resolve_file(self, attrs: dict, download: bool = False):
+        url = attrs.get("url") or attrs["src"]
+        is_uri = url.startswith("file://")
+        b64_match = _BASE64_RE.match(url)
+        if not download and not is_uri and not b64_match:
+            self.file_url = url
+            self.file_data = {}
+        else:
+            self.file_url = ""
+            if b64_match:
+                b64_data = url[len(b64_match.group(0)) :]
+                data = base64.b64decode(b64_data)
+                content_type = b64_match.group(1)
+                filename = f"file.{content_type.split('/')[-1]}"
+            else:
+                path = Path(url[7:])
+                data = path.read_bytes()
+                filename = path.name
+                content_type = None
+            self.file_data = {"value": data, "content_type": content_type, "filename": filename}
 
 
 def _decode_attachment(attachment: dict) -> Element:
@@ -308,13 +239,30 @@ def _decode_attachment(attachment: dict) -> Element:
         return E.image(src=attachment["url"])
     mime = attachment["content_type"]
     if mime.startswith("image/"):
-        return E.image(src=attachment["url"], mime=mime, name=attachment.get("filename"), height=attachment.get("height"), width=attachment.get("width"))
+        return E.image(
+            url=attachment["url"],
+            mime=mime,
+            name=attachment.get("filename"),
+            height=attachment.get("height"),
+            width=attachment.get("width"),
+        )
     elif mime.startswith("audio/"):
-        return E.audio(src=attachment["url"], mime=mime, name=attachment.get("filename"), duration=attachment.get("duration"))
+        return E.audio(
+            url=attachment["url"], mime=mime, name=attachment.get("filename"), duration=attachment.get("duration")
+        )
     elif mime.startswith("video/"):
-        return E.video(src=attachment["url"], mime=mime, name=attachment.get("filename"), height=attachment.get("height"), width=attachment.get("width"), duration=attachment.get("duration"))
+        return E.video(
+            url=attachment["url"],
+            mime=mime,
+            name=attachment.get("filename"),
+            height=attachment.get("height"),
+            width=attachment.get("width"),
+            duration=attachment.get("duration"),
+        )
     else:
-        return E.file(src=attachment["url"], mime=mime, name=attachment.get("filename"), extra={"size": attachment.get("size")})
+        return E.file(
+            url=attachment["url"], mime=mime, name=attachment.get("filename"), extra={"size": attachment.get("size")}
+        )
 
 
 def decode_segments(event: dict) -> list[Element]:

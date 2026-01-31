@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from satori import EventType, Button, Text, ButtonInteraction
-from satori.model import Channel, ChannelType, Event, Guild, MessageObject, User, Member
+from satori import Button, ButtonInteraction, EventType, Text
+from satori.model import Channel, ChannelType, Event, Guild, Member, MessageObject, User
 
 from ..utils import Payload
 from .base import register_event
@@ -31,7 +31,11 @@ async def interaction(login, guild_login, net, payload: Payload):
     button = ButtonInteraction(raw["data"]["resolved"]["button_id"], raw["data"]["resolved"]["button_data"])
     return Event(
         EventType.INTERACTION_BUTTON,
-        datetime.fromtimestamp(int(raw["timestamp"])) if isinstance(raw["timestamp"], (int, float)) or raw["timestamp"].isdigit() else datetime.fromisoformat(str(raw["timestamp"])),
+        (
+            datetime.fromtimestamp(int(raw["timestamp"]))
+            if isinstance(raw["timestamp"], (int, float)) or raw["timestamp"].isdigit()
+            else datetime.fromisoformat(str(raw["timestamp"]))
+        ),
         guild_login if chat_type == 0 else login,
         guild=guild,
         channel=channel,
@@ -39,11 +43,12 @@ async def interaction(login, guild_login, net, payload: Payload):
         member=member,
         button=button,
         message=MessageObject.from_elements(
-            raw["id"], [Button.action(raw["data"]["resolved"]["button_id"])(Text(raw["data"]["resolved"]["button_data"]))]
+            raw["id"],
+            [Button.action(raw["data"]["resolved"]["button_id"])(Text(raw["data"]["resolved"]["button_data"]))],
         ),
         referrer={
             "direct": chat_type == 2,
             "msg_id": raw["id"],
             "msg_seq": -1,
-        }
+        },
     )

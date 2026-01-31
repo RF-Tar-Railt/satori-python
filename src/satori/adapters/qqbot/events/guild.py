@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 
 from satori import EventType
-from satori.model import Event, Guild, User, Member, Role
+from satori.model import Event, Guild, Member, Role, User
 
-from ..utils import decode_user, decode_channel, decode_guild, Payload
+from ..utils import Payload, decode_channel, decode_guild, decode_user
 from .base import register_event
 
 
@@ -22,14 +22,7 @@ async def channel_event(login, guild_login, net, payload: Payload):
         "CHANNEL_DELETE": EventType.CHANNEL_REMOVED,
     }[payload.type or ""]
     operator = User(raw["op_user_id"])
-    return Event(
-        t,
-        datetime.now(),
-        guild_login,
-        channel=channel,
-        guild=guild,
-        operator=operator
-    )
+    return Event(t, datetime.now(), guild_login, channel=channel, guild=guild, operator=operator)
 
 
 @register_event("GUILD_CREATE")
@@ -44,13 +37,7 @@ async def guild_event(login, guild_login, net, payload: Payload):
         "GUILD_DELETE": EventType.GUILD_REMOVED,
     }[payload.type or ""]
     operator = User(raw["op_user_id"])
-    return Event(
-        t,
-        datetime.now(),
-        guild_login,
-        guild=guild,
-        operator=operator
-    )
+    return Event(t, datetime.now(), guild_login, guild=guild, operator=operator)
 
 
 @register_event("GUILD_MEMBER_ADD")
@@ -73,13 +60,4 @@ async def guild_member_event(login, guild_login, net, payload: Payload):
     )
     role = Role(raw["roles"][0])
     operator = User(raw["op_user_id"])
-    return Event(
-        t,
-        datetime.now(),
-        guild_login,
-        guild=guild,
-        user=user,
-        member=member,
-        operator=operator,
-        role=role
-    )
+    return Event(t, datetime.now(), guild_login, guild=guild, user=user, member=member, operator=operator, role=role)

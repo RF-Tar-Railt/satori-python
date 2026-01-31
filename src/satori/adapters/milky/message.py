@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, Literal
 
 from satori.element import Custom, E, Element
-from satori.model import Channel, ChannelType, Login, MessageObject, User
+from satori.model import Channel, ChannelType, Login, MessageObject, MessageReceipt, User
 from satori.parser import Element as RawElement
 from satori.parser import parse
 
@@ -30,7 +30,7 @@ class MilkyMessageEncoder:
         self.channel_id = channel_id
         self.segments: list[dict[str, Any]] = []
         self.stack = [State("message")]
-        self.results: list[MessageObject] = []
+        self.results: list[MessageReceipt] = []
 
     async def send_forward(self):
         if not self.stack[0].children:
@@ -42,11 +42,7 @@ class MilkyMessageEncoder:
         else:
             resp = await self.net.call_api("send_private_message", {"user_id": peer_id, "message": [seg]})
         if resp:
-            channel_type = ChannelType.TEXT if scene == "group" else ChannelType.DIRECT
-            channel_id = str(peer_id) if scene == "group" else self.channel_id
-            channel = Channel(channel_id, channel_type)
-            created_at = datetime.fromtimestamp(resp.get("time", datetime.now().timestamp()))
-            message = MessageObject(str(resp.get("message_seq", "")), "", channel=channel, created_at=created_at)
+            message = MessageReceipt(str(resp.get("message_seq", "")), "")
             self.results.append(message)
 
     async def _send_file(self, attrs: dict[str, Any]):
@@ -75,9 +71,9 @@ class MilkyMessageEncoder:
                     "file_name": name,
                 },
             )
-        self.results.append(MessageObject("", ""))
+        self.results.append(MessageReceipt("", ""))
 
-    async def send(self, content: str) -> list[MessageObject]:
+    async def send(self, content: str) -> list[MessageReceipt]:
         raw_elements = parse(content)
         await self.render(raw_elements)
         await self.flush()
@@ -137,7 +133,9 @@ class MilkyMessageEncoder:
                     return
                 if match := _BASE64_RE.match(uri):
                     uri = f"base64://{uri[len(match.group(0)) :]}"
-                self.segments.append({"type": "image", "data": {"uri": uri, "sub_type": attrs.get("sub_type", "normal")}})
+                self.segments.append(
+                    {"type": "image", "data": {"uri": uri, "sub_type": attrs.get("sub_type", "normal")}}
+                )
             case "audio":
                 uri = attrs.get("src") or attrs.get("url")
                 if not uri:
@@ -256,11 +254,7 @@ class MilkyMessageEncoder:
         else:
             resp = await self.net.call_api("send_private_message", {"user_id": peer_id, "message": self.segments})
         if resp:
-            channel_type = ChannelType.TEXT if scene == "group" else ChannelType.DIRECT
-            channel_id = str(peer_id) if scene == "group" else self.channel_id
-            channel = Channel(channel_id, channel_type)
-            created_at = datetime.fromtimestamp(resp.get("time", datetime.now().timestamp()))
-            message = MessageObject(str(resp.get("message_seq", "")), "", channel=channel, created_at=created_at)
+            message = MessageReceipt(str(resp.get("message_seq", "")), "")
             self.results.append(message)
         self.segments = []
 

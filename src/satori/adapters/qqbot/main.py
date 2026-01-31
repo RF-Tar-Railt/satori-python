@@ -2,20 +2,19 @@ from __future__ import annotations
 
 import binascii
 import os
-import ssl
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import cast
 
 import aiohttp
 from aiohttp import FormData
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from launart import Launart
 from launart.status import Phase
 from loguru import logger
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from yarl import URL
 
 from satori import EventType
@@ -26,15 +25,34 @@ from satori.server.adapter import Adapter as BaseAdapter
 from satori.server.model import Request
 from satori.utils import decode
 
-# from .api import apply
+from .api import apply
+from .audit_store import audit_result
 from .events import event_handlers
 from .exception import UnauthorizedException
-from .utils import CallMethod, validate_response, Payload, Opcode, decode_user
-from .audit_store import audit_result
+from .utils import CallMethod, Opcode, Payload, decode_user, validate_response
 
-
-QQ_FEATURES = ['message.create', 'message.delete', 'upload.create', 'login.get', 'user.channel.create']
-QQ_GUILD_FEATURES = ['channel.get', 'channel.list', 'channel.create', 'message.create', 'message.delete', 'message.get', 'reaction.create', 'reaction.delete', 'reaction.list', 'upload.create', 'guild.get', 'guild.list', 'guild.member.get', 'guild.member.list', 'guild.member.kick', 'guild.member.mute', 'login.get', 'user.get', 'user.channel.create']
+QQ_FEATURES = ["message.create", "message.delete", "upload.create", "login.get", "user.channel.create"]
+QQ_GUILD_FEATURES = [
+    "channel.get",
+    "channel.list",
+    "channel.create",
+    "message.create",
+    "message.delete",
+    "message.get",
+    "reaction.create",
+    "reaction.delete",
+    "reaction.list",
+    "upload.create",
+    "guild.get",
+    "guild.list",
+    "guild.member.get",
+    "guild.member.list",
+    "guild.member.kick",
+    "guild.member.mute",
+    "login.get",
+    "user.get",
+    "user.channel.create",
+]
 
 
 class _QQNetwork:
@@ -193,7 +211,7 @@ class QQBotWebhookAdapter(BaseAdapter):
         self.logins: list[Login] = []
         self.bot_id_mapping: dict[str, str] = {}  # login.id -> bot app_id
         self.networks: dict[str, _QQNetwork] = {}
-        # apply(self, self._get_network, self._get_login)
+        apply(self, self._get_network, self._get_login)
 
     def ensure_server(self, server: Server):
         super().ensure_server(server)
@@ -213,6 +231,14 @@ class QQBotWebhookAdapter(BaseAdapter):
         for index, login in enumerate(self.logins):
             login.sn = index
         return self.logins
+
+    def _get_login(self, self_id: str, is_guild: bool) -> Login:
+        qq_logins = [lg for lg in self.logins if lg.platform == "qq"]
+        guild_logins = [lg for lg in self.logins if lg.platform == "qqguild"]
+        if is_guild:
+            return next(lg for lg in guild_logins if lg.id == self_id)
+        else:
+            return next(lg for lg in qq_logins if lg.id == self_id)
 
     @property
     def required(self) -> set[str]:
@@ -244,14 +270,16 @@ class QQBotWebhookAdapter(BaseAdapter):
             self_id = request.self_id
             action = path[5:]
             method: CallMethod = request.origin.method  # type: ignore
-            net = self._get_network(self.bot_id_mapping[self_id])
+            net = self._get_network(self_id, request.platform == "qqguild")
             return JSONResponse(await net.call_api(method, action, data))
         if not self.session:
             raise RuntimeError("HTTP session not initialized")
         return Response(status_code=404, content="Not Found")
 
     def get_routes(self) -> list[Route]:
-        return [Route(path, self.webhook_endpoint, methods=["POST"]) for path in self._normalize_webhook_paths(self.path)]
+        return [
+            Route(path, self.webhook_endpoint, methods=["POST"]) for path in self._normalize_webhook_paths(self.path)
+        ]
 
     async def handle_event(self, app_id: str, payload: Payload):
         if not self.session:
@@ -298,7 +326,9 @@ class QQBotWebhookAdapter(BaseAdapter):
             self.bot_id_mapping[login.id] = app_id
             event_type = EventType.LOGIN_ADDED
         await self.server.post(Event(event_type, datetime.now(), login))
-        guild_login = Login(0, LoginStatus.ONLINE, "qqbot", platform="qqguild", user=user, features=QQ_GUILD_FEATURES.copy())
+        guild_login = Login(
+            0, LoginStatus.ONLINE, "qqbot", platform="qqguild", user=user, features=QQ_GUILD_FEATURES.copy()
+        )
         previous = next((lg for lg in self.logins if lg.id == guild_login.id and lg.platform == "qqguild"), None)
         if previous:
             previous.user = guild_login.user
@@ -328,7 +358,8 @@ class QQBotWebhookAdapter(BaseAdapter):
             paths.add(stripped)
         return tuple(sorted(paths))
 
-    def _get_network(self, app_id: str) -> _QQNetwork:
+    def _get_network(self, self_id, is_guild: bool) -> _QQNetwork:
+        app_id = self.bot_id_mapping[self_id]
         network = self.networks.get(app_id)
         if not network:
             network = _QQNetwork(self, self.session, app_id, self.secrets[app_id])  # type: ignore
@@ -381,14 +412,14 @@ class QQBotWebhookAdapter(BaseAdapter):
                 logger.exception(f"Failed to generate ed25519 public key: {e}")
                 return Response(status_code=500, content=f"Failed to generate ed25519 public key: {e}")
             if not ed25519:
-                logger.warning(f"Missing ed25519 signature")
+                logger.warning("Missing ed25519 signature")
                 return Response(status_code=401, content="Missing ed25519 signature")
             sig = binascii.unhexlify(ed25519)
             if len(sig) != 64 or sig[63] & 224 != 0:
-                logger.warning(f"Invalid ed25519 signature")
+                logger.warning("Invalid ed25519 signature")
                 return Response(status_code=401, content="Invalid ed25519 signature")
             if not timestamp:
-                logger.warning(f"Missing timestamp")
+                logger.warning("Missing timestamp")
                 return Response(status_code=401, content="Missing timestamp")
             msg = timestamp.encode() + await request.body()
             try:

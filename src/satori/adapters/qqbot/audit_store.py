@@ -1,5 +1,18 @@
 import asyncio
+from dataclasses import dataclass
+from datetime import datetime
 from weakref import finalize
+
+
+@dataclass
+class Audit:
+    id: str
+    guild_id: str
+    channel_id: str
+    seq: str
+    create_time: datetime
+    audit_time: datetime
+    message_id: str | None = None
 
 
 class AuditResultStore:
@@ -8,11 +21,19 @@ class AuditResultStore:
         finalize(self, self._futures.clear)
 
     def add_result(self, result: dict):
-        audit = result["auditId"]
-        if future := self._futures.get(audit):
-            future.set_result(result)
+        audit = Audit(
+            result["audit_id"],
+            result["guild_id"],
+            result["channel_id"],
+            result["seq_in_channel"],
+            datetime.fromisoformat(result["create_time"]),
+            datetime.fromisoformat(result["audit_time"]),
+            result.get("message_id"),
+        )
+        if future := self._futures.get(audit.id):
+            future.set_result(audit)
 
-    async def fetch(self, audit: str, timeout: float = 30) -> dict | None:
+    async def fetch(self, audit: str, timeout: float = 30) -> Audit | None:
         future = asyncio.get_event_loop().create_future()
         self._futures[audit] = future
         try:

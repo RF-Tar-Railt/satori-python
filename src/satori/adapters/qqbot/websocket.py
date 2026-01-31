@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import sys
 from contextlib import suppress
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone, timedelta
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from typing import cast
 
 import aiohttp
@@ -22,15 +22,34 @@ from satori.server.adapter import Adapter as BaseAdapter
 from satori.server.model import Request
 from satori.utils import decode
 
-# from .api import apply
+from .api import apply
+from .audit_store import audit_result
 from .events import event_handlers
 from .exception import UnauthorizedException
-from .utils import CallMethod, validate_response, Payload, Opcode, decode_user
-from .audit_store import audit_result
+from .utils import CallMethod, Opcode, Payload, decode_user, validate_response
 
-
-QQ_FEATURES = ['message.create', 'message.delete', 'upload.create', 'login.get', 'user.channel.create']
-QQ_GUILD_FEATURES = ['channel.get', 'channel.list', 'channel.create', 'message.create', 'message.delete', 'message.get', 'reaction.create', 'reaction.delete', 'reaction.list', 'upload.create', 'guild.get', 'guild.list', 'guild.member.get', 'guild.member.list', 'guild.member.kick', 'guild.member.mute', 'login.get', 'user.get', 'user.channel.create']
+QQ_FEATURES = ["message.create", "message.delete", "upload.create", "login.get", "user.channel.create"]
+QQ_GUILD_FEATURES = [
+    "channel.get",
+    "channel.list",
+    "channel.create",
+    "message.create",
+    "message.delete",
+    "message.get",
+    "reaction.create",
+    "reaction.delete",
+    "reaction.list",
+    "upload.create",
+    "guild.get",
+    "guild.list",
+    "guild.member.get",
+    "guild.member.list",
+    "guild.member.kick",
+    "guild.member.mute",
+    "login.get",
+    "user.get",
+    "user.channel.create",
+]
 
 
 @dataclass
@@ -120,7 +139,7 @@ class QQBotWebsocketAdapter(BaseAdapter):
         self.session_id = None
         self._access_token = None
         self._expires_in = None
-        # apply(self, self._get_network, self._get_login)
+        apply(self, lambda _, __: self, self._get_login)
 
     def get_platform(self) -> str:
         return "qq"
@@ -132,6 +151,9 @@ class QQBotWebsocketAdapter(BaseAdapter):
         for index, lg in enumerate(self.logins):
             lg.sn = index
         return self.logins
+
+    def _get_login(self, self_id: str, is_guild: bool) -> Login:
+        return self.logins[int(is_guild)]
 
     @property
     def required(self) -> set[str]:
@@ -311,7 +333,9 @@ class QQBotWebsocketAdapter(BaseAdapter):
             self.bot_id_mapping[login.id] = self.app_id
             event_type = EventType.LOGIN_ADDED
         await self.server.post(Event(event_type, datetime.now(), login))
-        guild_login = Login(0, LoginStatus.ONLINE, "qqbot", platform="qqguild", user=user, features=QQ_GUILD_FEATURES.copy())
+        guild_login = Login(
+            0, LoginStatus.ONLINE, "qqbot", platform="qqguild", user=user, features=QQ_GUILD_FEATURES.copy()
+        )
         previous = next((lg for lg in self.logins if lg.id == guild_login.id and lg.platform == "qqguild"), None)
         if previous:
             previous.user = guild_login.user
@@ -451,9 +475,7 @@ class QQBotWebsocketAdapter(BaseAdapter):
         tasks = []
         async with self.stage("blocking"):
             if self.shard:
-                tasks.append(
-                    asyncio.create_task(self.connection_daemon(manager, self.session, ws_url, self.shard))
-                )
+                tasks.append(asyncio.create_task(self.connection_daemon(manager, self.session, ws_url, self.shard)))
             else:
                 shards = gateway_info.get("shards") or 1
                 logger.debug(f"Get Shards: {shards}")

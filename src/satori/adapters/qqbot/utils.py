@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Protocol, Literal
+from typing import Literal, Protocol
 
 from aiohttp import ClientResponse
 
-from .exception import ActionFailed, ApiNotAvailable, UnauthorizedException, AuditException, RateLimitException
-from ... import User, Guild, Channel, ChannelType, Member
+from ... import Channel, ChannelType, Guild, Member, User
+from .exception import ActionFailed, ApiNotAvailable, AuditException, RateLimitException, UnauthorizedException
 
 CallMethod = Literal["get", "post", "fetch", "update", "multipart", "put", "delete", "patch"]
 
@@ -70,7 +70,11 @@ async def validate_response(resp: ClientResponse):
         return data.get("data", data)
     if status in {201, 202}:
         data = await resp.json()
-        if data and (audit_id := data.get("data", {}).get("message_audit", {}).get("audit_id")):
+        if (
+            data
+            and data.get("code") == 304023
+            and (audit_id := data.get("data", {}).get("message_audit", {}).get("audit_id"))
+        ):
             exc = AuditException(audit_id)
         else:
             exc = ActionFailed(status, resp.headers, await resp.text())
@@ -97,11 +101,9 @@ def decode_channel(profile: dict) -> Channel:
     return Channel(
         id=profile["id"],
         name=profile.get("name", ""),
-        type={
-            0: ChannelType.TEXT,
-            2: ChannelType.VOICE,
-            4: ChannelType.CATEGORY
-        }.get(profile["type"], ChannelType.TEXT),
+        type={0: ChannelType.TEXT, 2: ChannelType.VOICE, 4: ChannelType.CATEGORY}.get(
+            profile["type"], ChannelType.TEXT
+        ),
         parent_id=profile["parent_id"],
     )
 
