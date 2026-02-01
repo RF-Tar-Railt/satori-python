@@ -230,7 +230,7 @@ class App(Service):
             if not login.user:
                 logger.warning(f"Received login-added event without user info: {login}")
                 return
-            login_sn = f"{login.user.id}@{id(conn):x}"
+            login_sn = f"{login.platform}_{login.user.id}@{id(conn):x}"
             account = Account(
                 login,
                 conn.config,
@@ -249,7 +249,7 @@ class App(Service):
             if not login.user:
                 logger.warning(f"Received login-updated event without user info: {login}")
                 return
-            login_sn = f"{login.user.id}@{id(conn):x}"
+            login_sn = f"{login.platform}_{login.user.id}@{id(conn):x}"
             if login_sn not in self.accounts:
                 if login.status == LoginStatus.ONLINE:
                     account = Account(
@@ -283,13 +283,13 @@ class App(Service):
             if not login.user:
                 logger.warning(f"Received login-removed event without user info: {login}")
                 return
-            login_sn = f"{login.user.id}@{id(conn):x}"
+            login_sn = f"{login.platform}_{login.user.id}@{id(conn):x}"
             if login_sn not in self.accounts:
                 logger.warning(f"Received event for unknown account: {event}")
                 return
             account = self.accounts[login_sn]
         else:
-            login_sn = f"{event.login.user.id}@{id(conn):x}"
+            login_sn = f"{event.login.platform}_{event.login.user.id}@{id(conn):x}"
             if login_sn not in self.accounts:
                 logger.warning(f"Received event for unknown account: {event}")
                 return

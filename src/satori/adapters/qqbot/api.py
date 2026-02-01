@@ -5,7 +5,7 @@ from satori.adapters.qqbot.utils import QQBotNetwork
 from satori.server import Adapter, Request
 from satori.server.route import MessageParam
 
-from .message import QQBotMessageEncoder, QQGuildMessageEncoder
+from .message import QQGroupMessageEncoder, QQGuildMessageEncoder
 
 
 def apply(
@@ -23,6 +23,6 @@ def apply(
         if login.platform == "qqguild":
             encoder = QQGuildMessageEncoder(login, net, request.params["channel_id"], request.params.get("referrer"))
         else:
-            encoder = QQBotMessageEncoder(login, net, request.params["channel_id"], request.params.get("referrer"))
+            encoder = QQGroupMessageEncoder(login, net, request.params["channel_id"], request.params.get("referrer"))
         await encoder.send(request.params["content"])
         return encoder.results

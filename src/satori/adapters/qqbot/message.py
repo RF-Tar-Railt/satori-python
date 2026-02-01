@@ -203,7 +203,7 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
                 await self.render(children)
                 await self.flush()
             case "img" | "image":
-                if "src" in attrs or "url" in attrs:
+                if attrs.get("src") or attrs.get("url"):
                     await self.flush()
                     self.resolve_file(attrs)
                     await self.flush()
@@ -232,6 +232,171 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
                 filename = path.name
                 content_type = None
             self.file_data = {"value": data, "content_type": content_type, "filename": filename}
+
+
+class QQGroupMessageEncoder(QQBotMessageEncoder):
+    def __init__(self, login: Login, net: QQBotNetwork, channel_id: str, referrer: dict | None = None):
+        super().__init__(login, net, channel_id, referrer)
+        self.use_markdown = False
+        self.content = ""
+        self.attachment: dict | None = None
+        self.rows: list[list[dict]] = []
+        # self.file_url = ""
+        # self.file_data = {}  # value, content_type, filename
+
+    async def flush(self):
+        if not self.content and not self.attachment and not self.rows:
+            return
+        self.strip_buttons()
+        msg_id = self.referrer.get("msg_id") if self.referrer else None
+        msg_seq = self.referrer.get("msg_seq") if self.referrer else None
+        data = {
+            "content": self.content,
+            "msg_type": 0,
+            "msg_id": msg_id,
+            "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
+        }
+        if self.attachment:
+            if not self.content:
+                self.content = " "
+            data["media"] = self.attachment
+            data["msg_type"] = 7
+        if self.use_markdown:
+            data["msg_type"] = 2
+            del data["content"]
+            data["markdown"] = {
+                "content": escape_markdown(self.content) or " ",
+            }
+            if self.rows:
+                data["keyboard"] = {"content": {"rows": self.export_buttons()}}
+        try:
+            if self.channel_id.startswith("private:") or (self.referrer and self.referrer.get("direct", False)):
+                endpoint = f"v2/users/{self.channel_id.split(':',1)[-1]}/messages"
+            else:
+                endpoint = f"v2/groups/{self.channel_id}/messages"
+            resp = await self.net.call_api("post", endpoint, remove_empty(data))
+            referrer = self.referrer.copy() if self.referrer else {}
+            referrer |= {
+                "msg_id": resp["id"],
+                "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
+            }
+            self.results.append(MessageReceipt(resp["id"], self._raw_content, referrer))
+        except Exception as e:
+            logger.error(f"Failed to send message to {self.channel_id}: {self._raw_content}\nError: {e}")
+        self.content = ""
+        self.attachment = None
+        self.use_markdown = False
+        self.rows = []
+
+    async def send_file(self, type_: str, attrs: dict) -> dict | None:
+        url = attrs.get("url") or attrs["src"]
+        is_uri = url.startswith("file://")
+        b64_match = _BASE64_RE.match(url)
+        file_type = 0
+        match type_:
+            case "img" | "image":
+                file_type = 1
+            case "audio":
+                file_type = 2
+            case "video":
+                file_type = 3
+            case _:
+                file_type = 4
+        req: dict = {
+            "file_type": file_type,
+            "srv_send_msg": False,
+        }
+        if b64_match:
+            req["file_data"] = url[len(b64_match.group(0)) :]
+        elif is_uri:
+            path = Path(url[7:])
+            req["file_data"] = base64.b64encode(path.read_bytes()).decode("utf-8")
+        else:
+            req["url"] = url
+        if self.channel_id.startswith("private:") or (self.referrer and self.referrer.get("direct", False)):
+            endpoint = f"v2/users/{self.channel_id.split(':',1)[-1]}/files"
+        else:
+            endpoint = f"v2/groups/{self.channel_id}/files"
+        try:
+            resp = await self.net.call_api("post", endpoint, req)
+            return resp
+        except Exception as e:
+            logger.error(f"Failed to upload file to {self.channel_id}: {url}\nError: {e}")
+            return None
+
+    async def visit(self, element: RawElement):
+        type_, attrs, children = element.type, element.attrs, element.children
+        match type_:
+            case "text":
+                self.content += attrs["text"]
+            case "img" | "image":
+                if attrs.get("src") or attrs.get("url"):
+                    await self.flush()
+                    if data := (await self.send_file(type_, attrs)):
+                        self.attachment = data
+            case "video" | "audio" | "file":
+                if attrs.get("src") or attrs.get("url"):
+                    await self.flush()
+                    if data := (await self.send_file(type_, attrs)):
+                        self.attachment = data
+                    await self.flush()
+            case "br":
+                self.content += "\n"
+            case "p":
+                if not self.content.endswith("\n"):
+                    self.content += "\n"
+                await self.render(children)
+                if not self.content.endswith("\n"):
+                    self.content += "\n"
+            case "qq:button-group":
+                self.use_markdown = True
+                self.rows.append([])
+                await self.render(children)
+                self.rows.append([])
+            case "button":
+                self.use_markdown = True
+                last = self.last_row()
+                last.append(self.decode_button(attrs, "".join(map(str, children))))
+            case "message":
+                await self.flush()
+                await self.render(children)
+                await self.flush()
+            case _:
+                await self.render(children)
+
+    def last_row(self) -> list[dict]:
+        if not self.rows:
+            self.rows.append([])
+        last = self.rows[-1]
+        if len(last) >= 5:
+            self.rows.append([])
+            last = self.rows[-1]
+        return last
+
+    def strip_buttons(self):
+        if self.rows and not self.rows[-1]:
+            self.rows.pop()
+
+    def export_buttons(self):
+        return [{"buttons": row} for row in self.rows]
+
+    def decode_button(self, attrs: dict, label: str) -> dict:
+        return {
+            "id": attrs["id"],
+            "render_data": {
+                "label": label,
+                "visited_label": label,
+                "style": 1 if attrs.get("class") == "primary" else 0,
+            },
+            "action": {
+                "type": {"input": 2, "link": 0}.get(attrs.get("type", "action"), 1),
+                "permission": {"type": 2},
+                "data": {
+                    "input": attrs.get("text"),
+                    "link": attrs.get("href"),
+                }.get(attrs.get("type", "action"), attrs["id"]),
+            },
+        }
 
 
 def _decode_attachment(attachment: dict) -> Element:

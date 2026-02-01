@@ -105,7 +105,7 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
             for login in meta.logins:
                 if not login.user:
                     continue
-                login_sn = f"{login.user.id}@{id(self):x}"
+                login_sn = f"{login.platform}_{login.user.id}@{id(self):x}"
                 account = Account(login, self.config, meta.proxy_urls, self.app.default_api_cls)
                 logger.info(f"account registered: {account}")
                 (account.connected.set() if login.status == LoginStatus.ONLINE else account.connected.clear())
@@ -117,7 +117,7 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
             logger.info(f"{self.id} Webhook server exiting...")
             self.close_signal.set()
             for v in list(self.app.accounts.values()):
-                if (identity := f"{v.self_id}@{id(self):x}") in self.accounts:
+                if (identity := f"{v.platform}_{v.self_id}@{id(self):x}") in self.accounts:
                     v.connected.clear()
                     await self.app.account_update(v, LoginStatus.OFFLINE)
                     del self.app.accounts[identity]

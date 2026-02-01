@@ -74,6 +74,10 @@ class _QQNetwork:
         self._access_token = None
         self._expires_in = None
 
+    @property
+    def bot_id_mapping(self):
+        return self.adapter.bot_id_mapping
+
     async def _call_http(
         self, method: CallMethod, action: str, headers: dict[str, str] | None = None, params: dict | None = None
     ) -> dict:

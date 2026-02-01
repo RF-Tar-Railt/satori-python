@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from satori import At, EventType
+from satori import At, EventType, Text
 from satori.model import Channel, ChannelType, Event, Guild, Member, MessageObject, Role, User
 
 from ..message import decode_segments
@@ -24,7 +24,12 @@ async def at_message(login, guild_login, net, payload: Payload):
     )
     role = Role(raw["member"]["roles"][0])
     msg = decode_segments(raw)
-
+    if len(msg) >= 2 and isinstance(msg[0], At) and isinstance(msg[1], Text):
+        text = msg[1].text.lstrip()
+        if not text:
+            msg.pop(1)
+        else:
+            msg[1] = Text(text)
     return Event(
         EventType.MESSAGE_CREATED,
         (
@@ -87,15 +92,23 @@ async def group_at_message_create(login, guild_login, net, payload: Payload):
         channel = Channel(raw["group_openid"], ChannelType.TEXT)
     else:
         channel = Channel(raw["group_id"], ChannelType.TEXT)
-    app_id = net.adapter.bot_id_mapping[login.id]
-    if "member_openid" in raw:
-        user = User(raw["member_openid"], avatar=USER_AVATAR_URL.format(app_id, user_id=raw["member_openid"]))
+    app_id = net.bot_id_mapping[login.id]
+    if "member_openid" in raw["author"]:
+        user = User(
+            raw["author"]["member_openid"],
+            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["member_openid"]),
+        )
     else:
-        user = User(raw["id"], avatar=USER_AVATAR_URL.format(app_id, user_id=raw["id"]))
+        user = User(raw["author"]["id"], avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]))
     member = Member(user, avatar=user.avatar)
     msg = decode_segments(raw)
     msg.insert(0, At(login.id))
-
+    if len(msg) >= 2 and isinstance(msg[1], Text):
+        text = msg[1].text.lstrip()
+        if not text:
+            msg.pop(1)
+        else:
+            msg[1] = Text(text)
     return Event(
         EventType.MESSAGE_CREATED,
         (
@@ -119,13 +132,14 @@ async def group_at_message_create(login, guild_login, net, payload: Payload):
 @register_event("C2C_MESSAGE_CREATE")
 async def c2c_message_create(login, guild_login, net, payload: Payload):
     raw = payload.data
-    app_id = net.adapter.bot_id_mapping[login.id]
+    app_id = net.bot_id_mapping[login.id]
     if "user_openid" in raw["author"]:
         user = User(
-            raw["author"]["user_openid"], avatar=USER_AVATAR_URL.format(app_id, user_id=raw["author"]["user_openid"])
+            raw["author"]["user_openid"],
+            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["user_openid"]),
         )
     else:
-        user = User(raw["author"]["id"], avatar=USER_AVATAR_URL.format(app_id, user_id=raw["author"]["id"]))
+        user = User(raw["author"]["id"], avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]))
     channel = Channel(f"private:{user.id}", ChannelType.DIRECT)
     return Event(
         EventType.MESSAGE_CREATED,
