@@ -285,13 +285,14 @@ class Meta(ModelBase):
 @dataclass
 class MessageObject(ModelBase):
     id: str
-    content: str
+    content: str = ""
     channel: Channel | None = None
     guild: Guild | None = None
     member: Member | None = None
     user: User | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    referrer: dict | None = None
 
     @classmethod
     def from_elements(
@@ -304,8 +305,9 @@ class MessageObject(ModelBase):
         user: User | None = None,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
+        referrer: dict | None = None,
     ):
-        obj = cls(id, "".join(str(i) for i in content), channel, guild, member, user, created_at, updated_at)
+        obj = cls(id, "".join(str(i) for i in content), channel, guild, member, user, created_at, updated_at, referrer)
         obj._parsed_message = content
         return obj
 
@@ -351,42 +353,6 @@ class MessageObject(ModelBase):
             res["created_at"] = int(self.created_at.timestamp() * 1000)
         if self.updated_at:
             res["updated_at"] = int(self.updated_at.timestamp() * 1000)
-        return res
-
-
-@dataclass
-class MessageReceipt(ModelBase):
-    id: str
-    content: str | None = None
-    referrer: dict | None = None
-
-    @classmethod
-    def from_elements(
-        cls,
-        id: str,
-        content: list[Element] | None = None,
-    ):
-        return cls(id, "".join(str(i) for i in content) if content else None)
-
-    @property
-    def message(self) -> list[Element] | None:
-        return transform(parse(self.content)) if self.content else None
-
-    @message.setter
-    def message(self, value: list[Element] | None):
-        self.content = "".join(str(i) for i in value) if value else None
-
-    @classmethod
-    def parse(cls, raw: dict):
-        if "elements" in raw and "content" not in raw:
-            content = [RawElement(*item.values()) for item in raw["elements"]]
-            raw["content"] = "".join(str(i) for i in content)
-        return super().parse(raw)
-
-    def dump(self):
-        res: dict = {"id": self.id}
-        if self.content:
-            res["content"] = self.content
         if self.referrer:
             res["referrer"] = self.referrer
         return res

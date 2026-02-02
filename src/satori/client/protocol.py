@@ -20,7 +20,6 @@ from satori.model import (
     LoginPartial,
     Member,
     MessageObject,
-    MessageReceipt,
     Meta,
     Order,
     PageDequeResult,
@@ -99,15 +98,15 @@ class ApiProtocol:
         ) as resp:
             return await validate_response(resp)
 
-    async def send(self, event: Event, message: str | Iterable[str | Element]) -> list[MessageReceipt]:
-        """发送消息。返回一个 `MessageReceipt` 对象构成的数组。
+    async def send(self, event: Event, message: str | Iterable[str | Element]) -> list[MessageObject]:
+        """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
             event (Event): 当前事件(上下文)
             message (str | Iterable[str | Element]): 要发送的消息
 
         Returns:
-            list[MessageReceipt]: `MessageReceipt` 对象构成的数组
+            list[MessageObject]: `MessageObject` 对象构成的数组
 
         Raises:
             RuntimeError: 传入的事件缺少 `channel` 对象
@@ -118,8 +117,8 @@ class ApiProtocol:
 
     async def send_message(
         self, channel: str | Channel, message: str | Iterable[str | Element], referrer: dict[str, Any] | None = None
-    ) -> list[MessageReceipt]:
-        """发送消息。返回一个 `MessageReceipt` 对象构成的数组。
+    ) -> list[MessageObject]:
+        """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
             channel (str | Channel): 要发送的频道 ID
@@ -127,7 +126,7 @@ class ApiProtocol:
             referrer (dict[str, Any] | None): 消息来源信息，默认为 None
 
         Returns:
-            list[MessageReceipt]: `MessageReceipt` 对象构成的数组
+            list[MessageObject]: `MessageObject` 对象构成的数组
         """
         channel_id = channel.id if isinstance(channel, Channel) else channel
         msg = message if isinstance(message, str) else "".join(str(i) for i in message)
@@ -135,8 +134,8 @@ class ApiProtocol:
 
     async def send_private_message(
         self, user: str | User, message: str | Iterable[str | Element], referrer: dict[str, Any] | None = None
-    ) -> list[MessageReceipt]:
-        """发送私聊消息。返回一个 `MessageReceipt` 对象构成的数组。
+    ) -> list[MessageObject]:
+        """发送私聊消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
             user (str | User): 要发送的用户 ID
@@ -144,7 +143,7 @@ class ApiProtocol:
             referrer (dict[str, Any] | None): 消息来源信息，默认为 None
 
         Returns:
-            list[MessageReceipt]: `MessageReceipt` 对象构成的数组
+            list[MessageObject]: `MessageObject` 对象构成的数组
         """
         user_id = user.id if isinstance(user, User) else user
         channel = await self.user_channel_create(user_id=user_id)
@@ -175,8 +174,8 @@ class ApiProtocol:
 
     async def message_create(
         self, channel_id: str, content: str, referrer: dict[str, Any] | None = None
-    ) -> list[MessageReceipt]:
-        """发送消息。返回一个 `MessageReceipt` 对象构成的数组。
+    ) -> list[MessageObject]:
+        """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
             channel_id (str): 频道 ID
@@ -184,14 +183,14 @@ class ApiProtocol:
             referrer (dict[str, Any] | None): 消息来源信息，默认为 None
 
         Returns:
-            list[MessageReceipt]: `MessageReceipt` 对象构成的数组
+            list[MessageObject]: `MessageObject` 对象构成的数组
         """
         res = await self.call_api(
             Api.MESSAGE_CREATE,
             {"channel_id": channel_id, "content": content, "referrer": referrer},
         )
         res = cast("list[dict]", res)
-        return [MessageReceipt.parse(i) for i in res]
+        return [MessageObject.parse(i) for i in res]
 
     async def message_get(self, channel_id: str, message_id: str) -> MessageObject:
         """获取特定消息。返回一个 `MessageObject` 对象。

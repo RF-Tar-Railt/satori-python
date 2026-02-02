@@ -15,7 +15,6 @@ from satori.model import (
     Login,
     Member,
     MessageObject,
-    MessageReceipt,
     Meta,
     Order,
     PageDequeResult,
@@ -80,7 +79,7 @@ class Account(Generic[TP]):
             - 链接开头出现在 self_info.proxy_urls 中的某一项
         """
 
-    async def send(self, event: Event, message: str | Iterable[str | Element]) -> list[MessageReceipt]:
+    async def send(self, event: Event, message: str | Iterable[str | Element]) -> list[MessageObject]:
         """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
@@ -96,7 +95,7 @@ class Account(Generic[TP]):
 
     async def send_message(
         self, channel: str | Channel, message: str | Iterable[str | Element], referrer: dict[str, Any] | None = None
-    ) -> list[MessageReceipt]:
+    ) -> list[MessageObject]:
         """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
@@ -110,7 +109,7 @@ class Account(Generic[TP]):
 
     async def send_private_message(
         self, user: str | User, message: str | Iterable[str | Element], referrer: dict[str, Any] | None = None
-    ) -> list[MessageReceipt]:
+    ) -> list[MessageObject]:
         """发送私聊消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:
@@ -138,7 +137,7 @@ class Account(Generic[TP]):
 
     async def message_create(
         self, channel_id: str, content: str, referrer: dict[str, Any] | None = None
-    ) -> list[MessageReceipt]:
+    ) -> list[MessageObject]:
         """发送消息。返回一个 `MessageObject` 对象构成的数组。
 
         Args:

@@ -43,3 +43,6 @@ from .model import Upload as Upload
 from .model import User as User
 
 __version__ = "0.17.7"
+
+
+MessageReceipt = MessageObject

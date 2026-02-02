@@ -8,7 +8,7 @@ from typing import Any, Literal, TypedDict
 from urllib.parse import urlparse
 
 from satori.element import Custom, E, Element
-from satori.model import Login, MessageReceipt
+from satori.model import Login, MessageObject
 from satori.parser import Element as RawElement
 from satori.parser import parse
 
@@ -63,7 +63,7 @@ class OneBot11MessageEncoder:
         self.channel_id = channel_id
         self.children: list[MessageSegment] = []
         self.stack = [State("message")]
-        self.results: list[MessageReceipt] = []
+        self.results: list[MessageObject] = []
 
     async def send_forward(self):
         if not self.stack[0].children:
@@ -85,7 +85,7 @@ class OneBot11MessageEncoder:
                 },
             )
         if resp:
-            self.results.append(MessageReceipt(resp["message_id"], ""))
+            self.results.append(MessageObject(resp["message_id"], ""))
 
     async def flush(self):
         if not self.children:
@@ -159,7 +159,7 @@ class OneBot11MessageEncoder:
                 },
             )
         if resp:
-            self.results.append(MessageReceipt(resp["message_id"], ""))
+            self.results.append(MessageObject(resp["message_id"], ""))
         self.children = []
 
     async def _send_file(self, attrs: dict[str, Any]):
@@ -191,7 +191,7 @@ class OneBot11MessageEncoder:
                     "name": name,
                 },
             )
-        self.results.append(MessageReceipt("", ""))
+        self.results.append(MessageObject("", ""))
 
     async def send(self, content: str):
         await self.render(parse(content))

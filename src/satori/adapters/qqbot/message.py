@@ -9,7 +9,7 @@ from pathlib import Path
 from loguru import logger
 
 from satori.element import Button, Custom, E, Element, select, transform
-from satori.model import Login, MessageReceipt
+from satori.model import Login, MessageObject
 from satori.parser import Element as RawElement
 from satori.parser import parse
 
@@ -81,7 +81,7 @@ class QQBotMessageEncoder:
         self.net = net
         self.channel_id = channel_id
         self.referrer = referrer
-        self.results: list[MessageReceipt] = []
+        self.results: list[MessageObject] = []
         self._raw_content = ""
 
     async def send(self, content: str):
@@ -155,7 +155,7 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
                 "msg_id": resp["id"],
                 "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
             }
-            self.results.append(MessageReceipt(resp["id"], self._raw_content, referrer))
+            self.results.append(MessageObject(resp["id"], self._raw_content, referrer=referrer))
         except AuditException as e:
             audit_res = await e.get_audit_result()
             if not audit_res or not audit_res.message_id:
@@ -166,7 +166,7 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
                     "msg_id": audit_res.message_id,
                     "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
                 }
-                self.results.append(MessageReceipt(audit_res.message_id, self._raw_content, referrer))
+                self.results.append(MessageObject(audit_res.message_id, self._raw_content, referrer=referrer))
         except Exception as e:
             logger.error(f"Failed to send message to {self.channel_id}: {self._raw_content}\nError: {e}")
         self.content = ""
@@ -280,7 +280,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 "msg_id": resp["id"],
                 "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
             }
-            self.results.append(MessageReceipt(resp["id"], self._raw_content, referrer))
+            self.results.append(MessageObject(resp["id"], self._raw_content, referrer=referrer))
         except Exception as e:
             logger.error(f"Failed to send message to {self.channel_id}: {self._raw_content}\nError: {e}")
         self.content = ""

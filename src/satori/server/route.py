@@ -11,7 +11,6 @@ from satori.model import (
     Login,
     Member,
     MessageObject,
-    MessageReceipt,
     ModelBase,
     Order,
     PageDequeResult,
@@ -40,7 +39,7 @@ class MessageParam(TypedDict):
     referrer: NotRequired[dict[str, Any]]
 
 
-MESSAGE_CREATE: TypeAlias = RouteCall[MessageParam, list[MessageReceipt] | list[dict[str, Any]]]
+MESSAGE_CREATE: TypeAlias = RouteCall[MessageParam, list[MessageObject] | list[dict[str, Any]]]
 
 
 class MessageOpParam(TypedDict):
