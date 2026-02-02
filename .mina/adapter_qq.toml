@@ -1,4 +1,4 @@
-includes = ["src/satori/adapters/satori"]
+includes = ["src/satori/adapters/qq"]
 raw-dependencies = [
     "satori-python >= 0.18.0",
     "crypography>=46.0.4",
