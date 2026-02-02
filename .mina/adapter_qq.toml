@@ -1,12 +1,12 @@
 includes = ["src/satori/adapters/qq"]
 raw-dependencies = [
     "satori-python >= 0.18.0",
-    "crypography>=46.0.4",
+    "cryptography>=46.0.4",
 ]
 
 [project]
 name = "satori-python-adapter-qq"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
   {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
 ]
