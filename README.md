@@ -54,7 +54,7 @@ pip install satori-python-server
 | OneBot V11 | `pip install satori-python-adapter-onebot11` | satori.adapters.onebot11.forward, satori.adapters.onebot11.reverse |
 | Console    | `pip install satori-python-adapter-console`  | satori.adapters.console                                            |
 | Milky      | `pip install satori-python-adapter-milky`    | satori.adapters.milky.main, satori.adapters.milky.webhook          |
-| QQ         | `pip install satori-python-adapter-qq`       | satori.adapters.milky.main, satori.adapters.milky.websocket        |
+| QQ         | `pip install satori-python-adapter-qq`       | satori.adapters.qq.main, satori.adapters.qq.websocket              |
 
 ### 社区适配器
 
