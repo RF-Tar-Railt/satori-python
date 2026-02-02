@@ -62,7 +62,6 @@ async def direct_message_create(login, guild_login, net, payload: Payload):
         avatar=user.avatar,
         joined_at=datetime.fromisoformat(raw["member"]["joined_at"]),
     )
-    role = Role(raw["member"]["roles"][0])
     return Event(
         EventType.MESSAGE_CREATED,
         (
@@ -75,7 +74,6 @@ async def direct_message_create(login, guild_login, net, payload: Payload):
         guild=guild,
         member=member,
         user=user,
-        role=role,
         message=MessageObject.from_elements(raw["id"], decode_segments(raw)),
         referrer={
             "direct": True,

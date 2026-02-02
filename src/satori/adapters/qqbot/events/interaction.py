@@ -5,12 +5,12 @@ from datetime import datetime
 from satori import Button, ButtonInteraction, EventType, Text
 from satori.model import Channel, ChannelType, Event, Guild, Member, MessageObject, User
 
-from ..utils import Payload
+from ..utils import Payload, QQBotNetwork
 from .base import register_event
 
 
 @register_event("INTERACTION_CREATE")
-async def interaction(login, guild_login, net, payload: Payload):
+async def interaction(login, guild_login, net: QQBotNetwork, payload: Payload):
     raw = payload.data
     chat_type = raw["chat_type"]
     if chat_type == 0:
@@ -29,6 +29,8 @@ async def interaction(login, guild_login, net, payload: Payload):
         user = User(raw["data"]["user_openid"])
         member = None
     button = ButtonInteraction(raw["data"]["resolved"]["button_id"], raw["data"]["resolved"]["button_data"])
+    if net.__class__.__name__ == "QQBotWebsocketAdapter":
+        await net.call_api("put", f"/interactions/{raw['id']}", {"code": 0})
     return Event(
         EventType.INTERACTION_BUTTON,
         (

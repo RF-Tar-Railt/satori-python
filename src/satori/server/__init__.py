@@ -40,6 +40,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from yarl import URL
 
 from satori.const import Api, EventType
+from satori.exception import ActionFailed
 from satori.model import Event, Meta, ModelBase, Opcode
 from satori.utils import decode
 
@@ -96,6 +97,9 @@ async def _request_handler(action: str, request: StarletteRequest, func: RouteCa
                 self_id=self_id,
             )
         )
+    except ActionFailed as ae:
+        logger.warning(ae)
+        return Response(status_code=ae.CODE, content=str(ae))
     except Exception as e:
         logger.error(e)
         return Response(status_code=500, content=str(e))

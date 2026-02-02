@@ -4,6 +4,7 @@ import base64
 import json
 import random
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 from loguru import logger
@@ -13,6 +14,7 @@ from satori.model import Login, MessageObject
 from satori.parser import Element as RawElement
 from satori.parser import parse
 
+from ...exception import ActionFailed
 from .exception import AuditException
 from .utils import QQBotNetwork
 
@@ -274,7 +276,13 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 endpoint = f"v2/users/{self.channel_id.split(':',1)[-1]}/messages"
             else:
                 endpoint = f"v2/groups/{self.channel_id}/messages"
-            resp = await self.net.call_api("post", endpoint, remove_empty(data))
+            try:
+                resp = await self.net.call_api("post", endpoint, remove_empty(data))
+            except ActionFailed:
+                data["msg_seq"] = (
+                    data["msg_seq"] + (hash(self.channel_id) % 0x7FFFFFF) + int(datetime.now(timezone.utc).timestamp())
+                )
+                resp = await self.net.call_api("post", endpoint, remove_empty(data))
             referrer = self.referrer.copy() if self.referrer else {}
             referrer |= {
                 "msg_id": resp["id"],

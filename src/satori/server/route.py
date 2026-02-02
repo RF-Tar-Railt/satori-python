@@ -180,7 +180,7 @@ GUILD_ROLE_LIST: TypeAlias = RouteCall[GuildXXXListParam, PageResult[Role] | dic
 
 
 class GuildRoleCreateParam(TypedDict):
-    guild: str
+    guild_id: str
     role: dict
 
 
@@ -188,7 +188,7 @@ GUILD_ROLE_CREATE: TypeAlias = RouteCall[GuildRoleCreateParam, Role | dict[str, 
 
 
 class GuildRoleUpdateParam(TypedDict):
-    guild: str
+    guild_id: str
     role_id: str
     role: dict
 
@@ -197,7 +197,7 @@ GUILD_ROLE_UPDATE: TypeAlias = RouteCall[GuildRoleUpdateParam, None]
 
 
 class GuildRoleDeleteParam(TypedDict):
-    guild: str
+    guild_id: str
     role_id: str
 
 
