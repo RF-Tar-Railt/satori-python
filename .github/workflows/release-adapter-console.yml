@@ -1,4 +1,4 @@
-name: Console Release
+name: Adapter Console Release
 
 on:
   workflow_dispatch:

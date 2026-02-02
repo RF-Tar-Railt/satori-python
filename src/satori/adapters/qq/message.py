@@ -132,6 +132,7 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
                     "message_reference": {"message_id": self.reference} if self.reference else None,
                     "msg_id": msg_id,
                 }
+                message = remove_empty(message)
                 data_ = {}
                 for key, value in message.items():
                     if isinstance(value, (list, dict)):

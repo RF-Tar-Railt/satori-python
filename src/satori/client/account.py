@@ -72,7 +72,10 @@ class Account(Generic[TP]):
         for proxy_url in self.proxy_urls:
             if url.startswith(proxy_url):
                 return self.config.api_base / "proxy" / url.lstrip("/")
-        return URL(url)
+        ans = URL(url)
+        if not ans.scheme:
+            ans = URL(f"http://{url}")
+        return ans
 
     def __repr__(self):
         return f"<Account {self.self_id} ({self.platform})>"

@@ -587,7 +587,7 @@ class Account(Generic[TP]):
         """
     upload = upload_create
 
-    async def download(self, url: str):
+    async def download(self, url: str) -> bytes:
         """访问内部链接。"""
 
     async def request_internal(self, url: str, method: str = "GET", **kwargs) -> dict:

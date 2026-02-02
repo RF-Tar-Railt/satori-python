@@ -44,7 +44,7 @@ class ApiProtocol:
             self.session = ClientSession()
         self.timeout = ClientTimeout(self.account.config.timeout or 300)
 
-    async def download(self, url: str):
+    async def download(self, url: str) -> bytes:
         """访问资源链接。"""
         endpoint = self.account.ensure_url(url)
         aio = Launart.current().get_component(AiohttpClientService)

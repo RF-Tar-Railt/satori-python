@@ -1,0 +1,32 @@
+includes = ["src/satori/adapters/satori"]
+raw-dependencies = [
+    "satori-python >= 0.17.2",
+    "crypography>=46.0.4",
+]
+
+[project]
+name = "satori-python-adapter-qq"
+version = "0.1.0"
+authors = [
+  {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
+]
+dependencies = []
+description = "Satori Protocol SDK for python, adapter for QQ"
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.10,<4.0"
+classifiers = [
+    "Typing :: Typed",
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+homepage = "https://github.com/RF-Tar-Railt/satori-python"
+repository = "https://github.com/RF-Tar-Railt/satori-python"

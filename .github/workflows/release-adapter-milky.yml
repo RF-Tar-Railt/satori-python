@@ -1,4 +1,4 @@
-name: Milky Release
+name: Adapter Milky Release
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Adapter Satori Release
+name: Adapter QQ Release
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ jobs:
 
       - name: Build Package
         run: |
-          export MINA_BUILD_TARGET=adapter_satori && pdm mina build adapter_satori --no-isolation
+          export MINA_BUILD_TARGET=adapter_qq && pdm mina build adapter_qq --no-isolation
 
       - name: Publish Package
         run: |
