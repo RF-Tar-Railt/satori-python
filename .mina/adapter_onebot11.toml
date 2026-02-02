@@ -1,9 +1,9 @@
 includes = ["src/satori/adapters/onebot11"]
-raw-dependencies = ["satori-python-server >= 0.17.6"]
+raw-dependencies = ["satori-python-server >= 0.18.0"]
 
 [project]
 name = "satori-python-adapter-onebot11"
-version = "0.2.7"
+version = "0.3.0"
 authors = [
   {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
 ]

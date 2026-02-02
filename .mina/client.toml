@@ -1,6 +1,6 @@
 includes = ["src/satori/client"]
 raw-dependencies = [
-    "satori-python-core >= 0.17.0",
+    "satori-python-core >= 0.18.0",
     "graia-amnesia >= 0.11.0",
 ]
 

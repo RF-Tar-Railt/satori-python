@@ -1,6 +1,6 @@
 includes = ["src/satori/adapters/console"]
 raw-dependencies = [
-    "satori-python-server >= 0.17.2",
+    "satori-python-server >= 0.18.0",
     "nonechat<0.7.0,>=0.6.0",
 ]
 
