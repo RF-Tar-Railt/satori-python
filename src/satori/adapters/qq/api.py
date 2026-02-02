@@ -2,7 +2,6 @@ from collections.abc import Callable
 from datetime import datetime
 
 from satori import Api, At, Channel, ChannelType, Guild, Login, Member, MessageObject, PageResult, Role, Text
-from satori.adapters.qqbot.utils import QQBotNetwork
 from satori.exception import BadRequestException, NotFoundException
 from satori.server import Adapter, Request
 from satori.server.route import (
@@ -30,7 +29,7 @@ from satori.server.route import (
 )
 
 from .message import QQGroupMessageEncoder, QQGuildMessageEncoder, decode_segments
-from .utils import decode_channel, decode_guild, decode_member, decode_user
+from .utils import QQBotNetwork, decode_channel, decode_guild, decode_member, decode_user
 
 
 def apply(

@@ -155,7 +155,7 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
                 resp = await self.net.call_api("post", endpoint, message)
             referrer = self.referrer.copy() if self.referrer else {}
             referrer |= {
-                "msg_id": resp["id"],
+                "msg_id": msg_id,
                 "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
             }
             self.results.append(MessageObject(resp["id"], self._raw_content, referrer=referrer))
@@ -166,7 +166,7 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
             else:
                 referrer = self.referrer.copy() if self.referrer else {}
                 referrer |= {
-                    "msg_id": audit_res.message_id,
+                    "msg_id": msg_id,
                     "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
                 }
                 self.results.append(MessageObject(audit_res.message_id, self._raw_content, referrer=referrer))
@@ -286,8 +286,8 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 resp = await self.net.call_api("post", endpoint, remove_empty(data))
             referrer = self.referrer.copy() if self.referrer else {}
             referrer |= {
-                "msg_id": resp["id"],
-                "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
+                "msg_id": msg_id,
+                "msg_seq": data["msg_seq"],
             }
             self.results.append(MessageObject(resp["id"], self._raw_content, referrer=referrer))
         except Exception as e:
