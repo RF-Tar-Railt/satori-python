@@ -16,6 +16,7 @@
 目前提供了 `satori` 协议实现的有：
 
 - [Chronocat](https://chronocat.vercel.app)
+- [LLBot](https://www.llonebot.com/guide/introduction)
 - [nekobox](https://github.com/wyapx/nekobox)
 - Koishi （搭配 `@koishijs/plugin-server`）
 
@@ -53,6 +54,7 @@ pip install satori-python-server
 | OneBot V11 | `pip install satori-python-adapter-onebot11` | satori.adapters.onebot11.forward, satori.adapters.onebot11.reverse |
 | Console    | `pip install satori-python-adapter-console`  | satori.adapters.console                                            |
 | Milky      | `pip install satori-python-adapter-milky`    | satori.adapters.milky.main, satori.adapters.milky.webhook          |
+| QQ         | `pip install satori-python-adapter-qq`       | satori.adapters.milky.main, satori.adapters.milky.websocket        |
 
 ### 社区适配器
 
