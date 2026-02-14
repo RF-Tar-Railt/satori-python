@@ -97,6 +97,10 @@ async def _request_handler(action: str, request: StarletteRequest, func: RouteCa
                 self_id=self_id,
             )
         )
+    except asyncio.CancelledError:
+        return Response(status_code=503, content="Request cancelled")
+    except asyncio.TimeoutError:
+        return Response(status_code=504, content="Request timeout")
     except ActionFailed as ae:
         logger.warning(ae)
         return Response(status_code=ae.CODE, content=str(ae))

@@ -101,7 +101,6 @@ class Intents:
 class QQBotWebsocketAdapter(BaseAdapter):
 
     connections: dict[tuple[int, int], aiohttp.ClientWebSocketResponse]
-    response_waiters: dict[str, asyncio.Future]
     session: aiohttp.ClientSession | None
     sequence: int | None
     session_id: str | None
@@ -134,7 +133,6 @@ class QQBotWebsocketAdapter(BaseAdapter):
         self.bot_id_mapping: dict[str, str] = {}  # login.id -> bot app_id
         self.close_signal = asyncio.Event()
         self.connections = {}
-        self.response_waiters = {}
         self.sequence = None
         self.session_id = None
         self._access_token = None

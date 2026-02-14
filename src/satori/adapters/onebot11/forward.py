@@ -34,9 +34,11 @@ class OneBot11ForwardAdapter(BaseAdapter):
         self,
         endpoint: str | URL,
         access_token: str | None = None,
+        timeout: float = 60,
     ):
         super().__init__()
         self.endpoint = URL(endpoint)
+        self.timeout = timeout
         self.access_token = access_token
         self.close_signal = asyncio.Event()
         self.response_waiters: dict[str, asyncio.Future] = {}
@@ -154,6 +156,7 @@ class OneBot11ForwardAdapter(BaseAdapter):
                     if (access_token := self.access_token) is not None
                     else None
                 ),
+                timeout=self.timeout
             )
             try:
                 self.connection = await ctx.__aenter__()
@@ -187,6 +190,8 @@ class OneBot11ForwardAdapter(BaseAdapter):
                 for login in self.logins.values():
                     login.status = LoginStatus.OFFLINE
                     await self.server.post(Event(EventType.LOGIN_REMOVED, datetime.now(), login))
+                for fut in self.response_waiters.values():
+                    fut.cancel()
                 await asyncio.sleep(1)
                 return
             if close_task in done:
@@ -195,6 +200,8 @@ class OneBot11ForwardAdapter(BaseAdapter):
                 for login in self.logins.values():
                     login.status = LoginStatus.RECONNECT
                     await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
+                for fut in self.response_waiters.values():
+                    fut.cancel()
                 await asyncio.sleep(5)
                 logger.info(f"{self} Reconnecting...")
                 continue
@@ -229,7 +236,7 @@ class OneBot11ForwardAdapter(BaseAdapter):
 
         try:
             await self.connection.send_str(encode({"action": action, "params": params or {}, "echo": echo}))
-            result = await future
+            result = await asyncio.wait_for(future, timeout=self.timeout)
         finally:
             del self.response_waiters[echo]
 

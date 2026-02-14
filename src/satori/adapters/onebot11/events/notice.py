@@ -89,16 +89,6 @@
 #             scene=group,
 #         )
 #
-#     @m.entity(OneBot11Capability.event_callback, raw_event="notice.friend_add")
-#     async def friend_add(self, raw_event: dict):
-#         self_id = raw_event["self_id"]
-#         account = self.connection.accounts.get(self_id)
-#         if account is None:
-#             logger.warning(f"Unknown account {self_id} received message {raw_event}")
-#             return
-#         friend = Selector().land("qq").friend(str(raw_event["user_id"]))
-#         context = Context(account, friend, friend, friend, account.route)
-#         return DirectSessionCreated(context)
 #
 #     @m.entity(OneBot11Capability.event_callback, raw_event="notice.notify.poke")
 #     async def nudge_received(self, raw_event: dict):
@@ -350,4 +340,23 @@ async def group_increase(login: Login, net: OneBotNetwork, raw: dict):
         channel=channel,
         operator=operator,
         role=Role("MEMBER", "群成员"),
+    )
+
+
+@register_event("notice.friend_add")
+async def friend_add(login: Login, net: OneBotNetwork, raw: dict):
+    user_info = await net.call_api("get_stranger_info", {"user_id": raw["user_id"]})
+    user = User(
+        str(raw["user_id"]),
+        user_info["nickname"],
+        user_info.get("card"),
+        USER_AVATAR_URL.format(uin=raw["user_id"]),
+    )
+    channel = Channel(f"private:{raw['user_id']}", ChannelType.DIRECT, user_info["nickname"])
+    return Event(
+        EventType.FRIEND_ADDED,
+        datetime.now(),
+        login=login,
+        user=user,
+        channel=channel,
     )

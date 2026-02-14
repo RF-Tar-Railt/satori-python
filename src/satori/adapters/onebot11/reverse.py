@@ -31,10 +31,18 @@ class _Connection:
         self.response_waiters: dict[str, asyncio.Future] = {}
 
     async def message_receive(self):
-        async for msg in self.ws.iter_text():
-            yield self, decode(msg)
-        else:
-            self.close_signal.set()
+
+        while True:
+            message = await self.ws.receive()
+            print(message)
+
+            if message["type"] == "websocket.disconnect":
+                break
+            yield self, decode(message["text"])
+        # async for msg in self.ws.iter_text():
+        #     yield self, decode(msg)
+        # else:
+        self.close_signal.set()
 
     async def message_handle(self):
         async for connection, data in self.message_receive():
@@ -116,7 +124,7 @@ class _Connection:
 
         try:
             await self.ws.send_text(encode({"action": action, "params": params or {}, "echo": echo}))
-            result = await future
+            result = await asyncio.wait_for(future, timeout=self.adapter.timeout)
         finally:
             del self.response_waiters[echo]
 
@@ -134,12 +142,14 @@ class OneBot11ReverseAdapter(BaseAdapter):
         path: str = "onebot/v11",
         endpoint: str = "ws",
         access_token: str | None = None,
+        timeout: int = 60,
     ):
         super().__init__()
         self.endpoint = URL(prefix) / path / endpoint
         self.access_token = access_token
         self.logins: dict[str, Login] = {}
         self.connections: dict[str, _Connection] = {}
+        self.timeout = timeout
 
         apply(self, lambda _: self.connections[_], lambda _: self.logins[_])
 
@@ -180,6 +190,9 @@ class OneBot11ReverseAdapter(BaseAdapter):
         finally:
             del self.connections[account_id]
             logger.info(f"Websocket {ws} closed")
+            if connection.response_waiters:
+                for future in connection.response_waiters.values():
+                    future.cancel()
             self.logins[account_id].status = LoginStatus.OFFLINE
             await self.server.post(Event(EventType.LOGIN_REMOVED, datetime.now(), self.logins[account_id]))
             await asyncio.sleep(1)
