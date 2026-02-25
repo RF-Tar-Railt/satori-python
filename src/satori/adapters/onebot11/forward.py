@@ -156,7 +156,7 @@ class OneBot11ForwardAdapter(BaseAdapter):
                     if (access_token := self.access_token) is not None
                     else None
                 ),
-                timeout=self.timeout
+                timeout=self.timeout,
             )
             try:
                 self.connection = await ctx.__aenter__()
