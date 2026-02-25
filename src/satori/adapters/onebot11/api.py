@@ -223,18 +223,18 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
     @adapter.route(Api.CHANNEL_LIST)
     async def channel_list(request: Request[ChannelListParam]):
         net = net_getter(request.self_id)
-        result: list[dict] = await net.call_api("get_group_list", {})  # type: ignore
-        return PageResult(
-            [
-                Channel(
-                    str(item["group_id"]),
-                    ChannelType.TEXT,
-                    item["group_name"],
-                    GROUP_AVATAR_URL.format(group=item["group_id"]),
-                )
-                for item in result
-            ]
-        )
+        result = await net.call_api("get_group_info", {"group_id": int(request.params["guild_id"])})
+        if not result:
+            raise RuntimeError(f"Failed to get group {request.params['guild_id']}")
+        channels = [
+            Channel(
+                str(result["group_id"]),
+                ChannelType.TEXT,
+                result["group_name"],
+                GROUP_AVATAR_URL.format(group=result["group_id"]),
+            )
+        ]
+        return PageResult(channels)
 
     @adapter.route(Api.GUILD_LIST)
     async def guild_list(request: Request[GuildListParam]):

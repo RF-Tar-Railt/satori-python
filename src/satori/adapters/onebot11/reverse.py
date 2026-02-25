@@ -34,7 +34,6 @@ class _Connection:
 
         while True:
             message = await self.ws.receive()
-            print(message)
 
             if message["type"] == "websocket.disconnect":
                 break
