@@ -29,8 +29,8 @@ from satori.model import (
     User,
 )
 
-from .network.util import validate_response
 from .. import Friend
+from .network.util import validate_response
 
 if TYPE_CHECKING:
     from .account import Account
@@ -649,7 +649,9 @@ class ApiProtocol:
             {"channel_id": channel_id, "message_id": message_id, "emoji_id": emoji_id},
         )
 
-    async def reaction_delete(self, channel_id: str, message_id: str, emoji_id: str, user_id: str | None = None) -> None:
+    async def reaction_delete(
+        self, channel_id: str, message_id: str, emoji_id: str, user_id: str | None = None
+    ) -> None:
         """从特定消息删除某个用户添加的特定表态。
 
         如果没有传入用户 ID 则表示删除自己的表态。

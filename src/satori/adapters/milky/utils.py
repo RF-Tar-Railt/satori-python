@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Protocol
 
-from satori.model import Channel, ChannelType, Friend, Guild, Member, User, Role
+from satori.model import Channel, ChannelType, Friend, Guild, Member, Role, User
 
 AVATAR_URL = "https://q.qlogo.cn/headimg_dl?dst_uin={uin}&spec=640"
 GROUP_AVATAR_URL = "https://p.qlogo.cn/gh/{group}/{group}/640"

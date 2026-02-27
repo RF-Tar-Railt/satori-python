@@ -39,7 +39,7 @@ from satori.server.route import (
 )
 
 from .message import OneBot11MessageEncoder, decode
-from .utils import GROUP_AVATAR_URL, USER_AVATAR_URL, OneBotNetwork, ROLE_MAPPING
+from .utils import GROUP_AVATAR_URL, ROLE_MAPPING, USER_AVATAR_URL, OneBotNetwork
 
 
 def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_getter: Callable[[str], Login]):

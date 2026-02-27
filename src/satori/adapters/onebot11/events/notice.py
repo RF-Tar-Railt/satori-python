@@ -179,7 +179,12 @@ async def group_admin_set(login: Login, net: OneBotNetwork, raw: dict):
     )
     channel = Channel(str(raw["group_id"]), ChannelType.TEXT, group_info.get("group_name"))
     user = User(str(raw["user_id"]), member_info["nickname"], avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
-    member = Member(user, member_info.get("card"), avatar=USER_AVATAR_URL.format(uin=raw["user_id"]), roles=[Role("ADMINISTRATOR", "管理员")])
+    member = Member(
+        user,
+        member_info.get("card"),
+        avatar=USER_AVATAR_URL.format(uin=raw["user_id"]),
+        roles=[Role("ADMINISTRATOR", "管理员")],
+    )
     return Event(
         EventType.GUILD_MEMBER_UPDATED,
         datetime.now(),
@@ -200,7 +205,12 @@ async def group_admin_unset(login: Login, net: OneBotNetwork, raw: dict):
     )
     channel = Channel(str(raw["group_id"]), ChannelType.TEXT, group_info.get("group_name"))
     user = User(str(raw["user_id"]), member_info["nickname"], avatar=USER_AVATAR_URL.format(uin=raw["user_id"]))
-    member = Member(user, member_info.get("card"), avatar=USER_AVATAR_URL.format(uin=raw["user_id"]), roles=[Role("MEMBER", "群成员")])
+    member = Member(
+        user,
+        member_info.get("card"),
+        avatar=USER_AVATAR_URL.format(uin=raw["user_id"]),
+        roles=[Role("MEMBER", "群成员")],
+    )
     return Event(
         EventType.GUILD_MEMBER_UPDATED,
         datetime.now(),
@@ -263,8 +273,10 @@ async def member_kick_me(login: Login, net: OneBotNetwork, raw: dict):
         "get_group_member_info", {"group_id": raw["group_id"], "user_id": raw["operator_id"]}
     )
     member = Member(
-        login.user, member_info.get("card", member_info["nickname"]), USER_AVATAR_URL.format(uin=raw["user_id"]),
-        roles=[ROLE_MAPPING[member_info["role"]]]
+        login.user,
+        member_info.get("card", member_info["nickname"]),
+        USER_AVATAR_URL.format(uin=raw["user_id"]),
+        roles=[ROLE_MAPPING[member_info["role"]]],
     )
     guild = Guild(
         str(raw["group_id"]), group_info.get("group_name"), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"])
@@ -299,7 +311,9 @@ async def group_increase(login: Login, net: OneBotNetwork, raw: dict):
             datetime.now(),
             login=login,
             user=login.user,
-            member=Member(login.user, avatar=USER_AVATAR_URL.format(uin=login.user.id), roles=[Role("MEMBER", "群成员")]),
+            member=Member(
+                login.user, avatar=USER_AVATAR_URL.format(uin=login.user.id), roles=[Role("MEMBER", "群成员")]
+            ),
             guild=guild,
             channel=channel,
         )
@@ -314,7 +328,12 @@ async def group_increase(login: Login, net: OneBotNetwork, raw: dict):
         member_info.get("card"),
         USER_AVATAR_URL.format(uin=raw["user_id"]),
     )
-    member = Member(user, member_info.get("card"), USER_AVATAR_URL.format(uin=raw["user_id"]), roles=[ROLE_MAPPING[member_info["role"]]])
+    member = Member(
+        user,
+        member_info.get("card"),
+        USER_AVATAR_URL.format(uin=raw["user_id"]),
+        roles=[ROLE_MAPPING[member_info["role"]]],
+    )
     guild = Guild(
         str(raw["group_id"]), group_info.get("group_name"), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"])
     )

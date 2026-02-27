@@ -5,7 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from types import UnionType
 from typing import Any, ClassVar, Final, TypeVar, Union, final, get_args, get_origin, overload
-from typing_extensions import override, Self
+from typing_extensions import Self, override
 
 from ._vendor.fleep import get
 from .parser import Element as RawElement

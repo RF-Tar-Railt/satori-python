@@ -10,6 +10,7 @@ from satori.model import (
     Channel,
     Direction,
     Event,
+    Friend,
     Guild,
     IterablePageResult,
     Login,
@@ -20,7 +21,7 @@ from satori.model import (
     PageDequeResult,
     Role,
     Upload,
-    User, Friend,
+    User,
 )
 
 from .protocol import ApiProtocol
@@ -462,7 +463,9 @@ class Account(Generic[TP]):
             None: 该方法无返回值
         """
 
-    async def reaction_delete(self, channel_id: str, message_id: str, emoji_id: str, user_id: str | None = None) -> None:
+    async def reaction_delete(
+        self, channel_id: str, message_id: str, emoji_id: str, user_id: str | None = None
+    ) -> None:
         """从特定消息删除某个用户添加的特定表态。
 
         如果没有传入用户 ID 则表示删除自己的表态。

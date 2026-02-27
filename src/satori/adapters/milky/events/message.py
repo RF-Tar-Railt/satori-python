@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from satori import EventType
-from satori.model import Channel, ChannelType, Event, Guild, MessageObject, EmojiObject, User
+from satori.model import Channel, ChannelType, EmojiObject, Event, Guild, MessageObject, User
 
 from ..message import decode_message
 from ..utils import group_avatar, user_avatar
@@ -77,5 +77,5 @@ async def group_message_reaction(login, net, raw):
         guild=guild,
         user=user,
         message=message,
-        emoji=EmojiObject(emoji_id)
+        emoji=EmojiObject(emoji_id),
     )

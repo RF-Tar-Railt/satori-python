@@ -2,12 +2,12 @@ from satori.model import (
     ArgvInteraction,
     ButtonInteraction,
     Channel,
+    EmojiObject,
     Event,
     Guild,
     LoginPartial,
     Member,
     MessageObject,
-    EmojiObject,
     Role,
     User,
 )

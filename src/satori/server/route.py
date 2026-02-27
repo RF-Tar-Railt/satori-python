@@ -7,6 +7,7 @@ from starlette.datastructures import FormData
 from satori.model import (
     Channel,
     Direction,
+    Friend,
     Guild,
     Login,
     Member,
@@ -16,7 +17,7 @@ from satori.model import (
     PageDequeResult,
     PageResult,
     Role,
-    User, Friend,
+    User,
 )
 
 from .. import Api

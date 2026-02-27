@@ -137,7 +137,11 @@ class Member(ModelBase):
     joined_at: datetime | None = None
     roles: list[Role] = field(default_factory=list)
 
-    __converter__ = {"user": User.parse, "joined_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000), "roles": lambda raw: [Role.parse(role) for role in raw]}  # noqa: E501
+    __converter__ = {
+        "user": User.parse,
+        "joined_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000),
+        "roles": lambda raw: [Role.parse(role) for role in raw],
+    }  # noqa: E501
 
     def dump(self):
         res = {}

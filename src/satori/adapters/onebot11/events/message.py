@@ -80,7 +80,9 @@ async def group(login: Login, net: OneBotNetwork, raw: dict):
     member_info = await net.call_api(
         "get_group_member_info", {"group_id": raw["group_id"], "user_id": sender["user_id"]}
     )
-    member = Member(user, member_info["card"], USER_AVATAR_URL.format(uin=sender["user_id"]), roles=[ROLE_MAPPING[sender["role"]]])
+    member = Member(
+        user, member_info["card"], USER_AVATAR_URL.format(uin=sender["user_id"]), roles=[ROLE_MAPPING[sender["role"]]]
+    )
     guild = Guild(
         str(raw["group_id"]), group_info.get("group_name"), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"])
     )
@@ -110,7 +112,12 @@ async def group_message_recall(login: Login, net: OneBotNetwork, raw: dict):
         member_info.get("card"),
         USER_AVATAR_URL.format(uin=raw["user_id"]),
     )
-    member = Member(user, member_info.get("card"), USER_AVATAR_URL.format(uin=raw["user_id"]),roles=[ROLE_MAPPING[member_info["role"]]])
+    member = Member(
+        user,
+        member_info.get("card"),
+        USER_AVATAR_URL.format(uin=raw["user_id"]),
+        roles=[ROLE_MAPPING[member_info["role"]]],
+    )
     guild = Guild(
         str(raw["group_id"]), group_info.get("group_name"), avatar=GROUP_AVATAR_URL.format(group=raw["group_id"])
     )

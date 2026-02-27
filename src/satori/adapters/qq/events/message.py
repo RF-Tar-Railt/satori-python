@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from satori import At, EventType, Text
-from satori.model import Channel, ChannelType, Event, Guild, Member, MessageObject, EmojiObject, Role, User
+from satori.model import Channel, ChannelType, EmojiObject, Event, Guild, Member, MessageObject, Role, User
 
 from ..message import decode_segments
 from ..utils import USER_AVATAR_URL, Payload, decode_user
@@ -21,7 +21,7 @@ async def at_message(login, guild_login, net, payload: Payload):
         user,
         avatar=user.avatar,
         joined_at=datetime.fromisoformat(raw["member"]["joined_at"]),
-        roles=[Role(r) for r in raw["member"]["roles"]]
+        roles=[Role(r) for r in raw["member"]["roles"]],
     )
     msg = decode_segments(raw)
     if len(msg) >= 2 and isinstance(msg[0], At) and isinstance(msg[1], Text):
@@ -169,7 +169,7 @@ async def message_delete(login, guild_login, new, payload: Payload):
         user,
         avatar=user.avatar,
         joined_at=datetime.fromisoformat(raw["message"]["member"]["joined_at"]),
-        roles=[Role(r) for r in raw["message"]["member"]["roles"]]
+        roles=[Role(r) for r in raw["message"]["member"]["roles"]],
     )
     return Event(
         EventType.MESSAGE_DELETED,
@@ -232,6 +232,6 @@ async def message_reaction(login, guild_login, new, payload: Payload):
         guild=guild,
         user=user,
         member=member,
-        message=MessageObject(raw["target"]["id"], f"<emoji id=\"{emoji_id}\" />"),
+        message=MessageObject(raw["target"]["id"], f'<emoji id="{emoji_id}" />'),
         emoji=EmojiObject(emoji_id),
     )

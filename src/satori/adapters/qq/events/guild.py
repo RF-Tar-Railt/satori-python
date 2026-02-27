@@ -57,7 +57,7 @@ async def guild_member_event(login, guild_login, net, payload: Payload):
         nick=raw["nick"],
         avatar=user.avatar,
         joined_at=datetime.fromisoformat(raw["joined_at"]),
-        roles=[Role(r) for r in raw["roles"]]
+        roles=[Role(r) for r in raw["roles"]],
     )
     operator = User(raw["op_user_id"])
     return Event(t, datetime.now(), guild_login, guild=guild, user=user, member=member, operator=operator)
