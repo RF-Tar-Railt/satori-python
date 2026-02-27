@@ -53,6 +53,7 @@ class ReactionEvent(Event):
     channel: Channel
     user: User
     message: MessageObject
+    emoji: EmojiObject
 
 
 class ButtonInteractionEvent(Event):

@@ -632,23 +632,23 @@ class ApiProtocol:
             {"guild_id": guild_id, "role_id": role_id},
         )
 
-    async def reaction_create(self, channel_id: str, message_id: str, emoji: str) -> None:
+    async def reaction_create(self, channel_id: str, message_id: str, emoji_id: str) -> None:
         """向特定消息添加表态。
 
         Args:
             channel_id (str): 频道 ID
             message_id (str): 消息 ID
-            emoji (str): 表态名称
+            emoji_id (str): 表情 ID
 
         Returns:
             None: 该方法无返回值
         """
         await self.call_api(
             Api.REACTION_CREATE,
-            {"channel_id": channel_id, "message_id": message_id, "emoji": emoji},
+            {"channel_id": channel_id, "message_id": message_id, "emoji_id": emoji_id},
         )
 
-    async def reaction_delete(self, channel_id: str, message_id: str, emoji: str, user_id: str | None = None) -> None:
+    async def reaction_delete(self, channel_id: str, message_id: str, emoji_id: str, user_id: str | None = None) -> None:
         """从特定消息删除某个用户添加的特定表态。
 
         如果没有传入用户 ID 则表示删除自己的表态。
@@ -656,13 +656,13 @@ class ApiProtocol:
         Args:
             channel_id (str): 频道 ID
             message_id (str): 消息 ID
-            emoji (str): 表态名称
+            emoji_id (str): 表情 ID
             user_id (str | None, optional): 用户 ID，默认为 None
 
         Returns:
             None: 该方法无返回值
         """
-        data = {"channel_id": channel_id, "message_id": message_id, "emoji": emoji}
+        data = {"channel_id": channel_id, "message_id": message_id, "emoji_id": emoji_id}
         if user_id is not None:
             data["user_id"] = user_id
         await self.call_api(
@@ -670,7 +670,7 @@ class ApiProtocol:
             data,
         )
 
-    async def reaction_clear(self, channel_id: str, message_id: str, emoji: str | None = None) -> None:
+    async def reaction_clear(self, channel_id: str, message_id: str, emoji_id: str | None = None) -> None:
         """从特定消息清除某个特定表态。
 
         如果没有传入表态名称则表示清除所有表态。
@@ -678,28 +678,28 @@ class ApiProtocol:
         Args:
             channel_id (str): 频道 ID
             message_id (str): 消息 ID
-            emoji (str | None, optional): 表态名称，默认为 None
+            emoji_id (str | None, optional): 表情 ID，默认为 None
 
         Returns:
             None: 该方法无返回值
         """
         data = {"channel_id": channel_id, "message_id": message_id}
-        if emoji is not None:
-            data["emoji"] = emoji
+        if emoji_id is not None:
+            data["emoji_id"] = emoji_id
         await self.call_api(
             Api.REACTION_CLEAR,
             data,
         )
 
     def reaction_list(
-        self, channel_id: str, message_id: str, emoji: str, next_token: str | None = None
+        self, channel_id: str, message_id: str, emoji_id: str, next_token: str | None = None
     ) -> IterablePageResult[User]:
         """获取添加特定消息的特定表态的用户列表。返回一个 User 的分页列表。
 
         Args:
             channel_id (str): 频道 ID
             message_id (str): 消息 ID
-            emoji (str): 表态名称
+            emoji_id (str): 表情 ID
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
@@ -712,7 +712,7 @@ class ApiProtocol:
                 {
                     "channel_id": channel_id,
                     "message_id": message_id,
-                    "emoji": emoji,
+                    "emoji_id": emoji_id,
                     "next": token,
                 },
             )

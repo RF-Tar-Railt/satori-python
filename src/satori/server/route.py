@@ -207,7 +207,7 @@ GUILD_ROLE_DELETE: TypeAlias = RouteCall[GuildRoleDeleteParam, None]
 class ReactionCreateParam(TypedDict):
     channel_id: str
     message_id: str
-    emoji: str
+    emoji_id: str
 
 
 REACTION_CREATE: TypeAlias = RouteCall[ReactionCreateParam, None]
@@ -216,7 +216,7 @@ REACTION_CREATE: TypeAlias = RouteCall[ReactionCreateParam, None]
 class ReactionDeleteParam(TypedDict):
     channel_id: str
     message_id: str
-    emoji: str
+    emoji_id: str
     user_id: NotRequired[str]
 
 
@@ -226,7 +226,7 @@ REACTION_DELETE: TypeAlias = RouteCall[ReactionDeleteParam, None]
 class ReactionClearParam(TypedDict):
     channel_id: str
     message_id: str
-    emoji: NotRequired[str]
+    emoji_id: NotRequired[str]
 
 
 REACTION_CLEAR: TypeAlias = RouteCall[ReactionClearParam, None]
@@ -235,7 +235,7 @@ REACTION_CLEAR: TypeAlias = RouteCall[ReactionClearParam, None]
 class ReactionListParam(TypedDict):
     channel_id: str
     message_id: str
-    emoji: str
+    emoji_id: str
     next: NotRequired[str]
 
 

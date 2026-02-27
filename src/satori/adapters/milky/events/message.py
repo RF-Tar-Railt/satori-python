@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from satori import EventType
-from satori.model import Channel, ChannelType, Event, Guild, MessageObject, User
+from satori.model import Channel, ChannelType, Event, Guild, MessageObject, EmojiObject, User
 
 from ..message import decode_message
 from ..utils import group_avatar, user_avatar
@@ -61,9 +61,9 @@ async def group_message_reaction(login, net, raw):
     guild = Guild(guild_id, avatar=group_avatar(guild_id))
     channel = Channel(guild_id, ChannelType.TEXT)
     user = User(str(data["user_id"]), avatar=user_avatar(data["user_id"]))
-    face_id = data["face_id"]
+    emoji_id = data["face_id"]
     message = MessageObject(
-        str(data["message_seq"]), f"<milky:face id='{face_id}'>", channel=channel, guild=guild, user=user
+        str(data["message_seq"]), f"<emoji id='{emoji_id}'>", channel=channel, guild=guild, user=user
     )
     if data["is_add"]:
         event_type = EventType.REACTION_ADDED
@@ -77,4 +77,5 @@ async def group_message_reaction(login, net, raw):
         guild=guild,
         user=user,
         message=message,
+        emoji=EmojiObject(emoji_id)
     )

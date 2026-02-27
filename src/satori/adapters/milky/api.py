@@ -259,7 +259,7 @@ def apply(
             {
                 "group_id": peer_id,
                 "message_seq": int(request.params["message_id"]),
-                "reaction": request.params["emoji"],
+                "reaction": request.params["emoji_id"],
                 "is_add": True,
             },
         )
@@ -276,7 +276,7 @@ def apply(
             {
                 "group_id": peer_id,
                 "message_seq": int(request.params["message_id"]),
-                "reaction": request.params["emoji"],
+                "reaction": request.params["emoji_id"],
                 "is_add": False,
             },
         )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from satori import At, EventType, Text
-from satori.model import Channel, ChannelType, Event, Guild, Member, MessageObject, Role, User
+from satori.model import Channel, ChannelType, Event, Guild, Member, MessageObject, EmojiObject, Role, User
 
 from ..message import decode_segments
 from ..utils import USER_AVATAR_URL, Payload, decode_user
@@ -225,6 +225,7 @@ async def message_reaction(login, guild_login, new, payload: Payload):
     channel = Channel(raw["channel_id"], ChannelType.TEXT, parent_id=guild.id)
     user = User(raw["user_id"])
     member = Member(user)
+    emoji_id = f"{raw['emoji']['type']}:{raw['emoji']['id']}"
     return Event(
         EventType.REACTION_ADDED if payload.type == "MESSAGE_REACTION_ADD" else EventType.REACTION_REMOVED,
         datetime.now(),
@@ -233,5 +234,6 @@ async def message_reaction(login, guild_login, new, payload: Payload):
         guild=guild,
         user=user,
         member=member,
-        message=MessageObject(raw["target"]["id"], f"<qq:emoji id=\"{raw['emoji']['type']}:{raw['emoji']['id']}\" />"),
+        message=MessageObject(raw["target"]["id"], f"<emoji id=\"{emoji_id}\" />"),
+        emoji=EmojiObject(emoji_id),
     )
