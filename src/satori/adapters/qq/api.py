@@ -25,7 +25,7 @@ from satori.server.route import (
     ReactionDeleteParam,
     ReactionListParam,
     UserChannelCreateParam,
-    UserGetParam,
+    UserOpParam,
 )
 
 from .message import QQGroupMessageEncoder, QQGuildMessageEncoder, decode_segments
@@ -130,7 +130,7 @@ def apply(
         raise NotFoundException("qq platform does not support message.get")
 
     @adapter.route(Api.USER_GET)
-    async def guild_get_user(request: Request[UserGetParam]):
+    async def guild_get_user(request: Request[UserOpParam]):
         net = net_getter(request.self_id, request.platform == "qqguild")
         if request.platform == "qqguild":
             if "_" in request.params["user_id"]:

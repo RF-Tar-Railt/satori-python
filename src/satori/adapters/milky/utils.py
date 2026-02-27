@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Protocol
 
-from satori.model import Channel, ChannelType, Guild, Member, User
+from satori.model import Channel, ChannelType, Friend, Guild, Member, User
 
 AVATAR_URL = "https://q.qlogo.cn/headimg_dl?dst_uin={uin}&spec=640"
 GROUP_AVATAR_URL = "https://p.qlogo.cn/gh/{group}/{group}/640"
@@ -45,9 +45,9 @@ def decode_member(member: dict) -> Member:
     )
 
 
-def decode_friend(friend: dict) -> User:
+def decode_friend(friend: dict) -> Friend:
     user_id = str(friend["user_id"])
-    return User(user_id, friend.get("nickname"), avatar=user_avatar(user_id))
+    return Friend(User(user_id, friend.get("nickname"), avatar=user_avatar(user_id)), friend.get("remark"))
 
 
 def decode_login_user(login: dict) -> User:

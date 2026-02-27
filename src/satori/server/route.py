@@ -16,7 +16,7 @@ from satori.model import (
     PageDequeResult,
     PageResult,
     Role,
-    User,
+    User, Friend,
 )
 
 from .. import Api
@@ -243,18 +243,19 @@ REACTION_LIST: TypeAlias = RouteCall[ReactionListParam, PageResult[User] | dict[
 LOGIN_GET: TypeAlias = RouteCall[Any, Login | dict[str, Any]]
 
 
-class UserGetParam(TypedDict):
+class UserOpParam(TypedDict):
     user_id: str
 
 
-USER_GET: TypeAlias = RouteCall[UserGetParam, User | dict[str, Any]]
+USER_GET: TypeAlias = RouteCall[UserOpParam, User | dict[str, Any]]
+FRIEND_DELETE: TypeAlias = RouteCall[UserOpParam, None]
 
 
 class FriendListParam(TypedDict):
     next: NotRequired[str]
 
 
-FRIEND_LIST: TypeAlias = RouteCall[FriendListParam, PageResult[User] | dict[str, Any]]
+FRIEND_LIST: TypeAlias = RouteCall[FriendListParam, PageResult[Friend] | dict[str, Any]]
 
 
 class ApproveParam(TypedDict):

@@ -30,6 +30,7 @@ from satori.model import (
 )
 
 from .network.util import validate_response
+from .. import Friend
 
 if TYPE_CHECKING:
     from .account import Account
@@ -729,33 +730,32 @@ class ApiProtocol:
         res = await self.call_api(Api.LOGIN_GET, {})
         return Login.parse(res)
 
-    async def user_get(self, user_id: str) -> User:
-        """获取用户信息。返回一个 `User` 对象。
-
-        Args:
-            user_id (str): 用户 ID
-
-        Returns:
-            User: `User` 对象
-        """
-        res = await self.call_api(Api.USER_GET, {"user_id": user_id})
-        return User.parse(res)
-
-    def friend_list(self, next_token: str | None = None) -> IterablePageResult[User]:
+    def friend_list(self, next_token: str | None = None) -> IterablePageResult[Friend]:
         """获取好友列表。返回一个 User 的分页列表。
 
         Args:
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            IterablePageResult[User]: `User` 的分页列表
+            IterablePageResult[Friend]: `Friend` 的分页列表
         """
 
         async def _(token: str | None):
             res = await self.call_api(Api.FRIEND_LIST, {"next": token})
-            return PageResult.parse(res, User.parse)
+            return PageResult.parse(res, Friend.parse)
 
         return IterablePageResult(_, next_token)
+
+    async def friend_delete(self, user_id: str) -> None:
+        """删除好友。
+
+        Args:
+            user_id (str): 用户 ID
+
+        Returns:
+            None: 该方法无返回值
+        """
+        await self.call_api(Api.FRIEND_DELETE, {"user_id": user_id})
 
     async def friend_approve(self, request_id: str, approve: bool, comment: str) -> None:
         """处理好友申请。
@@ -772,6 +772,18 @@ class ApiProtocol:
             Api.FRIEND_APPROVE,
             {"message_id": request_id, "approve": approve, "comment": comment},
         )
+
+    async def user_get(self, user_id: str) -> User:
+        """获取用户信息。返回一个 `User` 对象。
+
+        Args:
+            user_id (str): 用户 ID
+
+        Returns:
+            User: `User` 对象
+        """
+        res = await self.call_api(Api.USER_GET, {"user_id": user_id})
+        return User.parse(res)
 
     async def internal(self, action: str, method: str = "POST", **kwargs) -> Any:
         """内部接口调用。

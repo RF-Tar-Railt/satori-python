@@ -5,6 +5,7 @@ from satori import Api
 from satori.model import (
     Channel,
     ChannelType,
+    Friend,
     Guild,
     Login,
     Member,
@@ -35,7 +36,7 @@ from satori.server.route import (
     ReactionCreateParam,
     ReactionDeleteParam,
     UserChannelCreateParam,
-    UserGetParam,
+    UserOpParam,
 )
 
 from .message import OneBot11MessageEncoder, decode
@@ -378,7 +379,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
         return PageResult([Role("ADMINISTRATOR", "admin"), Role("MEMBER", "member"), Role("OWNER", "owner")])
 
     @adapter.route(Api.USER_GET)
-    async def user_get(request: Request[UserGetParam]):
+    async def user_get(request: Request[UserOpParam]):
         net = net_getter(request.self_id)
         result = await net.call_api("get_stranger_info", {"user_id": int(request.params["user_id"])})
         if not result:
@@ -396,11 +397,13 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
         result: list[dict] = await net.call_api("get_friend_list", {})  # type: ignore
         return PageResult(
             [
-                User(
-                    str(item["user_id"]),
-                    item["nickname"],
+                Friend(
+                    User(
+                        str(item["user_id"]),
+                        item["nickname"],
+                        USER_AVATAR_URL.format(uin=item["user_id"]),
+                    ),
                     item.get("remark"),
-                    USER_AVATAR_URL.format(uin=item["user_id"]),
                 )
                 for item in result
             ]
@@ -457,7 +460,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
                 "set_msg_emoji_like",
                 {
                     "message_id": int(request.params["message_id"]),
-                    "emoji": request.params["emoji"],
+                    "emoji": request.params["emoji_id"],
                 },
             )
         elif app_name == "Lagrange.OneBot" and not channel_id.startswith("private:"):
@@ -466,7 +469,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
                 {
                     "group_id": int(channel_id),
                     "message_id": int(request.params["message_id"]),
-                    "code": request.params["emoji"],
+                    "code": request.params["emoji_id"],
                     "is_add": True,
                 },
             )
@@ -475,18 +478,18 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
                 "set_msg_emoji_like",
                 {
                     "message_id": int(request.params["message_id"]),
-                    "emoji_id": request.params["emoji"],
+                    "emoji_id": request.params["emoji_id"],
                     "set": True,
                 },
             )
         elif app_name == "ws-plugin" and not channel_id.startswith("private:"):
-            emj_type = 1 if int(request.params["emoji"]) < 5000 else 2
+            emj_type = 1 if int(request.params["emoji_id"]) < 5000 else 2
             await net.call_api(
                 "set_reaction",
                 {
                     "group_id": int(channel_id),
                     "message_seq": int(request.params["message_id"]),
-                    "code": request.params["emoji"],
+                    "code": request.params["emoji_id"],
                     "is_add": True,
                     "type": emj_type,
                 },
@@ -504,7 +507,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
                 "unset_msg_emoji_like",
                 {
                     "message_id": int(request.params["message_id"]),
-                    "emoji": request.params["emoji"],
+                    "emoji": request.params["emoji_id"],
                 },
             )
         elif app_name == "Lagrange.OneBot" and not channel_id.startswith("private:"):
@@ -513,7 +516,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
                 {
                     "group_id": int(channel_id),
                     "message_id": int(request.params["message_id"]),
-                    "code": request.params["emoji"],
+                    "code": request.params["emoji_id"],
                     "is_add": False,
                 },
             )
@@ -522,18 +525,18 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
                 "set_msg_emoji_like",
                 {
                     "message_id": int(request.params["message_id"]),
-                    "emoji": request.params["emoji"],
+                    "emoji": request.params["emoji_id"],
                     "set": False,
                 },
             )
         elif app_name == "ws-plugin" and not channel_id.startswith("private:"):
-            emj_type = 1 if int(request.params["emoji"]) < 5000 else 2
+            emj_type = 1 if int(request.params["emoji_id"]) < 5000 else 2
             await net.call_api(
                 "set_reaction",
                 {
                     "group_id": int(channel_id),
                     "message_seq": int(request.params["message_id"]),
-                    "code": request.params["emoji"],
+                    "code": request.params["emoji_id"],
                     "is_add": False,
                     "type": emj_type,
                 },

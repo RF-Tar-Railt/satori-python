@@ -40,10 +40,11 @@ class Api(str, Enum):
 
     LOGIN_GET = "login.get"
 
-    USER_GET = "user.get"
     FRIEND_LIST = "friend.list"
+    FRIEND_DELETE = "friend.delete"
     FRIEND_APPROVE = "friend.approve"
 
+    USER_GET = "user.get"
     UPLOAD_CREATE = "upload.create"
 
 

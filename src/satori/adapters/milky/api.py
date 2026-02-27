@@ -24,7 +24,7 @@ from satori.server.route import (
     ReactionCreateParam,
     ReactionDeleteParam,
     UserChannelCreateParam,
-    UserGetParam,
+    UserOpParam,
 )
 
 from .message import MilkyMessageEncoder, decode_message
@@ -283,13 +283,20 @@ def apply(
         return
 
     @adapter.route(Api.USER_GET)
-    async def user_get(request: Request[UserGetParam]):
+    async def user_get(request: Request[UserOpParam]):
         net = net_getter(request.self_id)
         user_id = request.params["user_id"]
         profile = await net.call_api("get_user_profile", {"user_id": int(user_id)})
         if not profile:
             raise RuntimeError("Failed to get user profile")
         return decode_user_profile(profile, user_id)
+
+    @adapter.route(Api.FRIEND_DELETE)
+    async def friend_delete(request: Request[UserOpParam]):
+        net = net_getter(request.self_id)
+        user_id = request.params["user_id"]
+        await net.call_api("delete_friend", {"user_id": int(user_id)})
+        return
 
     @adapter.route(Api.FRIEND_LIST)
     async def friend_list(request: Request[FriendListParam]):

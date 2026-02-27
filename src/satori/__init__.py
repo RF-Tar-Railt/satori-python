@@ -33,6 +33,7 @@ from .model import Channel as Channel
 from .model import ChannelType as ChannelType
 from .model import Event as Event
 from .model import EmojiObject as EmojiObject
+from .model import Friend as Friend
 from .model import Guild as Guild
 from .model import Login as Login
 from .model import LoginStatus as LoginStatus

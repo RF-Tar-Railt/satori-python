@@ -20,7 +20,7 @@ from satori.model import (
     PageDequeResult,
     Role,
     Upload,
-    User,
+    User, Friend,
 )
 
 from .protocol import ApiProtocol
@@ -513,24 +513,24 @@ class Account(Generic[TP]):
             Login: `Login` 对象
         """
 
-    async def user_get(self, user_id: str) -> User:
-        """获取用户信息。返回一个 `User` 对象。
-
-        Args:
-            user_id (str): 用户 ID
-
-        Returns:
-            User: `User` 对象
-        """
-
-    def friend_list(self, next_token: str | None = None) -> IterablePageResult[User]:
-        """获取好友列表。返回一个 User 的分页列表。
+    def friend_list(self, next_token: str | None = None) -> IterablePageResult[Friend]:
+        """获取好友列表。返回一个 Friend 的分页列表。
 
         Args:
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            IterablePageResult[User]: `User` 的分页列表
+            IterablePageResult[Friend]: `Friend` 的分页列表
+        """
+
+    async def friend_delete(self, user_id: str) -> None:
+        """删除好友。
+
+        Args:
+            user_id (str): 用户 ID
+
+        Returns:
+            None: 该方法无返回值
         """
 
     async def friend_approve(self, request_id: str, approve: bool, comment: str) -> None:
@@ -543,6 +543,16 @@ class Account(Generic[TP]):
 
         Returns:
             None: 该方法无返回值
+        """
+
+    async def user_get(self, user_id: str) -> User:
+        """获取用户信息。返回一个 `User` 对象。
+
+        Args:
+            user_id (str): 用户 ID
+
+        Returns:
+            User: `User` 对象
         """
 
     async def internal(self, action: str, method: str = "POST", **kwargs) -> Any:

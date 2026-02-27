@@ -98,6 +98,26 @@ class User(ModelBase):
 
 
 @dataclass
+class Friend(ModelBase):
+    user: User | None = None
+    nick: str | None = None
+
+    @property
+    def remark(self) -> str | None:
+        return self.nick
+
+    __converter__ = {"user": User.parse}
+
+    def dump(self):
+        res = {}
+        if self.user:
+            res["user"] = self.user.dump()
+        if self.nick:
+            res["nick"] = self.nick
+        return res
+
+
+@dataclass
 class Member(ModelBase):
     user: User | None = None
     nick: str | None = None
