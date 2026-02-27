@@ -7,6 +7,7 @@ from satori.model import (
     LoginPartial,
     Member,
     MessageObject,
+    EmojiObject,
     Role,
     User,
 )
@@ -38,6 +39,10 @@ class GuildMemberEvent(GuildEvent):
 
 class GuildRoleEvent(GuildEvent):
     role: Role
+
+
+class GuildEmojiEvent(GuildEvent):
+    emoji: EmojiObject
 
 
 class LoginEvent(Event):
