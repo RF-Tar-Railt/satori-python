@@ -197,6 +197,18 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
     @adapter.route(Api.CHANNEL_GET)
     async def channel_get(request: Request[ChannelParam]):
         net = net_getter(request.self_id)
+        channel_id = request.params["channel_id"]
+        if channel_id.startswith("private:"):
+            user_id = channel_id.removeprefix("private:")
+            result = await net.call_api("get_stranger_info", {"user_id": int(user_id)})
+            if not result:
+                raise RuntimeError(f"Failed to get user {user_id}")
+            return Channel(
+                f"private:{user_id}",
+                ChannelType.DIRECT,
+                result["nickname"],
+                USER_AVATAR_URL.format(uin=user_id),
+            )
         result = await net.call_api("get_group_info", {"group_id": int(request.params["channel_id"])})
         if not result:
             raise RuntimeError(f"Failed to get group {request.params['channel_id']}")
@@ -250,6 +262,8 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
     @adapter.route(Api.CHANNEL_UPDATE)
     async def channel_update(request: Request[ChannelUpdateParam]):
         net = net_getter(request.self_id)
+        if request.params["channel_id"].startswith("private:"):
+            raise RuntimeError("Cannot update private channel")
         await net.call_api(
             "set_group_name",
             {"group_id": int(request.params["channel_id"]), "group_name": request.params["data"]["name"]},
@@ -259,6 +273,8 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
     @adapter.route(Api.CHANNEL_MUTE)
     async def channel_mute(request: Request[ChannelMuteParam]):
         net = net_getter(request.self_id)
+        if request.params["channel_id"].startswith("private:"):
+            raise RuntimeError("Cannot mute private channel")
         await net.call_api(
             "set_group_whole_ban",
             {
