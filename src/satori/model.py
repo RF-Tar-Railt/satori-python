@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import IO, Any, ClassVar, Generic, Literal, TypeAlias, TypeVar
 from typing_extensions import Self
 
-from .element import Element, transform
+from .element import Element, Emoji, transform
 from .parser import Element as RawElement
 from .parser import parse
 
@@ -283,6 +283,21 @@ class Meta(ModelBase):
 
 
 @dataclass
+class EmojiObject(ModelBase):
+    id: str
+    name: str | None = None
+
+    def dump(self):
+        res = {"id": self.id}
+        if self.name:
+            res["name"] = self.name
+        return res
+
+    def to_element(self) -> Emoji:
+        return Emoji(self.id, self.name)
+
+
+@dataclass
 class MessageObject(ModelBase):
     id: str
     content: str = ""
@@ -373,6 +388,7 @@ class Event(ModelBase):
     role: Role | None = None
     user: User | None = None
     referrer: dict | None = None
+    emoji: EmojiObject | None = None
 
     _type: str | None = None
     _data: dict | None = None
@@ -391,6 +407,7 @@ class Event(ModelBase):
         "operator": User.parse,
         "role": Role.parse,
         "user": User.parse,
+        "emoji": EmojiObject.parse,
     }
 
     @classmethod
@@ -447,6 +464,8 @@ class Event(ModelBase):
             res["user"] = self.user.dump()
         if self.referrer:
             res["referrer"] = self.referrer
+        if self.emoji:
+            res["emoji"] = self.emoji.dump()
         if self._type:
             res["_type"] = self._type
         if self._data:

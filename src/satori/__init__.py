@@ -8,6 +8,7 @@ from .element import Button as Button
 from .element import Code as Code
 from .element import E as E
 from .element import Element as Element
+from .element import Emoji as Emoji
 from .element import File as File
 from .element import Image as Image
 from .element import Italic as Italic
@@ -31,6 +32,7 @@ from .model import ButtonInteraction as ButtonInteraction
 from .model import Channel as Channel
 from .model import ChannelType as ChannelType
 from .model import Event as Event
+from .model import EmojiObject as EmojiObject
 from .model import Guild as Guild
 from .model import Login as Login
 from .model import LoginStatus as LoginStatus
