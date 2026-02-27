@@ -21,8 +21,8 @@ async def at_message(login, guild_login, net, payload: Payload):
         user,
         avatar=user.avatar,
         joined_at=datetime.fromisoformat(raw["member"]["joined_at"]),
+        roles=[Role(r) for r in raw["member"]["roles"]]
     )
-    role = Role(raw["member"]["roles"][0])
     msg = decode_segments(raw)
     if len(msg) >= 2 and isinstance(msg[0], At) and isinstance(msg[1], Text):
         text = msg[1].text.lstrip()
@@ -43,7 +43,6 @@ async def at_message(login, guild_login, net, payload: Payload):
         member=member,
         user=user,
         message=MessageObject.from_elements(raw["id"], msg),
-        role=role,
         referrer={
             "msg_id": raw["id"],
             "msg_seq": -1,
@@ -170,8 +169,8 @@ async def message_delete(login, guild_login, new, payload: Payload):
         user,
         avatar=user.avatar,
         joined_at=datetime.fromisoformat(raw["message"]["member"]["joined_at"]),
+        roles=[Role(r) for r in raw["message"]["member"]["roles"]]
     )
-    role = Role(raw["message"]["member"]["roles"][0])
     return Event(
         EventType.MESSAGE_DELETED,
         datetime.now(),
@@ -181,7 +180,6 @@ async def message_delete(login, guild_login, new, payload: Payload):
         user=user,
         member=member,
         operator=operator,
-        role=role,
         message=MessageObject(raw["message"]["id"], ""),
         referrer={
             "direct": False,

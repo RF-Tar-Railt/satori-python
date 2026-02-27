@@ -12,7 +12,6 @@ from satori.model import (
     MessageObject,
     PageDequeResult,
     PageResult,
-    Role,
     User,
 )
 from satori.server import Adapter, Request
@@ -40,7 +39,7 @@ from satori.server.route import (
 )
 
 from .message import OneBot11MessageEncoder, decode
-from .utils import GROUP_AVATAR_URL, USER_AVATAR_URL, OneBotNetwork
+from .utils import GROUP_AVATAR_URL, USER_AVATAR_URL, OneBotNetwork, ROLE_MAPPING
 
 
 def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_getter: Callable[[str], Login]):
@@ -356,7 +355,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
             {
                 "group_id": int(request.params["guild_id"]),
                 "user_id": int(request.params["user_id"]),
-                "enable": request.params["role_id"] == "ADMINISTRATOR",
+                "enable": request.params["role_id"] != "member",
             },
         )
         return
@@ -369,14 +368,14 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
             {
                 "group_id": int(request.params["guild_id"]),
                 "user_id": int(request.params["user_id"]),
-                "enable": request.params["role_id"] != "ADMINISTRATOR",
+                "enable": request.params["role_id"] == "member",
             },
         )
         return
 
     @adapter.route(Api.GUILD_ROLE_LIST)
     async def guild_role_list(request: Request[GuildXXXListParam]):
-        return PageResult([Role("ADMINISTRATOR", "admin"), Role("MEMBER", "member"), Role("OWNER", "owner")])
+        return PageResult(list(ROLE_MAPPING.values()))
 
     @adapter.route(Api.USER_GET)
     async def user_get(request: Request[UserOpParam]):

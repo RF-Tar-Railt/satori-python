@@ -5,7 +5,7 @@ from typing import Literal, Protocol
 
 from aiohttp import ClientResponse
 
-from ... import Channel, ChannelType, Guild, Member, User
+from ... import Channel, ChannelType, Guild, Member, User, Role
 from .exception import ActionFailed, ApiNotAvailable, AuditException, RateLimitException, UnauthorizedException
 
 CallMethod = Literal["get", "post", "fetch", "update", "multipart", "put", "delete", "patch"]
@@ -122,6 +122,7 @@ def decode_member(profile: dict) -> Member:
         decode_user(profile["user"]) if "user" in profile else None,
         profile.get("nick"),
         joined_at=datetime.fromisoformat(profile["joined_at"]) if "joined_at" in profile else None,
+        roles=[Role(r) for r in profile["roles"]]
     )
 
 

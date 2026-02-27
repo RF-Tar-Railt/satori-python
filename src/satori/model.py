@@ -118,13 +118,26 @@ class Friend(ModelBase):
 
 
 @dataclass
+class Role(ModelBase):
+    id: str
+    name: str | None = None
+
+    def dump(self):
+        res = {"id": self.id}
+        if self.name:
+            res["name"] = self.name
+        return res
+
+
+@dataclass
 class Member(ModelBase):
     user: User | None = None
     nick: str | None = None
     avatar: str | None = None
     joined_at: datetime | None = None
+    roles: list[Role] = field(default_factory=list)
 
-    __converter__ = {"user": User.parse, "joined_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000)}
+    __converter__ = {"user": User.parse, "joined_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000), "roles": lambda raw: [Role.parse(role) for role in raw]}  # noqa: E501
 
     def dump(self):
         res = {}
@@ -136,18 +149,8 @@ class Member(ModelBase):
             res["avatar"] = self.avatar
         if self.joined_at:
             res["joined_at"] = int(self.joined_at.timestamp() * 1000)
-        return res
-
-
-@dataclass
-class Role(ModelBase):
-    id: str
-    name: str | None = None
-
-    def dump(self):
-        res = {"id": self.id}
-        if self.name:
-            res["name"] = self.name
+        if self.roles:
+            res["roles"] = [role.dump() for role in self.roles]
         return res
 
 
