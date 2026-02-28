@@ -41,6 +41,7 @@ class ApiInfo(Api):
         port: int = 5140,
         path: str = "",
         token: str | None = None,
+        secure: bool = False,
         timeout: float | None = None,
     ):
         self.api_base: URL = ...

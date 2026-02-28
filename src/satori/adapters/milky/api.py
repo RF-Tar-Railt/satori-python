@@ -17,8 +17,8 @@ from satori.server.route import (
     GuildMemberGetParam,
     GuildMemberKickParam,
     GuildMemberMuteParam,
-    GuildXXXListParam,
     GuildMemberRoleParam,
+    GuildXXXListParam,
     MessageListParam,
     MessageOpParam,
     MessageParam,
@@ -30,6 +30,7 @@ from satori.server.route import (
 
 from .message import MilkyMessageEncoder, decode_message
 from .utils import (
+    ROLE_MAPPING,
     MilkyNetwork,
     decode_friend,
     decode_group_channel,
@@ -37,7 +38,7 @@ from .utils import (
     decode_member,
     decode_private_channel,
     decode_user_profile,
-    get_scene_and_peer, ROLE_MAPPING,
+    get_scene_and_peer,
 )
 
 
