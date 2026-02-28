@@ -18,6 +18,7 @@ from satori.server.route import (
     GuildMemberKickParam,
     GuildMemberMuteParam,
     GuildXXXListParam,
+    GuildMemberRoleParam,
     MessageListParam,
     MessageOpParam,
     MessageParam,
@@ -36,7 +37,7 @@ from .utils import (
     decode_member,
     decode_private_channel,
     decode_user_profile,
-    get_scene_and_peer,
+    get_scene_and_peer, ROLE_MAPPING,
 )
 
 
@@ -219,12 +220,42 @@ def apply(
         )
         return
 
+    @adapter.route(Api.GUILD_MEMBER_ROLE_SET)
+    async def guild_member_role_set(request: Request[GuildMemberRoleParam]):
+        net = net_getter(request.self_id)
+        await net.call_api(
+            "set_group_member_admin ",
+            {
+                "group_id": int(request.params["guild_id"]),
+                "user_id": int(request.params["user_id"]),
+                "is_set": request.params["role_id"] == "admin",
+            },
+        )
+        return
+
+    @adapter.route(Api.GUILD_MEMBER_ROLE_UNSET)
+    async def guild_member_role_unset(request: Request[GuildMemberRoleParam]):
+        net = net_getter(request.self_id)
+        await net.call_api(
+            "set_group_member_admin ",
+            {
+                "group_id": int(request.params["guild_id"]),
+                "user_id": int(request.params["user_id"]),
+                "is_set": request.params["role_id"] != "admin",
+            },
+        )
+        return
+
+    @adapter.route(Api.GUILD_ROLE_LIST)
+    async def guild_role_list(request: Request[GuildXXXListParam]):
+        return PageResult(list(ROLE_MAPPING.values()))
+
     @adapter.route(Api.GUILD_MEMBER_APPROVE)
     async def guild_member_approve(request: Request[ApproveParam]):
         net = net_getter(request.self_id)
         message_id = request.params["message_id"]
         notification_seq, notification_type, group_id, is_filtered = message_id.split("|")
-        params = {
+        params: dict = {
             "notification_seq": int(notification_seq),
             "notification_type": notification_type,
             "group_id": int(group_id),
@@ -309,7 +340,7 @@ def apply(
     async def friend_approve(request: Request[ApproveParam]):
         net = net_getter(request.self_id)
         initiator_uid, is_filtered = request.params["message_id"].split("|")
-        payload = {"initiator_uid": initiator_uid, "is_filtered": bool(int(is_filtered))}
+        payload: dict = {"initiator_uid": initiator_uid, "is_filtered": bool(int(is_filtered))}
         if request.params["approve"]:
             await net.call_api("accept_friend_request", payload)
         else:

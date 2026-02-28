@@ -48,13 +48,13 @@ pip install satori-python-server
 
 ### 官方适配器
 
-| 适配器        | 安装                                           | 路径                                                                 |
-|------------|----------------------------------------------|--------------------------------------------------------------------|
-| Satori     | `pip install satori-python-adapter-satori`   | satori.adapters.satori                                             |
-| OneBot V11 | `pip install satori-python-adapter-onebot11` | satori.adapters.onebot11.forward, satori.adapters.onebot11.reverse |
-| Console    | `pip install satori-python-adapter-console`  | satori.adapters.console                                            |
-| Milky      | `pip install satori-python-adapter-milky`    | satori.adapters.milky.main, satori.adapters.milky.webhook          |
-| QQ         | `pip install satori-python-adapter-qq`       | satori.adapters.qq.main, satori.adapters.qq.websocket              |
+| 适配器        | 安装                                           | 路径                                                                                   |
+|------------|----------------------------------------------|--------------------------------------------------------------------------------------|
+| Satori     | `pip install satori-python-adapter-satori`   | satori.adapters.satori                                                               |
+| OneBot V11 | `pip install satori-python-adapter-onebot11` | satori.adapters.onebot11.forward, satori.adapters.onebot11.reverse                   |
+| Console    | `pip install satori-python-adapter-console`  | satori.adapters.console                                                              |
+| Milky      | `pip install satori-python-adapter-milky`    | satori.adapters.milky.main, satori.adapters.milky.webhook, satori.adapters.milky.sse |
+| QQ         | `pip install satori-python-adapter-qq`       | satori.adapters.qq.main, satori.adapters.qq.websocket                                |
 
 ### 社区适配器
 

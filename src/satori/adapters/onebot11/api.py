@@ -355,7 +355,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
             {
                 "group_id": int(request.params["guild_id"]),
                 "user_id": int(request.params["user_id"]),
-                "enable": request.params["role_id"] != "member",
+                "enable": request.params["role_id"] == "admin",
             },
         )
         return
@@ -368,7 +368,7 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
             {
                 "group_id": int(request.params["guild_id"]),
                 "user_id": int(request.params["user_id"]),
-                "enable": request.params["role_id"] == "member",
+                "enable": request.params["role_id"] != "admin",
             },
         )
         return
@@ -482,13 +482,21 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
                 },
             )
         elif app_name == "ws-plugin" and not channel_id.startswith("private:"):
-            emj_type = 1 if int(request.params["emoji_id"]) < 5000 else 2
+            emoji_id = request.params["emoji_id"]
+            if ":" in emoji_id:
+                # custom emoji, format: {type}:{id}
+                emj_type_str, emj_id_str = emoji_id.split(":", 1)
+                emj_type = int(emj_type_str)
+                emj_id = int(emj_id_str)
+            else:
+                emj_id = int(emoji_id)
+                emj_type = 1 if emj_id < 5000 else 2
             await net.call_api(
                 "set_reaction",
                 {
                     "group_id": int(channel_id),
                     "message_seq": int(request.params["message_id"]),
-                    "code": request.params["emoji_id"],
+                    "code": emj_id,
                     "is_add": True,
                     "type": emj_type,
                 },
@@ -529,13 +537,21 @@ def apply(adapter: Adapter, net_getter: Callable[[str], OneBotNetwork], login_ge
                 },
             )
         elif app_name == "ws-plugin" and not channel_id.startswith("private:"):
-            emj_type = 1 if int(request.params["emoji_id"]) < 5000 else 2
+            emoji_id = request.params["emoji_id"]
+            if ":" in emoji_id:
+                # custom emoji, format: {type}:{id}
+                emj_type_str, emj_id_str = emoji_id.split(":", 1)
+                emj_type = int(emj_type_str)
+                emj_id = int(emj_id_str)
+            else:
+                emj_id = int(emoji_id)
+                emj_type = 1 if emj_id < 5000 else 2
             await net.call_api(
                 "set_reaction",
                 {
                     "group_id": int(channel_id),
                     "message_seq": int(request.params["message_id"]),
-                    "code": request.params["emoji_id"],
+                    "code": emj_id,
                     "is_add": False,
                     "type": emj_type,
                 },
