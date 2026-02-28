@@ -210,7 +210,7 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
                     await self.flush()
                     self.resolve_file(attrs)
                     await self.flush()
-            case "qq:emoji":
+            case "qq:emoji" | "emoji":
                 self.content += f"<emoji:{attrs['id']}>"
             case _:
                 await self.render(children)
@@ -366,6 +366,9 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 self.use_markdown = True
                 last = self.last_row()
                 last.append(self.decode_button(attrs, "".join(map(str, children))))
+            case "markdown":
+                self.use_markdown = True
+                await self.render(children)
             case "message":
                 await self.flush()
                 await self.render(children)
@@ -455,7 +458,7 @@ def decode_segments(event: dict) -> list[Element]:
             elif seg_type == "mention_channel":
                 result.append(E.sharp(i["channel_id"]))
             elif seg_type == "emoji":
-                result.append(Custom("qq:emoji", {"id": i["id"]}))
+                result.append(E.emoji(i["id"]))
     if attachments := event.get("attachments"):
         for i in attachments:
             result.append(_decode_attachment(i))

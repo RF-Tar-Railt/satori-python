@@ -157,8 +157,13 @@ class MilkyMessageEncoder:
                 if poster := attrs.get("poster"):
                     payload["thumb_uri"] = poster
                 self.segments.append({"type": "video", "data": payload})
-            case "milky:face":
-                self.segments.append({"type": "face", "data": {"face_id": attrs["id"]}})
+            case "milky:face" | "emoji":
+                if ":" in attrs["id"]:
+                    _, emj_id_str = attrs["id"].split(":", 1)
+                    emj_id = emj_id_str
+                else:
+                    emj_id = attrs["id"]
+                self.segments.append({"type": "face", "data": {"face_id": emj_id}})
             case "file":
                 await self.flush()
                 await self._send_file(attrs)
@@ -362,6 +367,8 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
                 result.append(E.at(str(data.get("user_id"))))
             case "mention_all":
                 result.append(E.at_all())
+            case "face":
+                result.append(E.emoji(str(data.get("face_id"))))
             case "image":
                 result.append(E.image(_resource_url(data)))
             case "record":

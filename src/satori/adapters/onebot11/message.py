@@ -226,8 +226,13 @@ class OneBot11MessageEncoder:
             case "sharp":
                 if "id" in attrs:
                     self.children.append({"type": "text", "data": {"text": attrs["id"]}})
-            case "onebot:face":
-                self.children.append({"type": "face", "data": {"id": int(attrs["id"])}})
+            case "onebot:face" | "emoji":
+                if ":" in attrs["id"]:
+                    _, emj_id_str = attrs["id"].split(":", 1)
+                    emj_id = int(emj_id_str)
+                else:
+                    emj_id = int(attrs["id"])
+                self.children.append({"type": "face", "data": {"id": emj_id}})
             case "a":
                 await self.render(_children)
                 if "href" in attrs:
@@ -317,6 +322,8 @@ async def _decode(content: list[MessageSegment], net: OneBotNetwork) -> list[Ele
                     result.append(E.at_all())
                 else:
                     result.append(E.at(str(qq), name=seg_data.get("name")))
+            case "face":
+                result.append(E.emoji(str(seg_data["id"])))
             case "image":
                 result.append(E.image(seg_data.get("url") or seg_data.get("file")))
             case "record":
