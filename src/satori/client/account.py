@@ -20,13 +20,14 @@ class ApiInfo:
     port: int = 5140
     path: str = ""
     token: str | None = None
+    secure: bool = False
     timeout: float | None = None
     api_base: URL = field(init=False)
 
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
-        self.api_base = URL(f"http://{self.host}:{self.port}{self.path}") / "v1"
+        self.api_base = URL(f"http{'s' if self.secure else ''}://{self.host}:{self.port}{self.path}") / "v1"
 
 
 class Account(Generic[TP]):

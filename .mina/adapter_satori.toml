@@ -1,9 +1,9 @@
 includes = ["src/satori/adapters/satori"]
-raw-dependencies = ["satori-python >= 0.18.0"]
+raw-dependencies = ["satori-python<1.4.0,>= 1.3.0"]
 
 [project]
 name = "satori-python-adapter-satori"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
   {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
 ]

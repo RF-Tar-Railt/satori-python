@@ -40,10 +40,11 @@ class Api(str, Enum):
 
     LOGIN_GET = "login.get"
 
-    USER_GET = "user.get"
     FRIEND_LIST = "friend.list"
+    FRIEND_DELETE = "friend.delete"
     FRIEND_APPROVE = "friend.approve"
 
+    USER_GET = "user.get"
     UPLOAD_CREATE = "upload.create"
 
 
@@ -65,6 +66,9 @@ class EventType(str, Enum):
     GUILD_ROLE_CREATED = "guild-role-created"
     GUILD_ROLE_DELETED = "guild-role-deleted"
     GUILD_ROLE_UPDATED = "guild-role-updated"
+    GUILD_EMOJI_ADDED = "guild-emoji-added"
+    GUILD_EMOJI_REMOVED = "guild-emoji-removed"
+    GUILD_EMOJI_UPDATED = "guild-emoji-updated"
     LOGIN_ADDED = "login-added"
     LOGIN_REMOVED = "login-removed"
     LOGIN_UPDATED = "login-updated"

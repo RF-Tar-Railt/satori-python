@@ -23,6 +23,7 @@ class WebsocketsInfo(Config):
     port: int = 5140
     path: str = ""
     token: str | None = None
+    secure: bool = False
     timeout: float | None = None
     identity: str = None  # type: ignore
     api_base: URL = None  # type: ignore
@@ -31,11 +32,11 @@ class WebsocketsInfo(Config):
         if self.path and not self.path.startswith("/"):
             self.path = f"/{self.path}"
         self.identity = f"{self.host}:{self.port}"
-        self.api_base = URL(f"http://{self.host}:{self.port}{self.path}") / "v1"
+        self.api_base = URL(f"http{'s' if self.secure else ''}://{self.host}:{self.port}{self.path}") / "v1"
 
     @property
     def ws_base(self):
-        return URL(f"ws://{self.host}:{self.port}{self.path}") / "v1"
+        return URL(f"ws{'s' if self.secure else ''}://{self.host}:{self.port}{self.path}") / "v1"
 
 
 @dataclass
@@ -44,6 +45,7 @@ class WebhookInfo(Config):
     port: int = 8080
     path: str = "v1/events"
     token: str | None = None
+    secure: bool = False
     server_host: str = "localhost"
     server_port: int = 5140
     server_path: str = ""
@@ -57,4 +59,6 @@ class WebhookInfo(Config):
         if self.server_path and not self.server_path.startswith("/"):
             self.server_path = f"/{self.server_path}"
         self.identity = f"{self.host}:{self.port}{self.path}"
-        self.api_base = URL(f"http://{self.server_host}:{self.server_port}{self.server_path}") / "v1"
+        self.api_base = (
+            URL(f"http{'s' if self.secure else ''}://{self.server_host}:{self.server_port}{self.server_path}") / "v1"
+        )

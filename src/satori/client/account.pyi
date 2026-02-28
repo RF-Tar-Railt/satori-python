@@ -10,6 +10,7 @@ from satori.model import (
     Channel,
     Direction,
     Event,
+    Friend,
     Guild,
     IterablePageResult,
     Login,
@@ -40,6 +41,7 @@ class ApiInfo(Api):
         port: int = 5140,
         path: str = "",
         token: str | None = None,
+        secure: bool = False,
         timeout: float | None = None,
     ):
         self.api_base: URL = ...
@@ -450,19 +452,21 @@ class Account(Generic[TP]):
             None: 该方法无返回值
         """
 
-    async def reaction_create(self, channel_id: str, message_id: str, emoji: str) -> None:
+    async def reaction_create(self, channel_id: str, message_id: str, emoji_id: str) -> None:
         """向特定消息添加表态。
 
         Args:
             channel_id (str): 频道 ID
             message_id (str): 消息 ID
-            emoji (str): 表态名称
+            emoji_id (str): 表情 ID
 
         Returns:
             None: 该方法无返回值
         """
 
-    async def reaction_delete(self, channel_id: str, message_id: str, emoji: str, user_id: str | None = None) -> None:
+    async def reaction_delete(
+        self, channel_id: str, message_id: str, emoji_id: str, user_id: str | None = None
+    ) -> None:
         """从特定消息删除某个用户添加的特定表态。
 
         如果没有传入用户 ID 则表示删除自己的表态。
@@ -470,14 +474,14 @@ class Account(Generic[TP]):
         Args:
             channel_id (str): 频道 ID
             message_id (str): 消息 ID
-            emoji (str): 表态名称
+            emoji_id (str): 表情 ID
             user_id (str | None, optional): 用户 ID，默认为 None
 
         Returns:
             None: 该方法无返回值
         """
 
-    async def reaction_clear(self, channel_id: str, message_id: str, emoji: str | None = None) -> None:
+    async def reaction_clear(self, channel_id: str, message_id: str, emoji_id: str | None = None) -> None:
         """从特定消息清除某个特定表态。
 
         如果没有传入表态名称则表示清除所有表态。
@@ -485,21 +489,21 @@ class Account(Generic[TP]):
         Args:
             channel_id (str): 频道 ID
             message_id (str): 消息 ID
-            emoji (str | None, optional): 表态名称，默认为 None
+            emoji_id (str | None, optional): 表情 ID，默认为 None
 
         Returns:
             None: 该方法无返回值
         """
 
     def reaction_list(
-        self, channel_id: str, message_id: str, emoji: str, next_token: str | None = None
+        self, channel_id: str, message_id: str, emoji_id: str, next_token: str | None = None
     ) -> IterablePageResult[User]:
         """获取添加特定消息的特定表态的用户列表。返回一个 User 的分页列表。
 
         Args:
             channel_id (str): 频道 ID
             message_id (str): 消息 ID
-            emoji (str): 表态名称
+            emoji_id (str): 表情 ID
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
@@ -513,24 +517,24 @@ class Account(Generic[TP]):
             Login: `Login` 对象
         """
 
-    async def user_get(self, user_id: str) -> User:
-        """获取用户信息。返回一个 `User` 对象。
-
-        Args:
-            user_id (str): 用户 ID
-
-        Returns:
-            User: `User` 对象
-        """
-
-    def friend_list(self, next_token: str | None = None) -> IterablePageResult[User]:
-        """获取好友列表。返回一个 User 的分页列表。
+    def friend_list(self, next_token: str | None = None) -> IterablePageResult[Friend]:
+        """获取好友列表。返回一个 Friend 的分页列表。
 
         Args:
             next_token (str | None, optional): 分页令牌，默认为空
 
         Returns:
-            IterablePageResult[User]: `User` 的分页列表
+            IterablePageResult[Friend]: `Friend` 的分页列表
+        """
+
+    async def friend_delete(self, user_id: str) -> None:
+        """删除好友。
+
+        Args:
+            user_id (str): 用户 ID
+
+        Returns:
+            None: 该方法无返回值
         """
 
     async def friend_approve(self, request_id: str, approve: bool, comment: str) -> None:
@@ -543,6 +547,16 @@ class Account(Generic[TP]):
 
         Returns:
             None: 该方法无返回值
+        """
+
+    async def user_get(self, user_id: str) -> User:
+        """获取用户信息。返回一个 `User` 对象。
+
+        Args:
+            user_id (str): 用户 ID
+
+        Returns:
+            User: `User` 对象
         """
 
     async def internal(self, action: str, method: str = "POST", **kwargs) -> Any:

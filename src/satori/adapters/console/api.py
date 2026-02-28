@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from satori.const import Api
-from satori.model import Channel, ChannelType, Guild, Member, MessageObject, PageDequeResult, PageResult, User
+from satori.model import Channel, ChannelType, Friend, Guild, Member, MessageObject, PageDequeResult, PageResult, User
 from satori.server import Request
 from satori.server.route import (
     ChannelListParam,
@@ -16,7 +16,7 @@ from satori.server.route import (
     MessageParam,
     MessageUpdateParam,
     UserChannelCreateParam,
-    UserGetParam,
+    UserOpParam,
 )
 
 from .message import decode_message, encode_message
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 def apply(adapter: "ConsoleAdapter"):
     @adapter.route(Api.USER_GET)
-    async def user_get(request: Request[UserGetParam]) -> User:
+    async def user_get(request: Request[UserOpParam]) -> User:
         user_id = request.params["user_id"]
         ans = await adapter.app.backend.get_user(user_id)
         return User(
@@ -59,13 +59,15 @@ def apply(adapter: "ConsoleAdapter"):
         )
 
     @adapter.route(Api.FRIEND_LIST)
-    async def friend_list(request: Request[FriendListParam]) -> PageResult[User]:
+    async def friend_list(request: Request[FriendListParam]) -> PageResult[Friend]:
         return PageResult(
             [
-                User(
-                    user.id,
-                    user.nickname,
-                    avatar=f"https://emoji.aranja.com/static/emoji-data/img-apple-160/{ord(user.avatar):x}.png",
+                Friend(
+                    User(
+                        user.id,
+                        user.nickname,
+                        avatar=f"https://emoji.aranja.com/static/emoji-data/img-apple-160/{ord(user.avatar):x}.png",
+                    )
                 )
                 for user in await adapter.app.backend.list_users()
             ]

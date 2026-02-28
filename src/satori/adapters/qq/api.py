@@ -25,7 +25,7 @@ from satori.server.route import (
     ReactionDeleteParam,
     ReactionListParam,
     UserChannelCreateParam,
-    UserGetParam,
+    UserOpParam,
 )
 
 from .message import QQGroupMessageEncoder, QQGuildMessageEncoder, decode_segments
@@ -130,7 +130,7 @@ def apply(
         raise NotFoundException("qq platform does not support message.get")
 
     @adapter.route(Api.USER_GET)
-    async def guild_get_user(request: Request[UserGetParam]):
+    async def guild_get_user(request: Request[UserOpParam]):
         net = net_getter(request.self_id, request.platform == "qqguild")
         if request.platform == "qqguild":
             if "_" in request.params["user_id"]:
@@ -299,10 +299,10 @@ def apply(
         net = net_getter(request.self_id, request.platform == "qqguild")
         if request.platform == "qqguild":
             channel_id = request.params["channel_id"].split("_")[-1]
-            if ":" in request.params["emoji"]:
-                type_, emoji_id = request.params["emoji"].split(":", maxsplit=1)
+            if ":" in request.params["emoji_id"]:
+                type_, emoji_id = request.params["emoji_id"].split(":", maxsplit=1)
             else:
-                type_, emoji_id = "1", request.params["emoji"]
+                type_, emoji_id = "1", request.params["emoji_id"]
             res = await net.call_api(
                 "get",
                 f"channels/{channel_id}/messages/{request.params['message_id']}/reactions/{type_}/{emoji_id}",
@@ -320,10 +320,10 @@ def apply(
         net = net_getter(request.self_id, request.platform == "qqguild")
         if request.platform == "qqguild":
             channel_id = request.params["channel_id"].split("_")[-1]
-            if ":" in request.params["emoji"]:
-                type_, emoji_id = request.params["emoji"].split(":", maxsplit=1)
+            if ":" in request.params["emoji_id"]:
+                type_, emoji_id = request.params["emoji_id"].split(":", maxsplit=1)
             else:
-                type_, emoji_id = "1", request.params["emoji"]
+                type_, emoji_id = "1", request.params["emoji_id"]
             await net.call_api(
                 "put",
                 f"channels/{channel_id}/messages/{request.params['message_id']}/reactions/{type_}/{emoji_id}/",
@@ -336,10 +336,10 @@ def apply(
         net = net_getter(request.self_id, request.platform == "qqguild")
         if request.platform == "qqguild":
             channel_id = request.params["channel_id"].split("_")[-1]
-            if ":" in request.params["emoji"]:
-                type_, emoji_id = request.params["emoji"].split(":", maxsplit=1)
+            if ":" in request.params["emoji_id"]:
+                type_, emoji_id = request.params["emoji_id"].split(":", maxsplit=1)
             else:
-                type_, emoji_id = "1", request.params["emoji"]
+                type_, emoji_id = "1", request.params["emoji_id"]
             await net.call_api(
                 "delete",
                 f"channels/{channel_id}/messages/{request.params['message_id']}/reactions/{type_}/{emoji_id}/",

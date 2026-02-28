@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from satori import At, EventType, Text
-from satori.model import Channel, ChannelType, Event, Guild, Member, MessageObject, Role, User
+from satori.model import Channel, ChannelType, EmojiObject, Event, Guild, Member, MessageObject, Role, User
 
 from ..message import decode_segments
 from ..utils import USER_AVATAR_URL, Payload, decode_user
@@ -21,8 +21,8 @@ async def at_message(login, guild_login, net, payload: Payload):
         user,
         avatar=user.avatar,
         joined_at=datetime.fromisoformat(raw["member"]["joined_at"]),
+        roles=[Role(r) for r in raw["member"]["roles"]],
     )
-    role = Role(raw["member"]["roles"][0])
     msg = decode_segments(raw)
     if len(msg) >= 2 and isinstance(msg[0], At) and isinstance(msg[1], Text):
         text = msg[1].text.lstrip()
@@ -43,7 +43,6 @@ async def at_message(login, guild_login, net, payload: Payload):
         member=member,
         user=user,
         message=MessageObject.from_elements(raw["id"], msg),
-        role=role,
         referrer={
             "msg_id": raw["id"],
             "msg_seq": -1,
@@ -170,8 +169,8 @@ async def message_delete(login, guild_login, new, payload: Payload):
         user,
         avatar=user.avatar,
         joined_at=datetime.fromisoformat(raw["message"]["member"]["joined_at"]),
+        roles=[Role(r) for r in raw["message"]["member"]["roles"]],
     )
-    role = Role(raw["message"]["member"]["roles"][0])
     return Event(
         EventType.MESSAGE_DELETED,
         datetime.now(),
@@ -181,7 +180,6 @@ async def message_delete(login, guild_login, new, payload: Payload):
         user=user,
         member=member,
         operator=operator,
-        role=role,
         message=MessageObject(raw["message"]["id"], ""),
         referrer={
             "direct": False,
@@ -225,6 +223,7 @@ async def message_reaction(login, guild_login, new, payload: Payload):
     channel = Channel(raw["channel_id"], ChannelType.TEXT, parent_id=guild.id)
     user = User(raw["user_id"])
     member = Member(user)
+    emoji_id = f"{raw['emoji']['type']}:{raw['emoji']['id']}"
     return Event(
         EventType.REACTION_ADDED if payload.type == "MESSAGE_REACTION_ADD" else EventType.REACTION_REMOVED,
         datetime.now(),
@@ -233,5 +232,6 @@ async def message_reaction(login, guild_login, new, payload: Payload):
         guild=guild,
         user=user,
         member=member,
-        message=MessageObject(raw["target"]["id"], f"<qq:emoji id=\"{raw['emoji']['type']}:{raw['emoji']['id']}\" />"),
+        message=MessageObject(raw["target"]["id"], f'<emoji id="{emoji_id}" />'),
+        emoji=EmojiObject(emoji_id),
     )

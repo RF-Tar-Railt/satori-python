@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import IO, Any, ClassVar, Generic, Literal, TypeAlias, TypeVar
 from typing_extensions import Self
 
-from .element import Element, transform
+from .element import Element, Emoji, transform
 from .parser import Element as RawElement
 from .parser import parse
 
@@ -98,13 +98,15 @@ class User(ModelBase):
 
 
 @dataclass
-class Member(ModelBase):
+class Friend(ModelBase):
     user: User | None = None
     nick: str | None = None
-    avatar: str | None = None
-    joined_at: datetime | None = None
 
-    __converter__ = {"user": User.parse, "joined_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000)}
+    @property
+    def remark(self) -> str | None:
+        return self.nick
+
+    __converter__ = {"user": User.parse}
 
     def dump(self):
         res = {}
@@ -112,10 +114,6 @@ class Member(ModelBase):
             res["user"] = self.user.dump()
         if self.nick:
             res["nick"] = self.nick
-        if self.avatar:
-            res["avatar"] = self.avatar
-        if self.joined_at:
-            res["joined_at"] = int(self.joined_at.timestamp() * 1000)
         return res
 
 
@@ -128,6 +126,35 @@ class Role(ModelBase):
         res = {"id": self.id}
         if self.name:
             res["name"] = self.name
+        return res
+
+
+@dataclass
+class Member(ModelBase):
+    user: User | None = None
+    nick: str | None = None
+    avatar: str | None = None
+    joined_at: datetime | None = None
+    roles: list[Role] = field(default_factory=list)
+
+    __converter__ = {
+        "user": User.parse,
+        "joined_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000),
+        "roles": lambda raw: [Role.parse(role) for role in raw],
+    }  # noqa: E501
+
+    def dump(self):
+        res = {}
+        if self.user:
+            res["user"] = self.user.dump()
+        if self.nick:
+            res["nick"] = self.nick
+        if self.avatar:
+            res["avatar"] = self.avatar
+        if self.joined_at:
+            res["joined_at"] = int(self.joined_at.timestamp() * 1000)
+        if self.roles:
+            res["roles"] = [role.dump() for role in self.roles]
         return res
 
 
@@ -283,6 +310,21 @@ class Meta(ModelBase):
 
 
 @dataclass
+class EmojiObject(ModelBase):
+    id: str
+    name: str | None = None
+
+    def dump(self):
+        res = {"id": self.id}
+        if self.name:
+            res["name"] = self.name
+        return res
+
+    def to_element(self) -> Emoji:
+        return Emoji(self.id, self.name)
+
+
+@dataclass
 class MessageObject(ModelBase):
     id: str
     content: str = ""
@@ -373,6 +415,7 @@ class Event(ModelBase):
     role: Role | None = None
     user: User | None = None
     referrer: dict | None = None
+    emoji: EmojiObject | None = None
 
     _type: str | None = None
     _data: dict | None = None
@@ -391,6 +434,7 @@ class Event(ModelBase):
         "operator": User.parse,
         "role": Role.parse,
         "user": User.parse,
+        "emoji": EmojiObject.parse,
     }
 
     @classmethod
@@ -447,6 +491,8 @@ class Event(ModelBase):
             res["user"] = self.user.dump()
         if self.referrer:
             res["referrer"] = self.referrer
+        if self.emoji:
+            res["emoji"] = self.emoji.dump()
         if self._type:
             res["_type"] = self._type
         if self._data:

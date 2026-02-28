@@ -2,6 +2,7 @@ from satori.model import (
     ArgvInteraction,
     ButtonInteraction,
     Channel,
+    EmojiObject,
     Event,
     Guild,
     LoginPartial,
@@ -40,6 +41,10 @@ class GuildRoleEvent(GuildEvent):
     role: Role
 
 
+class GuildEmojiEvent(GuildEvent):
+    emoji: EmojiObject
+
+
 class LoginEvent(Event):
     login: LoginPartial
 
@@ -48,6 +53,7 @@ class ReactionEvent(Event):
     channel: Channel
     user: User
     message: MessageObject
+    emoji: EmojiObject
 
 
 class ButtonInteractionEvent(Event):

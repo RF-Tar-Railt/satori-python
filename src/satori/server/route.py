@@ -7,6 +7,7 @@ from starlette.datastructures import FormData
 from satori.model import (
     Channel,
     Direction,
+    Friend,
     Guild,
     Login,
     Member,
@@ -207,7 +208,7 @@ GUILD_ROLE_DELETE: TypeAlias = RouteCall[GuildRoleDeleteParam, None]
 class ReactionCreateParam(TypedDict):
     channel_id: str
     message_id: str
-    emoji: str
+    emoji_id: str
 
 
 REACTION_CREATE: TypeAlias = RouteCall[ReactionCreateParam, None]
@@ -216,7 +217,7 @@ REACTION_CREATE: TypeAlias = RouteCall[ReactionCreateParam, None]
 class ReactionDeleteParam(TypedDict):
     channel_id: str
     message_id: str
-    emoji: str
+    emoji_id: str
     user_id: NotRequired[str]
 
 
@@ -226,7 +227,7 @@ REACTION_DELETE: TypeAlias = RouteCall[ReactionDeleteParam, None]
 class ReactionClearParam(TypedDict):
     channel_id: str
     message_id: str
-    emoji: NotRequired[str]
+    emoji_id: NotRequired[str]
 
 
 REACTION_CLEAR: TypeAlias = RouteCall[ReactionClearParam, None]
@@ -235,7 +236,7 @@ REACTION_CLEAR: TypeAlias = RouteCall[ReactionClearParam, None]
 class ReactionListParam(TypedDict):
     channel_id: str
     message_id: str
-    emoji: str
+    emoji_id: str
     next: NotRequired[str]
 
 
@@ -243,18 +244,19 @@ REACTION_LIST: TypeAlias = RouteCall[ReactionListParam, PageResult[User] | dict[
 LOGIN_GET: TypeAlias = RouteCall[Any, Login | dict[str, Any]]
 
 
-class UserGetParam(TypedDict):
+class UserOpParam(TypedDict):
     user_id: str
 
 
-USER_GET: TypeAlias = RouteCall[UserGetParam, User | dict[str, Any]]
+USER_GET: TypeAlias = RouteCall[UserOpParam, User | dict[str, Any]]
+FRIEND_DELETE: TypeAlias = RouteCall[UserOpParam, None]
 
 
 class FriendListParam(TypedDict):
     next: NotRequired[str]
 
 
-FRIEND_LIST: TypeAlias = RouteCall[FriendListParam, PageResult[User] | dict[str, Any]]
+FRIEND_LIST: TypeAlias = RouteCall[FriendListParam, PageResult[Friend] | dict[str, Any]]
 
 
 class ApproveParam(TypedDict):

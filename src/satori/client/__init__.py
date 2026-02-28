@@ -154,6 +154,15 @@ class App(Service):
 
     @overload
     def register_on(
+        self,
+        event_type: Literal[EventType.GUILD_EMOJI_ADDED, EventType.GUILD_EMOJI_REMOVED, EventType.GUILD_EMOJI_UPDATED],
+    ) -> Callable[
+        [Callable[[Account, events.GuildEmojiEvent], Awaitable[Any]]],
+        Callable[[Account, events.GuildEmojiEvent], Awaitable[Any]],
+    ]: ...
+
+    @overload
+    def register_on(
         self, event_type: Literal[EventType.LOGIN_ADDED, EventType.LOGIN_REMOVED, EventType.LOGIN_UPDATED]
     ) -> Callable[
         [Callable[[Account, events.LoginEvent], Awaitable[Any]]],

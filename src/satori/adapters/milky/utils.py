@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Protocol
 
-from satori.model import Channel, ChannelType, Guild, Member, User
+from satori.model import Channel, ChannelType, Friend, Guild, Member, Role, User
 
 AVATAR_URL = "https://q.qlogo.cn/headimg_dl?dst_uin={uin}&spec=640"
 GROUP_AVATAR_URL = "https://p.qlogo.cn/gh/{group}/{group}/640"
@@ -33,6 +33,13 @@ def decode_guild(group: dict) -> Guild:
     return Guild(str(group["group_id"]), group.get("group_name"), group_avatar(group["group_id"]))
 
 
+ROLE_MAPPING = {
+    "member": Role("member", "群成员"),
+    "admin": Role("admin", "管理员"),
+    "owner": Role("owner", "群主"),
+}
+
+
 def decode_member(member: dict) -> Member:
     user_id = str(member["user_id"])
     user = User(user_id, member.get("nickname"), avatar=user_avatar(user_id))
@@ -42,12 +49,13 @@ def decode_member(member: dict) -> Member:
         nick=member.get("card") or member.get("nickname"),
         avatar=user_avatar(user_id),
         joined_at=datetime.fromtimestamp(joined_at) if joined_at else None,
+        roles=[ROLE_MAPPING[member.get("role", "member")]],
     )
 
 
-def decode_friend(friend: dict) -> User:
+def decode_friend(friend: dict) -> Friend:
     user_id = str(friend["user_id"])
-    return User(user_id, friend.get("nickname"), avatar=user_avatar(user_id))
+    return Friend(User(user_id, friend.get("nickname"), avatar=user_avatar(user_id)), friend.get("remark"))
 
 
 def decode_login_user(login: dict) -> User:

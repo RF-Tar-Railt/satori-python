@@ -5,7 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from types import UnionType
 from typing import Any, ClassVar, Final, TypeVar, Union, final, get_args, get_origin, overload
-from typing_extensions import override
+from typing_extensions import Self, override
 
 from ._vendor.fleep import get
 from .parser import Element as RawElement
@@ -158,6 +158,19 @@ class At(Element):
 
 
 @dataclass(repr=False)
+class Emoji(Element):
+    """<emoji> 元素用于表示一个表情。"""
+
+    id: str
+    name: str | None = None
+
+    def to_model(self):
+        from .model import EmojiObject
+
+        return EmojiObject(self.id, self.name)
+
+
+@dataclass(repr=False)
 class Sharp(Element):
     """<sharp> 元素用于提及某个频道。"""
 
@@ -200,7 +213,7 @@ class Resource(Element):
 
     @classmethod
     def of(
-        cls,
+        cls: type[Self],
         url: str | None = None,
         path: str | Path | None = None,
         raw: bytes | BytesIO | None = None,
@@ -212,7 +225,7 @@ class Resource(Element):
         cache: bool | None = None,
         timeout: int | None = None,
         **kwargs,
-    ):
+    ) -> Self:
         data: dict[str, Any] = {"extra": extra, **kwargs}
         if url is not None:
             data |= {"src": url}
@@ -537,6 +550,7 @@ def register_element(cls: type[TE], tag: str | None = None) -> type[TE]:
 ELEMENT_TYPE_MAP = {
     "text": Text,
     "at": At,
+    "emoji": Emoji,
     "sharp": Sharp,
     "img": Image,
     "image": Image,
@@ -637,6 +651,7 @@ class _E:
         self.at = At
         self.at_role = At.role_
         self.at_all = At.all
+        self.emoji = Emoji
         self.sharp = Sharp
         self.link = Link
         self.image = Image.of
