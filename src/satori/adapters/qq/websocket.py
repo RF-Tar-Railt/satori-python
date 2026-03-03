@@ -554,5 +554,8 @@ class QQBotWebsocketAdapter(BaseAdapter):
                 logger.info(f"{self} Reconnecting...")
                 continue
 
+    def __str__(self):
+        return self.id
+
 
 __all__ = ["QQBotWebsocketAdapter", "Intents"]

@@ -356,7 +356,7 @@ def apply(
                 "get",
                 f"guilds/{guild_id}/roles",
             )
-            #roles = [Role(role["id"], role.get("name", "")) for role in res]
+            # roles = [Role(role["id"], role.get("name", "")) for role in res]
             roles = []
             for role in res:
                 if role["id"] in ROLE_MAPPING:

@@ -438,5 +438,8 @@ class QQBotWebhookAdapter(BaseAdapter):
         await self.handle_event(app_id, payload)
         return Response(status_code=200)
 
+    def __str__(self):
+        return self.id
+
 
 __all__ = ["QQBotWebhookAdapter"]
