@@ -29,7 +29,7 @@ from satori.server.route import (
 )
 
 from .message import QQGroupMessageEncoder, QQGuildMessageEncoder, decode_segments
-from .utils import QQBotNetwork, decode_channel, decode_guild, decode_member, decode_user
+from .utils import ROLE_MAPPING, QQBotNetwork, decode_channel, decode_guild, decode_member, decode_user
 
 
 def apply(
@@ -356,7 +356,13 @@ def apply(
                 "get",
                 f"guilds/{guild_id}/roles",
             )
-            roles = [Role(role["id"], role.get("name", "")) for role in res]
+            #roles = [Role(role["id"], role.get("name", "")) for role in res]
+            roles = []
+            for role in res:
+                if role["id"] in ROLE_MAPPING:
+                    roles.append(ROLE_MAPPING[role["id"]])
+                else:
+                    roles.append(Role(role["id"], role.get("name", "")))
             return PageResult(roles, next=None)
         raise NotFoundException("qq platform does not support guild.role.list")
 

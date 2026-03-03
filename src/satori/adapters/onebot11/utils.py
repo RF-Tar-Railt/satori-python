@@ -22,7 +22,7 @@ USER_AVATAR_URL = "https://q2.qlogo.cn/headimg_dl?dst_uin={uin}&spec=640"
 GROUP_AVATAR_URL = "https://p.qlogo.cn/gh/{group}/{group}/"
 
 ROLE_MAPPING = {
-    "member": Role("MEMBER", "群成员"),
-    "admin": Role("ADMINISTRATOR", "管理员"),
-    "owner": Role("OWNER", "群主"),
+    "member": Role("member", "群成员"),
+    "admin": Role("admin", "管理员"),
+    "owner": Role("owner", "群主"),
 }

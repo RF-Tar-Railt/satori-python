@@ -122,15 +122,16 @@ def decode_member(profile: dict) -> Member:
         decode_user(profile["user"]) if "user" in profile else None,
         profile.get("nick"),
         joined_at=datetime.fromisoformat(profile["joined_at"]) if "joined_at" in profile else None,
-        roles=[Role(r) for r in profile["roles"]],
+        roles=[(ROLE_MAPPING.get(r) or Role(r)) for r in profile["roles"]],
     )
 
 
 USER_AVATAR_URL = "https://q.qlogo.cn/qqapp/{app_id}/{user_id}/100"
 
 
-# ROLE_MAPPING = {
-#     "member": Role("MEMBER", "群成员"),
-#     "admin": Role("ADMINISTRATOR", "管理员"),
-#     "owner": Role("OWNER", "群主"),
-# }
+ROLE_MAPPING = {
+    "1": Role("member", "成员"),
+    "5": Role("channel_admin", "子频道管理员"),
+    "2": Role("admin", "管理员"),
+    "4": Role("owner", "创建者"),
+}

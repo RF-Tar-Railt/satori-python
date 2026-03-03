@@ -5,7 +5,7 @@ from datetime import datetime
 from satori import EventType
 from satori.model import Event, Guild, Member, Role, User
 
-from ..utils import Payload, decode_channel, decode_guild, decode_user
+from ..utils import ROLE_MAPPING, Payload, decode_channel, decode_guild, decode_user
 from .base import register_event
 
 
@@ -57,7 +57,7 @@ async def guild_member_event(login, guild_login, net, payload: Payload):
         nick=raw["nick"],
         avatar=user.avatar,
         joined_at=datetime.fromisoformat(raw["joined_at"]),
-        roles=[Role(r) for r in raw["roles"]],
+        roles=[(ROLE_MAPPING.get(r) or Role(r)) for r in raw["roles"]],
     )
     operator = User(raw["op_user_id"])
     return Event(t, datetime.now(), guild_login, guild=guild, user=user, member=member, operator=operator)
