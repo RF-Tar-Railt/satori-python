@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import asdict
 from datetime import datetime
 from typing import TYPE_CHECKING, cast
@@ -107,19 +108,17 @@ class SatoriConsoleBackend(Backend):
         if isinstance(event, ConsoleMessageEvent):
             message = MessageObject(event.message_id, encode_message(event.message))
             if event.channel == DIRECT:
-                await self._adapter.server.post(
-                    Event(
-                        EventType.MESSAGE_CREATED,
-                        event.time,
-                        self.logins[event.self_id],
-                        user=user,
-                        channel=Channel(
-                            id=f"private:{user.id}",
-                            type=ChannelType.DIRECT,
-                            name=user.name,
-                        ),
-                        message=message,
-                    )
+                post = Event(
+                    EventType.MESSAGE_CREATED,
+                    event.time,
+                    self.logins[event.self_id],
+                    user=user,
+                    channel=Channel(
+                        id=f"private:{user.id}",
+                        type=ChannelType.DIRECT,
+                        name=user.name,
+                    ),
+                    message=message,
                 )
             else:
                 guild = Guild(
@@ -132,25 +131,27 @@ class SatoriConsoleBackend(Backend):
                     type=ChannelType.TEXT,
                     name=event.channel.name,
                 )
-                await self._adapter.server.post(
-                    Event(
-                        EventType.MESSAGE_CREATED,
-                        event.time,
-                        self.logins[event.self_id],
-                        user=user,
-                        member=member,
-                        channel=channel,
-                        guild=guild,
-                        message=message,
-                    )
-                )
-        else:
-            await self._adapter.server.post(
-                Event(
-                    EventType.INTERNAL,
+                post = Event(
+                    EventType.MESSAGE_CREATED,
                     event.time,
                     self.logins[event.self_id],
-                    _type=event.type,
-                    _data=asdict(event),
+                    user=user,
+                    member=member,
+                    channel=channel,
+                    guild=guild,
+                    message=message,
                 )
+
+        else:
+            post = Event(
+                EventType.INTERNAL,
+                event.time,
+                self.logins[event.self_id],
+                _type=event.type,
+                _data=asdict(event),
             )
+
+        async def _task():
+            await self._adapter.server.post(post)
+
+        asyncio.create_task(_task())

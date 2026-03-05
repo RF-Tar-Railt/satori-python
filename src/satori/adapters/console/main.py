@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import asyncio
 
-from launart import Launart
+from creart import it
+from launart import Launart, any_completed
 from launart.status import Phase
 from nonechat import ConsoleSetting, Frontend
 from starlette.responses import JSONResponse, Response
@@ -14,7 +17,29 @@ from .backend import SatoriConsoleBackend
 
 
 class ConsoleAdapter(BaseAdapter):
-    def __init__(self, logger_id: int = -1, **kwargs):
+    def __init__(
+        self,
+        logger_id: int = -1,
+        title: str = "Console",
+        sub_title: str = "powered by Textual",
+        room_title: str | None = None,
+        icon: str | None = None,
+        toolbar_exit: str = "⛔",
+        toolbar_clear: str = "🗑️",
+        toolbar_setting: str = "⚙️",
+        toolbar_log: str = "📝",
+        toolbar_fold: str = "⏪",
+        toolbar_expand: str = "⏩",
+        user_avatar: str = "👤",
+        user_name: str = "User",
+        bot_avatar: str = "🤖",
+        bot_name: str = "Bot",
+        new_message_color: str = "lime blink",
+    ):
+        kwargs = locals().copy()
+        kwargs.pop("self")
+        kwargs.pop("logger_id")
+        kwargs.pop("__class__")
         super().__init__()
         self.app = Frontend(
             SatoriConsoleBackend,
@@ -68,8 +93,11 @@ class ConsoleAdapter(BaseAdapter):
             ...
 
         async with self.stage("blocking"):
-            task = asyncio.create_task(self.app.run_async())
-            await manager.status.wait_for_sigexit()
+            task = it(asyncio.AbstractEventLoop).create_task(self.app.run_async())
+            await any_completed(
+                manager.status.wait_for_sigexit(),
+                task,
+            )
 
         async with self.stage("cleanup"):
             self.app.exit()

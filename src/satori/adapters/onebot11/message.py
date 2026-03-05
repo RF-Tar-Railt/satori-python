@@ -159,7 +159,7 @@ class OneBot11MessageEncoder:
                 },
             )
         if resp:
-            self.results.append(MessageObject(resp["message_id"], ""))
+            self.results.append(MessageObject(str(resp["message_id"]), ""))
         self.children = []
 
     async def _send_file(self, attrs: dict[str, Any]):

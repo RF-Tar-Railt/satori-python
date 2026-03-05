@@ -11,7 +11,7 @@ from satori.parser import parse
 
 def encode_message(message: ConsoleMessage) -> str:
     content = str(message)
-    content = re.sub(r"@(\w+)", r"@<at id='\1'>", content)  # Handle mentions
+    content = re.sub(r"@(\w+)", r'<at id="\1"/>', content)  # Handle mentions
     return content
 
 
