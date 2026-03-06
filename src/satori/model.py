@@ -122,6 +122,12 @@ class Role(ModelBase):
     id: str
     name: str | None = None
 
+    @classmethod
+    def parse(cls, raw: str | dict):
+        if isinstance(raw, str):
+            return cls(id=raw)
+        return super().parse(raw)
+
     def dump(self):
         res = {"id": self.id}
         if self.name:
