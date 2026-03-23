@@ -9,7 +9,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from satori.element import Button, Custom, E, Element, select, transform
+from satori.element import Button, Custom, E, Element, Raw, select, transform
 from satori.model import Login, MessageObject
 from satori.parser import Element as RawElement
 from satori.parser import parse
@@ -241,6 +241,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
     def __init__(self, login: Login, net: QQBotNetwork, channel_id: str, referrer: dict | None = None):
         super().__init__(login, net, channel_id, referrer)
         self.use_markdown = False
+        self.has_ark = False
         self.content = ""
         self.attachment: dict | None = None
         self.rows: list[list[dict]] = []
@@ -251,20 +252,25 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         if not self.content and not self.attachment and not self.rows:
             return
         self.strip_buttons()
+        event_id = self.referrer.get("event_id") if self.referrer else None
         msg_id = self.referrer.get("msg_id") if self.referrer else None
         msg_seq = self.referrer.get("msg_seq") if self.referrer else None
         data = {
             "content": self.content,
             "msg_type": 0,
+            "event_id": event_id,
             "msg_id": msg_id,
             "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
         }
-        if self.attachment:
+        if self.has_ark:
+            data["msg_type"] = 3
+            data["ark"] = json.loads(self.content) if self.content else {}
+        elif self.attachment:
             if not self.content:
                 self.content = " "
             data["media"] = self.attachment
             data["msg_type"] = 7
-        if self.use_markdown:
+        elif self.use_markdown:
             data["msg_type"] = 2
             del data["content"]
             data["markdown"] = {
@@ -286,6 +292,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 resp = await self.net.call_api("post", endpoint, remove_empty(data))
             referrer = self.referrer.copy() if self.referrer else {}
             referrer |= {
+                "event_id": event_id,
                 "msg_id": msg_id,
                 "msg_seq": data["msg_seq"],
             }
@@ -294,6 +301,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             logger.error(f"Failed to send message to {self.channel_id}: {self._raw_content}\nError: {e}")
         self.content = ""
         self.attachment = None
+        self.has_ark = False
         self.use_markdown = False
         self.rows = []
 
@@ -340,7 +348,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 self.content += attrs["text"]
             case "img" | "image":
                 if attrs.get("src") or attrs.get("url"):
-                    await self.flush()
+                    # await self.flush()
                     if data := (await self.send_file(type_, attrs)):
                         self.attachment = data
             case "video" | "audio" | "file":
@@ -357,6 +365,11 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 await self.render(children)
                 if not self.content.endswith("\n"):
                     self.content += "\n"
+            case "qq:ark":
+                await self.flush()
+                self.has_ark = True
+                await self.render(children)
+                await self.flush()
             case "qq:button-group":
                 self.use_markdown = True
                 self.rows.append([])
@@ -466,5 +479,5 @@ def decode_segments(event: dict) -> list[Element]:
         for i in embeds:
             result.append(Custom("qq:embed", i))
     if ark := event.get("ark"):
-        result.append(Custom("qq:ark", ark))
+        result.append(Custom("qq:ark", children=[Raw(json.dumps(ark, ensure_ascii=False))]))
     return result

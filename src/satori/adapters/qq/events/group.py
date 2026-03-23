@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from satori import EventType
-from satori.model import Event, Guild, User
+from satori.model import Channel, ChannelType, Event, Guild, User
 
 from ..utils import Payload
 from .base import register_event
@@ -27,6 +27,8 @@ async def friend_event(login, guild_login, net, payload: Payload):
         ),
         login,
         user=user,
+        channel=Channel(f"private:{user.id}", type=ChannelType.DIRECT),
+        referrer={"event_id": payload.id},
     )
 
 
@@ -52,5 +54,7 @@ async def group_event(login, guild_login, net, payload: Payload):
         ),
         login,
         guild=guild,
+        channel=Channel(guild.id, type=ChannelType.TEXT),
         operator=operator,
+        referrer={"event_id": payload.id},
     )
