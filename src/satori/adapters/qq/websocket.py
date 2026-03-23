@@ -55,25 +55,36 @@ QQ_GUILD_FEATURES = [
 @dataclass
 class Intents:
     guilds: bool = True
+    """频道和子频道的基础事件"""
     guild_members: bool = True
+    """频道成员事件"""
     guild_messages: bool = False
-    """GUILD_MESSAGES"""
+    """频道消息事件，仅私域机器人能够设置此 intents。"""
     guild_message_reactions: bool = True
-    direct_message: bool = False
-    """DIRECT_MESSAGES"""
+    """频道消息表态事件"""
+    direct_messages: bool = False
+    """频道私信消息事件"""
     open_forum_event: bool = False
     audio_live_member: bool = False
     c2c_group_at_messages: bool = False
+    """群聊和单聊事件"""
     interaction: bool = False
+    """互动事件（由按钮等组件触发的事件）"""
     message_audit: bool = True
+    """频道消息审核事件（由消息审核结果触发的事件）"""
     forum_event: bool = False
+    """频道论坛事件，仅私域机器人能够设置此 intents。"""
     audio_action: bool = False
+    """语音频道事件"""
     at_messages: bool = True
-    """PUBLIC_GUILD_MESSAGES"""
+    """频道消息事件（只包含被 @ 的消息），为公域的消息事件"""
 
     def __post_init__(self):
         if self.at_messages and self.guild_messages:
-            logger.warning("at_messages and guild_messages are both enabled, which is not recommended.")
+            logger.warning(
+                "检测到 at_messages 和 guild_messages 同时开启。"
+                "请确认 bot 是否为公域机器人，若为公域机器人，则开启 guild_messages 将导致连接鉴权失败。"
+            )
 
     def to_int(self) -> int:
         return (
@@ -81,7 +92,7 @@ class Intents:
             | self.guild_members << 1
             | self.guild_messages << 9
             | self.guild_message_reactions << 10
-            | self.direct_message << 12
+            | self.direct_messages << 12
             | self.open_forum_event << 18
             | self.audio_live_member << 19
             | self.c2c_group_at_messages << 25

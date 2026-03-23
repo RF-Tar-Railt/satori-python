@@ -533,7 +533,7 @@ class Raw(Element):
 
     @override
     def dumps(self, strip: bool = False):
-        return self.content if strip else escape(self.content)
+        return self.content
 
 
 def register_element(cls: type[TE], tag: str | None = None) -> type[TE]:
