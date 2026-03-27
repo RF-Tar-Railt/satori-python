@@ -243,6 +243,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         self.use_markdown = False
         self.has_ark = False
         self.content = ""
+        self.reference = ""
         self.attachment: dict | None = None
         self.rows: list[list[dict]] = []
         # self.file_url = ""
@@ -257,6 +258,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         msg_seq = self.referrer.get("msg_seq") if self.referrer else None
         data = {
             "content": self.content,
+            "message_reference": {"message_id": self.reference} if self.reference else None,
             "msg_type": 0,
             "event_id": event_id,
             "msg_id": msg_id,
@@ -300,6 +302,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         except Exception as e:
             logger.error(f"Failed to send message to {self.channel_id}: {self._raw_content}\nError: {e}")
         self.content = ""
+        self.reference = ""
         self.attachment = None
         self.has_ark = False
         self.use_markdown = False
@@ -385,6 +388,9 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             case "message":
                 await self.flush()
                 await self.render(children)
+                await self.flush()
+            case "quote":
+                self.reference = attrs["id"]
                 await self.flush()
             case _:
                 await self.render(children)

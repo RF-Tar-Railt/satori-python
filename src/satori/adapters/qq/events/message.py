@@ -90,13 +90,14 @@ async def group_at_message_create(login, guild_login, net, payload: Payload):
     else:
         channel = Channel(raw["group_id"], ChannelType.TEXT)
     app_id = net.bot_id_mapping[login.id]
+    name = raw["author"].get("username")
     if "member_openid" in raw["author"]:
         user = User(
-            raw["author"]["member_openid"],
+            raw["author"]["member_openid"], name=name,
             avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["member_openid"]),
         )
     else:
-        user = User(raw["author"]["id"], avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]))
+        user = User(raw["author"]["id"], name=name, avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]))
     member = Member(user, avatar=user.avatar)
     msg = decode_segments(raw)
     msg.insert(0, At(login.id))
@@ -130,13 +131,14 @@ async def group_at_message_create(login, guild_login, net, payload: Payload):
 async def c2c_message_create(login, guild_login, net, payload: Payload):
     raw = payload.data
     app_id = net.bot_id_mapping[login.id]
+    name = raw["author"].get("username")
     if "user_openid" in raw["author"]:
         user = User(
-            raw["author"]["user_openid"],
+            raw["author"]["user_openid"], name,
             avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["user_openid"]),
         )
     else:
-        user = User(raw["author"]["id"], avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]))
+        user = User(raw["author"]["id"], name, avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]))
     channel = Channel(f"private:{user.id}", ChannelType.DIRECT)
     return Event(
         EventType.MESSAGE_CREATED,
