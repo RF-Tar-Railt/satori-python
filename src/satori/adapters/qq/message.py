@@ -246,6 +246,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         self.reference = ""
         self.attachment: dict | None = None
         self.rows: list[list[dict]] = []
+        self.md_templates: dict | None = None
         # self.file_url = ""
         # self.file_data = {}  # value, content_type, filename
 
@@ -256,9 +257,11 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         event_id = self.referrer.get("event_id") if self.referrer else None
         msg_id = self.referrer.get("msg_id") if self.referrer else None
         msg_seq = self.referrer.get("msg_seq") if self.referrer else None
+        msg_scene = self.referrer.get("msg_scene", {}) if self.referrer else {}
+        refidx = msg_scene.get("ext", ["="])[0].partition("=")[-1]
         data = {
             "content": self.content,
-            "message_reference": {"message_id": self.reference} if self.reference else None,
+            "message_reference": {"message_id": refidx or self.reference} if refidx or self.reference else None,
             "msg_type": 0,
             "event_id": event_id,
             "msg_id": msg_id,
@@ -276,7 +279,8 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             data["msg_type"] = 2
             del data["content"]
             data["markdown"] = {
-                "content": escape_markdown(self.content) or " ",
+                "content": self.content or " ",  # escape_markdown(self.content) or " ",
+                **(self.md_templates or {}),
             }
             if self.rows:
                 data["keyboard"] = {"content": {"rows": self.export_buttons()}}
@@ -306,6 +310,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         self.attachment = None
         self.has_ark = False
         self.use_markdown = False
+        self.md_templates = None
         self.rows = []
 
     async def send_file(self, type_: str, attrs: dict) -> dict | None:
@@ -384,6 +389,11 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 last.append(self.decode_button(attrs, "".join(map(str, children))))
             case "markdown":
                 self.use_markdown = True
+                if attrs.get("template_id"):
+                    self.md_templates = {
+                        "custom_template_id": attrs["template_id"],
+                        "params": [{"key": k, "value": v} for k, v in attrs.items() if k != "template_id"],
+                    }
                 await self.render(children)
             case "message":
                 await self.flush()
