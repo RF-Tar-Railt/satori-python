@@ -389,6 +389,9 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 last.append(self.decode_button(attrs, "".join(map(str, children))))
             case "markdown":
                 self.use_markdown = True
+                await self.render(children)
+            case "qq:markdown":
+                self.use_markdown = True
                 if attrs.get("template_id"):
                     self.md_templates = {
                         "custom_template_id": attrs["template_id"],
