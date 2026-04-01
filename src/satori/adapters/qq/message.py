@@ -9,10 +9,10 @@ from pathlib import Path
 
 from loguru import logger
 
-from satori.element import Button, Custom, E, Element, Raw, select, transform
+from satori.element import Custom, E, Element, Raw
 from satori.model import Login, MessageObject
 from satori.parser import Element as RawElement
-from satori.parser import parse
+from satori.parser import parse, select
 
 from ...exception import ActionFailed
 from .exception import AuditException
@@ -88,12 +88,12 @@ class QQBotMessageEncoder:
 
     async def send(self, content: str):
         self._raw_content = content
-        msg = transform(parse(content))
-        btns = select(msg, Button)
-        btns = [btn for btn in btns if btn.type != "link" and not btn.id]
+        msg = parse(content)
+        btns = select(msg, "button")
+        btns = [btn for btn in btns if btn.tag() != "link" and not btn.attrs.get("id")]
         for btn in btns:
-            btn.id = random.randbytes(8).hex()
-        await self.render(parse("".join(map(str, msg))))
+            btn.attrs["id"] = random.randbytes(8).hex()
+        await self.render(msg)
         await self.flush()
         return self.results
 
@@ -354,6 +354,11 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         match type_:
             case "text":
                 self.content += attrs["text"]
+            case "at":
+                if attrs.get("id"):
+                    self.content += f"<qqbot-at-user id=\"{attrs['id']}\" />"
+                else:
+                    await self.render(children)
             case "img" | "image":
                 if attrs.get("src") or attrs.get("url"):
                     # await self.flush()
@@ -388,9 +393,13 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 last = self.last_row()
                 last.append(self.decode_button(attrs, "".join(map(str, children))))
             case "markdown":
+                if self.content:
+                    self.content += "\n"
                 self.use_markdown = True
                 await self.render(children)
             case "qq:markdown":
+                if self.content:
+                    self.content += "\n"
                 self.use_markdown = True
                 if attrs.get("template_id"):
                     self.md_templates = {
@@ -398,6 +407,12 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                         "params": [{"key": k, "value": v} for k, v in attrs.items() if k != "template_id"],
                     }
                 await self.render(children)
+            case "qq:cmd-enter":
+                self.use_markdown = True
+                self.content += RawElement("qqbot-cmd-enter", attrs, []).dumps()
+            case "qq:cmd-input":
+                self.use_markdown = True
+                self.content += RawElement("qqbot-cmd-input", attrs, []).dumps()
             case "message":
                 await self.flush()
                 await self.render(children)
