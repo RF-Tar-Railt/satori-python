@@ -1,17 +1,23 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Literal, Protocol
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
-from aiohttp import ClientResponse
+from aiohttp import ClientResponse, ClientSession
 
-from ... import Channel, ChannelType, Guild, Member, Role, User
+from satori.model import Channel, ChannelType, Guild, Member, Role, User
+
 from .exception import ActionFailed, ApiNotAvailable, AuditException, RateLimitException, UnauthorizedException
 
 CallMethod = Literal["get", "post", "fetch", "update", "multipart", "put", "delete", "patch"]
 
 
 class QQBotNetwork(Protocol):
+    session: ClientSession
+
     async def call_api(self, method: CallMethod, action: str, params: dict | None = None) -> dict: ...
 
 
@@ -135,3 +141,17 @@ ROLE_MAPPING = {
     "2": Role("admin", "管理员"),
     "4": Role("owner", "创建者"),
 }
+
+
+def parse_file_uri(uri):
+    """解析 file URI 为 Path 对象"""
+    parsed = urlparse(uri)
+    if parsed.scheme != "file":
+        raise ValueError(f"不是 file URI: {uri}")
+
+    path = url2pathname(parsed.path)
+
+    if parsed.netloc and parsed.netloc != "localhost":
+        path = f"//{parsed.netloc}{path}"
+
+    return Path(path)

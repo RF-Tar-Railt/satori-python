@@ -112,7 +112,7 @@ class Intents:
 class QQBotWebsocketAdapter(BaseAdapter):
 
     connections: dict[tuple[int, int], aiohttp.ClientWebSocketResponse]
-    session: aiohttp.ClientSession | None
+    session: aiohttp.ClientSession
     sequence: int | None
     session_id: str | None
     _access_token: str | None
@@ -139,7 +139,7 @@ class QQBotWebsocketAdapter(BaseAdapter):
         self.intent = intent
         self.api_base = URL(str(api_base if not is_sandbox else sandbox_api_base))
         self.auth_base = URL(str(auth_base))
-        self.session = None
+        self.session = None  # type: ignore
         self.logins: list[Login] = []
         self.bot_id_mapping: dict[str, str] = {}  # login.id -> bot app_id
         self.close_signal = asyncio.Event()
@@ -498,7 +498,7 @@ class QQBotWebsocketAdapter(BaseAdapter):
         async with self.stage("cleanup"):
             if self.session:
                 await self.session.close()
-            self.session = None
+            self.session = None  # type: ignore
             for task in tasks:
                 task.cancel()
             await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED)

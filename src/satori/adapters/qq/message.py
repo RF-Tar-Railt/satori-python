@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import random
 import re
 from datetime import datetime, timezone
-from pathlib import Path
+from hashlib import md5, sha1
 
 from loguru import logger
 
@@ -16,9 +17,10 @@ from satori.parser import parse, select
 
 from ...exception import ActionFailed
 from .exception import AuditException
-from .utils import QQBotNetwork
+from .utils import QQBotNetwork, parse_file_uri
 
 _BASE64_RE = re.compile(r"^data:([\w/.+-]+);base64,")
+MAX_FILESIZE_ONCE = 10 * 1024 * 1024  # 10MB
 
 
 def escape(s: str) -> str:
@@ -230,7 +232,7 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
                 content_type = b64_match.group(1)
                 filename = f"file.{content_type.split('/')[-1]}"
             else:
-                path = Path(url[7:])
+                path = parse_file_uri(url)
                 data = path.read_bytes()
                 filename = path.name
                 content_type = None
@@ -301,6 +303,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 "event_id": event_id,
                 "msg_id": msg_id,
                 "msg_seq": data["msg_seq"],
+                "ref_idx": resp["ext_info"].get("ref_idx"),
             }
             self.results.append(MessageObject(resp["id"], self._raw_content, referrer=referrer))
         except Exception as e:
@@ -315,6 +318,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
 
     async def send_file(self, type_: str, attrs: dict) -> dict | None:
         url = attrs.get("url") or attrs["src"]
+        filename = attrs.get("name") or attrs.get("title")
         is_uri = url.startswith("file://")
         b64_match = _BASE64_RE.match(url)
         file_type = 0
@@ -331,13 +335,27 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             "file_type": file_type,
             "srv_send_msg": False,
         }
+        file_data = None
+        raw_data = None
         if b64_match:
-            req["file_data"] = url[len(b64_match.group(0)) :]
+            file_data = url[len(b64_match.group(0)) :]
+            raw_data = base64.b64decode(file_data)
         elif is_uri:
-            path = Path(url[7:])
-            req["file_data"] = base64.b64encode(path.read_bytes()).decode("utf-8")
-        else:
+            path = parse_file_uri(url)
+            filename = filename or path.name
+            raw_data = path.read_bytes()
+            file_data = base64.b64encode(raw_data).decode("utf-8")
+        if not file_data:
             req["url"] = url
+        else:
+            req["file_data"] = file_data
+        if filename:
+            req["file_name"] = filename
+
+        if raw_data and len(raw_data) > MAX_FILESIZE_ONCE:
+            # 走分片上传
+            return await self._send_file_chunked(raw_data, file_type, filename)
+
         if self.channel_id.startswith("private:") or (self.referrer and self.referrer.get("direct", False)):
             endpoint = f"v2/users/{self.channel_id.split(':',1)[-1]}/files"
         else:
@@ -347,6 +365,73 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             return resp
         except Exception as e:
             logger.error(f"Failed to upload file to {self.channel_id}: {url}\nError: {e}")
+            return None
+
+    async def _send_file_chunked(self, raw: bytes, file_type: int, filename: str | None = None):
+        req: dict = {
+            "file_type": file_type,
+            "file_name": filename or "file",
+            "file_size": len(raw),
+            "md5": md5(raw).hexdigest(),
+            "sha1": sha1(raw).hexdigest(),
+        }
+        buffer = memoryview(raw)
+        first_part = buffer[:MAX_FILESIZE_ONCE]
+        req["md5_10m"] = md5(first_part).hexdigest()
+        if self.channel_id.startswith("private:") or (self.referrer and self.referrer.get("direct", False)):
+            endpoint = f"v2/users/{self.channel_id.split(':', 1)[-1]}/files"
+            prepare_endpoint = f"v2/users/{self.channel_id.split(':', 1)[-1]}/upload_prepare"
+            finish_endpoint = f"v2/users/{self.channel_id.split(':', 1)[-1]}/upload_part_finish"
+        else:
+            endpoint = f"v2/groups/{self.channel_id}/files"
+            prepare_endpoint = f"v2/groups/{self.channel_id}/upload_prepare"
+            finish_endpoint = f"v2/groups/{self.channel_id}/upload_part_finish"
+        try:
+            prepare_resp = await self.net.call_api("post", prepare_endpoint, req)
+        except Exception as e:
+            logger.error(f"Failed to prepare file upload to {self.channel_id}: {filename}\nError: {e}")
+            return None
+
+        async def _put(url, data):
+            async with self.net.session.put(url, data=data) as rp:
+                rp.raise_for_status()
+                return
+
+        upload_id = prepare_resp["upload_id"]
+        base_block_size = int(prepare_resp["block_size"])
+        chunks = bytearray(raw)
+        parts = prepare_resp["parts"]
+        concurrency = prepare_resp["upload_config"]["concurrency"]
+        sent = 0
+        while parts:
+            batch = parts[:concurrency]
+            parts = parts[concurrency:]
+            tasks = []
+            finish = []
+            for part in batch:
+                index = part["index"]
+                block_size = int(part.get("block_size") or base_block_size)
+                chunk = chunks[sent : sent + block_size]
+                sent += block_size
+                tasks.append(_put(part["presigned_url"], chunk))
+                req = {
+                    "upload_id": upload_id,
+                    "part_index": index,
+                    "block_size": block_size,
+                    "md5": md5(chunk).hexdigest(),
+                }
+                finish.append(self.net.call_api("post", finish_endpoint, req))
+            if concurrency > 1:
+                await asyncio.gather(*tasks)
+                await asyncio.gather(*finish)
+            else:
+                await tasks[0]
+                await finish[0]
+        try:
+            resp = await self.net.call_api("post", endpoint, {"upload_id": upload_id})
+            return resp
+        except Exception as e:
+            logger.error(f"Failed to finalize file upload to {self.channel_id}: {filename}\nError: {e}")
             return None
 
     async def visit(self, element: RawElement):
