@@ -24,10 +24,16 @@ try:
     def encode(obj):
         return encoder.encode(obj).decode()
 
+    def encode_bytes(obj):
+        return encoder.encode(obj)
+
 except ImportError:
     import json
 
     def encode(obj):
         return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
+
+    def encode_bytes(obj):
+        return json.dumps(obj, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
     decode = json.loads

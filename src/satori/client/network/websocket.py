@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import suppress
 from typing import cast
 
 import aiohttp
@@ -47,12 +46,18 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
         if self.connection is None:
             raise RuntimeError("connection is not established")
 
-        async for msg in self.connection:
-            if msg.type in {aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.ERROR, aiohttp.WSMsgType.CLOSED}:
-                self.close_signal.set()
+        while True:
+            msg = await self.connection.receive()
+            if msg.type in {
+                aiohttp.WSMsgType.CLOSE,
+                aiohttp.WSMsgType.ERROR,
+                aiohttp.WSMsgType.CLOSING,
+                aiohttp.WSMsgType.CLOSED,
+            }:
+                await self.connection_closed()
                 return
             elif msg.type == aiohttp.WSMsgType.TEXT:
-                data: dict = decode(cast(str, msg.data))
+                data: dict = decode(msg.data)
                 if data["op"] == Opcode.EVENT:
                     asyncio.create_task(self.event_parse_task(data["body"]))
                 elif data["op"] == Opcode.META:
@@ -65,8 +70,6 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                 else:
                     logger.trace(f"Received payload: {data}")
                 continue
-        else:
-            await self.connection_closed()
 
     async def send(self, payload: dict):
         if self.connection is None:
@@ -131,8 +134,10 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
     async def _heartbeat(self):
         """心跳"""
         while True:
-            with suppress(Exception):
+            try:
                 await self.send({"op": 1})
+            except Exception as e:
+                logger.error(f"Error while sending heartbeat: {e!r}")
             await asyncio.sleep(9)
 
     async def daemon(self, manager: Launart, session: aiohttp.ClientSession):

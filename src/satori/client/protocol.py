@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast, overload
 from typing_extensions import deprecated
 
-from aiohttp import ClientSession, ClientTimeout, FormData
+from aiohttp import BytesPayload, ClientSession, ClientTimeout, FormData
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
 from launart import Launart
 
@@ -14,6 +14,7 @@ from satori.model import (
     Channel,
     Direction,
     Event,
+    Friend,
     Guild,
     IterablePageResult,
     Login,
@@ -28,8 +29,8 @@ from satori.model import (
     Upload,
     User,
 )
+from satori.utils import encode_bytes
 
-from .. import Friend
 from .network.util import validate_response
 
 if TYPE_CHECKING:
@@ -63,7 +64,7 @@ class ApiProtocol:
     async def call_api(
         self, action: str | Api, params: dict | None = None, multipart: bool = False, method: str = "POST"
     ) -> dict:
-        endpoint = self.account.config.api_base / (action.value if isinstance(action, Api) else action)
+        endpoint = f"{self.account.config.api_base!s}/{action.value if isinstance(action, Api) else action}"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.account.config.token or ''}",
@@ -93,7 +94,11 @@ class ApiProtocol:
         async with self.session.request(
             method,
             endpoint,
-            json=params or {},
+            data=BytesPayload(
+                encode_bytes(params or {}),
+                content_type="application/json",
+                encoding="utf-8",
+            ),
             headers=headers,
             timeout=self.timeout,
         ) as resp:
