@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import IO, Any, ClassVar, Generic, Literal, TypeAlias, TypeVar
 from typing_extensions import Self
 
-from satori.element import Element, transform
+from satori.element import Element, Emoji, transform
 from satori.parser import Element as RawElement
 from satori.parser import parse
 
@@ -98,13 +98,56 @@ class User(ModelBase):
 
 
 @dataclass(kw_only=True)
+class Friend(ModelBase):
+    user: User | None = None
+    nick: str | None = None
+
+    @property
+    def remark(self) -> str | None:
+        return self.nick
+
+    __converter__ = {"user": User.parse}
+
+    def dump(self):
+        res = {}
+        if self.user:
+            res["user"] = self.user.dump()
+        if self.nick:
+            res["nick"] = self.nick
+        return res
+
+
+@dataclass(kw_only=True)
+class Role(ModelBase):
+    id: str
+    name: str | None = None
+
+    @classmethod
+    def parse(cls, raw: str | dict):
+        if isinstance(raw, str):
+            return cls(id=raw)
+        return super().parse(raw)
+
+    def dump(self):
+        res = {"id": self.id}
+        if self.name:
+            res["name"] = self.name
+        return res
+
+
+@dataclass(kw_only=True)
 class Member(ModelBase):
     user: User | None = None
     nick: str | None = None
     avatar: str | None = None
     joined_at: datetime | None = None
+    roles: list[Role] = field(default_factory=list)
 
-    __converter__ = {"user": User.parse, "joined_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000)}
+    __converter__ = {
+        "user": User.parse,
+        "joined_at": lambda ts: datetime.fromtimestamp(int(ts) / 1000),
+        "roles": lambda raw: [Role.parse(role) for role in raw],
+    }  # noqa: E501
 
     def dump(self):
         res = {}
@@ -116,18 +159,8 @@ class Member(ModelBase):
             res["avatar"] = self.avatar
         if self.joined_at:
             res["joined_at"] = int(self.joined_at.timestamp() * 1000)
-        return res
-
-
-@dataclass(kw_only=True)
-class Role(ModelBase):
-    id: str
-    name: str | None = None
-
-    def dump(self):
-        res = {"id": self.id}
-        if self.name:
-            res["name"] = self.name
+        if self.roles:
+            res["roles"] = [role.dump() for role in self.roles]
         return res
 
 
@@ -205,9 +238,13 @@ class ArgvInteraction(ModelBase):
 @dataclass(kw_only=True)
 class ButtonInteraction(ModelBase):
     id: str
+    data: str | None = None
 
     def dump(self):
-        return {"id": self.id}
+        res = {"id": self.id}
+        if self.data:
+            res["data"] = self.data
+        return res
 
 
 class Opcode(IntEnum):
@@ -279,15 +316,31 @@ class Meta(ModelBase):
 
 
 @dataclass(kw_only=True)
+class EmojiObject(ModelBase):
+    id: str
+    name: str | None = None
+
+    def dump(self):
+        res = {"id": self.id}
+        if self.name:
+            res["name"] = self.name
+        return res
+
+    def to_element(self) -> Emoji:
+        return Emoji(self.id, self.name)
+
+
+@dataclass(kw_only=True)
 class MessageObject(ModelBase):
     id: str
-    content: str
+    content: str = ""
     channel: Channel | None = None
     guild: Guild | None = None
     member: Member | None = None
     user: User | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    referrer: dict | None = None
 
     @classmethod
     def from_elements(
@@ -300,12 +353,19 @@ class MessageObject(ModelBase):
         user: User | None = None,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
+        referrer: dict | None = None,
     ):
-        content = "".join(str(i) for i in content)  # type: ignore
-        data = locals().copy()
-        data.pop("cls", None)
-        data.pop("__class__", None)
-        obj = cls(**data)
+        obj = cls(
+            id=id,
+            content="".join(str(i) for i in content),
+            channel=channel,
+            guild=guild,
+            member=member,
+            user=user,
+            created_at=created_at,
+            updated_at=updated_at,
+            referrer=referrer,
+        )
         obj._parsed_message = content
         return obj
 
@@ -351,41 +411,8 @@ class MessageObject(ModelBase):
             res["created_at"] = int(self.created_at.timestamp() * 1000)
         if self.updated_at:
             res["updated_at"] = int(self.updated_at.timestamp() * 1000)
-        return res
-
-
-@dataclass(kw_only=True)
-class MessageReceipt(ModelBase):
-    id: str
-    content: str | None = None
-
-    @classmethod
-    def from_elements(
-        cls,
-        id: str,
-        content: list[Element] | None = None,
-    ):
-        return cls(id=id, content="".join(str(i) for i in content) if content else None)
-
-    @property
-    def message(self) -> list[Element] | None:
-        return transform(parse(self.content)) if self.content else None
-
-    @message.setter
-    def message(self, value: list[Element] | None):
-        self.content = "".join(str(i) for i in value) if value else None
-
-    @classmethod
-    def parse(cls, raw: dict):
-        if "elements" in raw and "content" not in raw:
-            content = [RawElement(*item.values()) for item in raw["elements"]]
-            raw["content"] = "".join(str(i) for i in content)
-        return super().parse(raw)
-
-    def dump(self):
-        res = {"id": self.id}
-        if self.content:
-            res["content"] = self.content
+        if self.referrer:
+            res["referrer"] = self.referrer
         return res
 
 
@@ -403,6 +430,8 @@ class Event(ModelBase):
     operator: User | None = None
     role: Role | None = None
     user: User | None = None
+    referrer: dict | None = None
+    emoji: EmojiObject | None = None
 
     _type: str | None = None
     _data: dict | None = None
@@ -421,6 +450,7 @@ class Event(ModelBase):
         "operator": User.parse,
         "role": Role.parse,
         "user": User.parse,
+        "emoji": EmojiObject.parse,
     }
 
     @classmethod
@@ -434,6 +464,10 @@ class Event(ModelBase):
                 "user": {"id": raw["self_id"]},
                 "status": LoginStatus.ONLINE,
             }
+        if "self_id" in raw and not raw.get("login", {}).get("user"):
+            if "login" not in raw:
+                raw["login"] = {"sn": 0, "status": LoginStatus.ONLINE, "platform": raw.get("platform", "unknown")}
+            raw["login"]["user"] = {"id": raw["self_id"]}
         return super().parse(raw)
 
     @property
@@ -471,6 +505,10 @@ class Event(ModelBase):
             res["role"] = self.role.dump()
         if self.user:
             res["user"] = self.user.dump()
+        if self.referrer:
+            res["referrer"] = self.referrer
+        if self.emoji:
+            res["emoji"] = self.emoji.dump()
         if self._type:
             res["_type"] = self._type
         if self._data:
@@ -481,7 +519,7 @@ class Event(ModelBase):
 T = TypeVar("T", bound=ModelBase)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class PageResult(ModelBase, Generic[T]):
     data: list[T]
     next: str | None = None
@@ -498,7 +536,7 @@ class PageResult(ModelBase, Generic[T]):
         return res
 
 
-@dataclass
+@dataclass(kw_only=True)
 class PageDequeResult(PageResult[T]):
     prev: str | None = None
 
@@ -517,9 +555,7 @@ class PageDequeResult(PageResult[T]):
 
 
 class IterablePageResult(Generic[T], AsyncIterable[T], Awaitable[PageResult[T]]):
-    def __init__(
-        self, func: Callable[[str | None], Awaitable[PageResult[T]]], initial_page: str | None = None
-    ):
+    def __init__(self, func: Callable[[str | None], Awaitable[PageResult[T]]], initial_page: str | None = None):
         self.func = func
         self.next_page = initial_page
 
@@ -543,7 +579,7 @@ Direction: TypeAlias = Literal["before", "after", "around"]
 Order: TypeAlias = Literal["asc", "desc"]
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Upload:
     file: bytes | IO[bytes] | PathLike
     mimetype: str = "image/png"

@@ -440,7 +440,7 @@ class Server(Service, RouterMixin):
         for provider in self.providers:
             logins.extend(await provider.get_logins())
             proxy_urls.extend(provider.proxy_urls())
-        return JSONResponse(content=Meta(logins, proxy_urls).dump())
+        return JSONResponse(content=Meta(logins=logins, proxy_urls=proxy_urls).dump())
 
     async def webhook_create_handler(self, request: StarletteRequest):
         body = await request.json()
