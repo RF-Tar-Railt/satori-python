@@ -45,7 +45,7 @@ from .model import Role as Role
 from .model import Upload as Upload
 from .model import User as User
 
-__version__ = "1.3.2"
+__version__ = "1.3.3"
 
 
 MessageReceipt = MessageObject
