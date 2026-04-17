@@ -51,9 +51,10 @@ from satori import E
 
 print(E("<qq:passive id={ id }/>", {"id": "123456789"}))
 
+from dataclasses import dataclass
+
 from satori import register_element
 from satori.element import Element
-from dataclasses import dataclass
 
 
 @dataclass(repr=False)

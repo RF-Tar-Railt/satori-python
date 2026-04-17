@@ -11,10 +11,9 @@ from loguru._logger import Logger
 from loguru._simple_sinks import StreamSink
 from nonechat import Backend, Frontend
 from nonechat.backend import BotAdd
-from nonechat.model import DIRECT
+from nonechat.model import DIRECT, Robot
 from nonechat.model import Event as ConsoleEvent
 from nonechat.model import MessageEvent as ConsoleMessageEvent
-from nonechat.model import Robot
 
 from satori.const import EventType
 from satori.event import Event
@@ -55,11 +54,11 @@ class SatoriConsoleBackend(Backend):
             for watcher in self.bot_watchers:
                 watcher.post_message(BotAdd(bot))
             login = Login(
-                self.sn,
-                LoginStatus.ONLINE,
-                "console",
-                "console",
-                User(
+                sn=self.sn,
+                status=LoginStatus.ONLINE,
+                adapter="console",
+                platform="console",
+                user=User(
                     id=bot.id,
                     name=bot.nickname,
                     avatar=f"https://emoji.aranja.com/static/emoji-data/img-apple-160/{ord(bot.avatar):x}.png",

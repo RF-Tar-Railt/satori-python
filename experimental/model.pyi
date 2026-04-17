@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterable, Awaitable, Callable, Generator, AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterable, Awaitable, Callable, Generator
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
@@ -7,7 +7,6 @@ from typing import IO, Any, Generic, Literal, TypeAlias, TypeVar
 from typing_extensions import Self
 
 from satori.element import Element, Emoji
-
 
 @dataclass(kw_only=True)
 class ModelBase:

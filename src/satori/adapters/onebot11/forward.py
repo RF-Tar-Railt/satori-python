@@ -77,9 +77,9 @@ class OneBot11ForwardAdapter(BaseAdapter):
                     if self_id not in self.logins:
                         self_info = await self.call_api("get_login_info")
                         login = Login(
-                            0,
-                            LoginStatus.ONLINE,
-                            "onebot",
+                            sn=0,
+                            status=LoginStatus.ONLINE,
+                            adapter="onebot",
                             platform="onebot",
                             user=User(
                                 self_id,
@@ -101,9 +101,9 @@ class OneBot11ForwardAdapter(BaseAdapter):
                     if self_id not in self.logins:
                         self_info = await self.call_api("get_login_info")
                         login = Login(
-                            0,
-                            LoginStatus.ONLINE,
-                            "onebot",
+                            sn=0,
+                            status=LoginStatus.ONLINE,
+                            adapter="onebot",
                             platform="onebot",
                             user=User(
                                 self_id,

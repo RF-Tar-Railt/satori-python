@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import IO, Any, Generic, Literal, TypeAlias, TypeVar
 from typing_extensions import Self
 
-from msgspec import Struct, field, convert, to_builtins
+from msgspec import Struct, convert, field, to_builtins
 
 from satori.element import Element, transform
 from satori.parser import Element as RawElement

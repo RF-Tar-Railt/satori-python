@@ -71,7 +71,7 @@ StarletteRequest.json = _json
 
 
 async def _request_handler(action: str, request: StarletteRequest, func: RouteCall, platform: str, self_id: str):
-    if action == Api.UPLOAD_CREATE.value:
+    if action == Api.UPLOAD_CREATE:
         async with request.form() as form:
             res = await func(
                 Request(
@@ -314,12 +314,10 @@ class Server(Service, RouterMixin):
         if not self._adapters and not self.routes:
             return Response(status_code=404, content=request.path_params["method"])
         action = request.path_params["action"]
-        if "X-Platform" not in request.headers and "Satori-Platform" not in request.headers:
-            return Response(status_code=401, content="Missing header X-Platform or Satori-Platform")
-        platform: str = request.headers.get("X-Platform") or request.headers.get("Satori-Platform")  # type: ignore
-        if "X-Self-ID" not in request.headers and "Satori-User-ID" not in request.headers:
-            return Response(status_code=401, content="Missing header X-Self-ID or Satori-User-ID")
-        self_id: str = request.headers.get("X-Self-ID") or request.headers.get("Satori-User-ID")  # type: ignore
+        platform = request.headers.get("Satori-Platform")
+        self_id = request.headers.get("Satori-User-ID")
+        if platform is None or self_id is None:
+            return Response(status_code=401, content="Missing header Satori-Platform or Satori-User-ID")
 
         for _router in self._adapters:
             if action in _router.routes:
@@ -556,7 +554,7 @@ class Server(Service, RouterMixin):
         stop_signal: Iterable[signal.Signals] = (signal.SIGINT,),
     ):
         if manager is None:
-            manager = it(Launart)
+            manager = manager or it(Launart)
         manager.add_component(self.asgi_service)
         manager.add_component(self)
         with suppress(ValueError):

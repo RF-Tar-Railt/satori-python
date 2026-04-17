@@ -1,8 +1,7 @@
 import re
 
-from nonechat.message import ConsoleMessage
+from nonechat.message import ConsoleMessage, Markdown
 from nonechat.message import Emoji as ConsoleEmoji
-from nonechat.message import Markdown
 from nonechat.message import Text as ConsoleText
 
 from satori.element import At, Emoji, Text, transform

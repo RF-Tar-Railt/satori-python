@@ -132,7 +132,9 @@ class MilkyBaseAdapter(BaseAdapter, ABC):
         if not data:
             return
         user = decode_login_user(data)
-        login = Login(0, LoginStatus.ONLINE, "milky", platform="milky", user=user, features=self.features.copy())
+        login = Login(
+            sn=0, status=LoginStatus.ONLINE, adapter="milky", platform="milky", user=user, features=self.features.copy()
+        )
         self_id = login.id
         previous = self.logins.get(self_id)
         self.logins[self_id] = login

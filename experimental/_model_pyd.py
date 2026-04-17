@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import IO, Any, Generic, Literal, TypeAlias, TypeVar
 from typing_extensions import Self
 
-from pydantic import BaseModel, Field, field_validator, field_serializer, model_validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
 from satori.element import Element, Emoji, transform
 from satori.parser import Element as RawElement

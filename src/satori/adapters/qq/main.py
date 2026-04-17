@@ -318,7 +318,9 @@ class QQBotWebhookAdapter(BaseAdapter):
         bot_info = await network.call_api("get", "users/@me")
         user = decode_user(bot_info)
         user.is_bot = True
-        login = Login(0, LoginStatus.ONLINE, "qqbot", platform="qq", user=user, features=QQ_FEATURES.copy())
+        login = Login(
+            sn=0, status=LoginStatus.ONLINE, adapter="qqbot", platform="qq", user=user, features=QQ_FEATURES.copy()
+        )
         previous = next((lg for lg in self.logins if lg.id == login.id and lg.platform == "qq"), None)
         if previous:
             previous.user = login.user
@@ -331,7 +333,12 @@ class QQBotWebhookAdapter(BaseAdapter):
             event_type = EventType.LOGIN_ADDED
         await self.server.post(Event(event_type, datetime.now(), login))
         guild_login = Login(
-            0, LoginStatus.ONLINE, "qqbot", platform="qqguild", user=user, features=QQ_GUILD_FEATURES.copy()
+            sn=0,
+            status=LoginStatus.ONLINE,
+            adapter="qqbot",
+            platform="qqguild",
+            user=user,
+            features=QQ_GUILD_FEATURES.copy(),
         )
         previous = next((lg for lg in self.logins if lg.id == guild_login.id and lg.platform == "qqguild"), None)
         if previous:
