@@ -1,9 +1,9 @@
-from collections.abc import AsyncIterable, Awaitable, Callable
+from collections.abc import AsyncIterable, Awaitable, Callable, Generator, AsyncGenerator
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
 from os import PathLike
-from typing import IO, Any, Generic, Literal, TypeAlias, TypeVar, Generator, AsyncGenerator
+from typing import IO, Any, Generic, Literal, TypeAlias, TypeVar
 from typing_extensions import Self
 
 from satori.element import Element, Emoji
@@ -250,7 +250,7 @@ class PageResult(ModelBase, Generic[T]):
     next: str | None = None
 
     @classmethod
-    def parse(cls, raw: dict, parser: Callable[[dict], T] | None = None) -> "PageResult[T]": ...
+    def parse(cls, raw: dict, parser: Callable[[dict], T] | None = None) -> PageResult[T]: ...
 
 
 @dataclass(kw_only=True)
@@ -258,7 +258,7 @@ class PageDequeResult(PageResult[T]):
     prev: str | None = None
 
     @classmethod
-    def parse(cls, raw: dict, parser: Callable[[dict], T] | None = None) -> "PageDequeResult[T]": ...
+    def parse(cls, raw: dict, parser: Callable[[dict], T] | None = None) -> PageDequeResult[T]: ...
 
 
 class IterablePageResult(Generic[T], AsyncIterable[T], Awaitable[PageResult[T]]):

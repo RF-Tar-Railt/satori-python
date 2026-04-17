@@ -1,6 +1,6 @@
 import mimetypes
 from collections.abc import AsyncIterable, Awaitable, Callable
-from dataclasses import Field, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
 from os import PathLike
@@ -13,16 +13,20 @@ from .parser import Element as RawElement
 from .parser import parse
 
 
-@dataclass
+@dataclass(slots=True)
 class ModelBase:
     __converter__: ClassVar[dict[str, Callable[[Any], Any]]] = {}
     _raw_data: dict[str, Any] = field(init=False, default_factory=dict, repr=False, compare=False, hash=False)
 
     @classmethod
+    def before_parse(cls, raw: dict):
+        pass
+
+    @classmethod
     def parse(cls: type[Self], raw: dict) -> Self:
-        fs: dict[str, Field] = cls.__dataclass_fields__
         data = {}
-        for name in fs.keys():
+        cls.before_parse(data)
+        for name in cls.__dataclass_fields__:
             if name in raw:
                 if name in cls.__converter__:
                     data[name] = cls.__converter__[name](raw[name])
@@ -31,6 +35,42 @@ class ModelBase:
         obj = cls(**data)  # type: ignore
         obj._raw_data = raw
         return obj
+
+    def __init_subclass__(cls, **kwargs):
+        has_converter = False
+        keys = set()
+        for c in cls.__mro__:
+            if c is Generic:
+                Generic.__init_subclass__.__func__(cls, **kwargs)
+            if getattr(c, "__converter__", None):
+                has_converter = True
+            keys.update(getattr(c, "__annotations__", {}).keys())
+        keys = frozenset(k for k in keys if not k.startswith("_"))
+
+        def parse1(cls_: type[Self], raw: dict, _keys=keys) -> Self:
+            data = {k: v for k, v in raw.items() if k in _keys}
+            obj = cls_(**data)  # type: ignore
+            obj._raw_data = raw
+            return obj
+
+        def parse2(cls_: type[Self], raw: dict, _keys=keys) -> Self:
+            data = {}
+            cls_.before_parse(data)
+            for name in _keys:
+                if name in raw:
+                    if name in cls_.__converter__:
+                        data[name] = cls_.__converter__[name](raw[name])
+                    else:
+                        data[name] = raw[name]
+            obj = cls_(**data)  # type: ignore
+            obj._raw_data = raw
+            return obj
+
+        if "parse" not in cls.__dict__:
+            if has_converter:
+                cls.parse = classmethod(parse2)  # type: ignore
+            else:
+                cls.parse = classmethod(parse1)  # type: ignore
 
     def dump(self) -> dict:
         raise NotImplementedError
@@ -43,7 +83,7 @@ class ChannelType(IntEnum):
     VOICE = 3
 
 
-@dataclass
+@dataclass(slots=True)
 class Channel(ModelBase):
     id: str
     type: ChannelType = ChannelType.TEXT
@@ -61,7 +101,7 @@ class Channel(ModelBase):
         return res
 
 
-@dataclass
+@dataclass(slots=True)
 class Guild(ModelBase):
     id: str
     name: str | None = None
@@ -76,7 +116,7 @@ class Guild(ModelBase):
         return res
 
 
-@dataclass
+@dataclass(slots=True)
 class User(ModelBase):
     id: str
     name: str | None = None
@@ -97,7 +137,7 @@ class User(ModelBase):
         return res
 
 
-@dataclass
+@dataclass(slots=True)
 class Friend(ModelBase):
     user: User | None = None
     nick: str | None = None
@@ -117,7 +157,7 @@ class Friend(ModelBase):
         return res
 
 
-@dataclass
+@dataclass(slots=True)
 class Role(ModelBase):
     id: str
     name: str | None = None
@@ -126,7 +166,7 @@ class Role(ModelBase):
     def parse(cls, raw: str | dict):
         if isinstance(raw, str):
             return cls(id=raw)
-        return super().parse(raw)
+        return cls(raw["id"], raw.get("name"))
 
     def dump(self):
         res = {"id": self.id}
@@ -135,7 +175,7 @@ class Role(ModelBase):
         return res
 
 
-@dataclass
+@dataclass(slots=True)
 class Member(ModelBase):
     user: User | None = None
     nick: str | None = None
@@ -177,11 +217,11 @@ class LoginStatus(IntEnum):
     """正在重新连接"""
 
 
-@dataclass
+@dataclass(slots=True, kw_only=True)
 class Login(ModelBase):
-    sn: int
-    status: LoginStatus
-    adapter: str
+    sn: int = 0
+    status: LoginStatus = LoginStatus.ONLINE
+    adapter: str = "satori"
     platform: str
     user: User
     features: list[str] = field(default_factory=list)
@@ -203,29 +243,22 @@ class Login(ModelBase):
         return res
 
     @classmethod
-    def parse(cls, raw: dict):
+    def before_parse(cls, raw: dict):
         if "self_id" in raw and "user" not in raw:
             raw["user"] = {"id": raw["self_id"]}
-        if "sn" not in raw:
-            raw["sn"] = 0
-        if "adapter" not in raw:
-            raw["adapter"] = "satori"
-        if "status" not in raw:
-            raw["status"] = LoginStatus.ONLINE
-        return super().parse(raw)
 
     @property
     def id(self) -> str:
         return self.user.id
 
 
-@dataclass
+@dataclass(slots=True)
 class LoginPartial(Login):
     platform: str | None = None
     user: User | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class ArgvInteraction(ModelBase):
     name: str
     arguments: list
@@ -235,7 +268,7 @@ class ArgvInteraction(ModelBase):
         return {"name": self.name, "arguments": self.arguments, "options": self.options}
 
 
-@dataclass
+@dataclass(slots=True)
 class ButtonInteraction(ModelBase):
     id: str
     data: str | None = None
@@ -262,7 +295,7 @@ class Opcode(IntEnum):
     """元信息更新 (接收)"""
 
 
-@dataclass
+@dataclass(slots=True)
 class Identify(ModelBase):
     token: str | None = None
     sn: int | None = None
@@ -271,7 +304,7 @@ class Identify(ModelBase):
     def parse(cls, raw: dict):
         if "sequence" in raw and "sn" not in raw:
             raw["sn"] = raw["sequence"]
-        return super().parse(raw)
+        return cls(token=raw.get("token"), sn=raw.get("sn"))
 
     @property
     def sequence(self) -> int | None:
@@ -281,7 +314,7 @@ class Identify(ModelBase):
         return {k: v for k, v in (("token", self.token), ("sn", self.sn)) if v is not None}
 
 
-@dataclass
+@dataclass(slots=True)
 class Ready(ModelBase):
     logins: list[LoginPartial]
     proxy_urls: list[str] = field(default_factory=list)
@@ -292,7 +325,7 @@ class Ready(ModelBase):
         return {"logins": [login.dump() for login in self.logins], "proxy_urls": self.proxy_urls}
 
 
-@dataclass
+@dataclass(slots=True)
 class MetaPayload(ModelBase):
     """Meta 信令"""
 
@@ -302,7 +335,7 @@ class MetaPayload(ModelBase):
         return {"proxy_urls": self.proxy_urls}
 
 
-@dataclass
+@dataclass(slots=True)
 class Meta(ModelBase):
     """Meta 数据"""
 
@@ -315,7 +348,7 @@ class Meta(ModelBase):
         return {"logins": [login.dump() for login in self.logins], "proxy_urls": self.proxy_urls}
 
 
-@dataclass
+@dataclass(slots=True)
 class EmojiObject(ModelBase):
     id: str
     name: str | None = None
@@ -330,7 +363,7 @@ class EmojiObject(ModelBase):
         return Emoji(self.id, self.name)
 
 
-@dataclass
+@dataclass(slots=True)
 class MessageObject(ModelBase):
     id: str
     content: str = ""
@@ -341,6 +374,8 @@ class MessageObject(ModelBase):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     referrer: dict | None = None
+
+    _parsed_message: list[Element] | None = field(init=False, default=None, repr=False, compare=False, hash=False)
 
     @classmethod
     def from_elements(
@@ -361,10 +396,10 @@ class MessageObject(ModelBase):
 
     @property
     def message(self) -> list[Element]:
-        if hasattr(self, "_parsed_message"):
+        if self._parsed_message is not None:
             return self._parsed_message
-        self._parsed_message = transform(parse(self.content))
-        return self._parsed_message
+        self._parsed_message = msg = transform(parse(self.content))
+        return msg
 
     @message.setter
     def message(self, value: list[Element]):
@@ -372,11 +407,10 @@ class MessageObject(ModelBase):
         self.content = "".join(str(i) for i in value)
 
     @classmethod
-    def parse(cls, raw: dict):
+    def before_parse(cls, raw: dict):
         if "elements" in raw and "content" not in raw:
             content = [RawElement(*item.values()) for item in raw["elements"]]
             raw["content"] = "".join(str(i) for i in content)
-        return super().parse(raw)
 
     __converter__ = {
         "channel": Channel.parse,
@@ -406,7 +440,7 @@ class MessageObject(ModelBase):
         return res
 
 
-@dataclass
+@dataclass(slots=True)
 class Event(ModelBase):
     type: str
     timestamp: datetime
@@ -444,7 +478,7 @@ class Event(ModelBase):
     }
 
     @classmethod
-    def parse(cls, raw: dict):
+    def before_parse(cls, raw: dict):
         if "id" in raw and "sn" not in raw:
             raw["sn"] = raw["id"]
         if "platform" in raw and "self_id" in raw and "login" not in raw:
@@ -458,7 +492,6 @@ class Event(ModelBase):
             if "login" not in raw:
                 raw["login"] = {"sn": 0, "status": LoginStatus.ONLINE, "platform": raw.get("platform", "unknown")}
             raw["login"]["user"] = {"id": raw["self_id"]}
-        return super().parse(raw)
 
     @property
     def platform(self):
@@ -509,7 +542,7 @@ class Event(ModelBase):
 T = TypeVar("T", bound=ModelBase)
 
 
-@dataclass
+@dataclass(slots=True)
 class PageResult(ModelBase, Generic[T]):
     data: list[T]
     next: str | None = None
@@ -526,7 +559,7 @@ class PageResult(ModelBase, Generic[T]):
         return res
 
 
-@dataclass
+@dataclass(slots=True)
 class PageDequeResult(PageResult[T]):
     prev: str | None = None
 
@@ -569,7 +602,7 @@ Direction: TypeAlias = Literal["before", "after", "around"]
 Order: TypeAlias = Literal["asc", "desc"]
 
 
-@dataclass
+@dataclass(slots=True)
 class Upload:
     file: bytes | IO[bytes] | PathLike
     mimetype: str = "image/png"

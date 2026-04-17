@@ -1,7 +1,7 @@
 from satori import At, Link, Sharp, Text, transform
 from satori.parser import parse
 
-print(transform(parse('<at id="12345" name="abcd-def"/> foobar')))
+print(transform(parse('<at id="12345" name="abcd-def"/> foobar <a href="www.baidu.com">baidu</a>')))
 
 a = Text("1234<foo>")
 role = At.role_("admin")

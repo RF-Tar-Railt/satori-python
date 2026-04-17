@@ -12,27 +12,37 @@ def escape(text: str, inline: bool = False) -> str:
     return result.replace('"', "&quot;") if inline else result
 
 
+uc_escape_pat1 = re.compile(r"&#(\d+);")
+uc_escape_pat2 = re.compile(r"&#x([0-9a-f]+);")
+uc_escape_pat3 = re.compile(r"&(amp|#38|#x26);")
+
+
 def unescape(text: str) -> str:
     result = text.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"')
-    result = re.sub(r"&#(\d+);", lambda m: m[0] if m[1] == "38" else chr(int(m[1])), result)
-    result = re.sub(r"&#x([0-9a-f]+);", lambda m: m[0] if m[1] == "26" else chr(int(m[1], 16)), result)
-    return re.sub("&(amp|#38|#x26);", "&", result)
+    result = uc_escape_pat1.sub(lambda m: m[0] if m[1] == "38" else chr(int(m[1])), result)
+    result = uc_escape_pat2.sub(lambda m: m[0] if m[1] == "26" else chr(int(m[1], 16)), result)
+    return uc_escape_pat3.sub("&", result)
 
 
 def uncapitalize(source: str) -> str:
-    return source[0].lower() + source[1:]
+    return source[:1].lower() + source[1:]
+
+
+camel_pat = re.compile(r"[_-][a-z]")
+param_pat = re.compile(r".[A-Z]+")
+snake_pat = re.compile(r".[A-Z]")
 
 
 def camel_case(source: str) -> str:
-    return re.sub("[_-][a-z]", lambda mat: mat[0][1:].upper(), source)
+    return camel_pat.sub(lambda mat: mat[0][1:].upper(), source)
 
 
 def param_case(source: str) -> str:
-    return re.sub(".[A-Z]+", lambda mat: mat[0][0] + "-" + mat[0][1:].lower(), uncapitalize(source).replace("_", "-"))
+    return param_pat.sub(lambda mat: mat[0][0] + "-" + mat[0][1:].lower(), uncapitalize(source).replace("_", "-"))
 
 
 def snake_case(source: str) -> str:
-    return re.sub(".[A-Z]", lambda mat: mat[0][0] + "_" + mat[0][1:].lower(), uncapitalize(source).replace("-", "_"))
+    return snake_pat.sub(lambda mat: mat[0][0] + "_" + mat[0][1:].lower(), uncapitalize(source).replace("-", "_"))
 
 
 def ensure_list(value: T | list[T] | None) -> list[T]:
@@ -49,9 +59,9 @@ def make_element(content: Union[str, bool, int, float, "Element"]) -> Optional["
     if isinstance(content, Element):
         return content
     if isinstance(content, (bool, int, float)):
-        return Element(type="text", attrs={"text": str(content)})
+        return Element.parse(type="text", attrs={"text": str(content)})
     if isinstance(content, str) and content:
-        return Element(type="text", attrs={"text": content})
+        return Element.parse(type="text", attrs={"text": content})
     if content is not None:
         raise ValueError(f"Invalid content: {content!r}")
 
@@ -68,7 +78,9 @@ class Element:
     type: str
     attrs: dict[str, Any]
     children: list["Element"]
-    source: str | None = None
+    source: str | None
+
+    __slots__ = ("type", "attrs", "children", "source")
 
     def __init__(
         self,
@@ -98,6 +110,31 @@ class Element:
                 self.attrs["text"] = self.attrs.pop("content")
             elif not self.attrs:
                 self.attrs["text"] = ""
+
+    @classmethod
+    def parse(
+        cls, type: str, attrs: dict[str, Any], children: list["Element"] | None = None, source: str | None = None
+    ) -> "Element":
+        elem = cls.__new__(cls)
+        elem.type = type
+        elem.attrs = {}
+        elem.children = []
+        elem.source = source
+        for k, v in attrs.items():
+            if v is None:
+                continue
+            if k == "children":
+                elem.children.extend(ensure_list(v))
+            else:
+                elem.attrs[camel_case(k)] = v
+        if children:
+            elem.children.extend(children)
+        if type == "text":
+            if "content" in elem.attrs:
+                elem.attrs["text"] = elem.attrs.pop("content")
+            elif not elem.attrs:
+                elem.attrs["text"] = ""
+        return elem
 
     def tag(self):
         if self.type == "component":
@@ -234,6 +271,9 @@ tag_pat2 = re.compile(
 attr_pat1 = re.compile(r"([^\s=]+)(?:=\"(?P<value1>[^\"]*)\"|='(?P<value2>[^']*)')?", re.S)
 attr_pat2 = re.compile(r"([^\s=]+)(?:=\"(?P<value1>[^\"]*)\"|='(?P<value2>[^']*)'|=\{(?P<curly>[^\}]+)\})?", re.S)
 
+space_pat1 = re.compile(r"^\s*\n\s*", re.MULTILINE)
+space_pat2 = re.compile(r"\s*\n\s*$", re.MULTILINE)
+
 
 class Position(IntEnum):
     OPEN = 0
@@ -242,7 +282,7 @@ class Position(IntEnum):
     CONTINUE = 3
 
 
-@dataclass
+@dataclass(slots=True)
 class Token:
     type: Literal["angle", "curly"]
     name: str
@@ -299,7 +339,7 @@ def parse_tokens(tokens: list[str | Token], context: dict | None = None) -> list
     result: list[Element] = []
     for token in tokens:
         if isinstance(token, str):
-            result.append(Element(type="text", attrs={"text": token}))
+            result.append(Element.parse(type="text", attrs={"text": token}))
         elif token.type == "angle":
             attrs = {}
             attr_pat = attr_pat2 if context is not None else attr_pat1
@@ -318,10 +358,10 @@ def parse_tokens(tokens: list[str | Token], context: dict | None = None) -> list
                     attrs[key] = True
                 token.extra = token.extra[mat.end() :]
             result.append(
-                Element(
+                Element.parse(
                     token.name,
                     attrs,
-                    *parse_tokens(token.children["default"], context) if token.children else [],
+                    parse_tokens(token.children["default"], context) if token.children else [],
                 )
             )
         elif not token.name:
@@ -351,9 +391,9 @@ def parse(src: str, context: dict | None = None):
     def parse_content(source: str, _start: bool, _end: bool):
         source = unescape(source)
         if _start:
-            source = re.sub(r"^\s*\n\s*", "", source, flags=re.MULTILINE)
+            source = space_pat1.sub("", source)
         if _end:
-            source = re.sub(r"\s*\n\s*$", "", source, flags=re.MULTILINE)
+            source = space_pat2.sub("", source)
         push_text(source)
 
     tag_pat = tag_pat2 if context is not None else tag_pat1

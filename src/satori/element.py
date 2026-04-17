@@ -4,7 +4,7 @@ from dataclasses import InitVar, dataclass, field
 from io import BytesIO
 from pathlib import Path
 from types import UnionType
-from typing import Any, ClassVar, Final, TypeVar, Union, final, get_args, get_origin, overload
+from typing import Any, ClassVar, Final, Literal, TypeVar, Union, final, get_args, get_origin, overload
 from typing_extensions import Self, override
 
 from ._vendor.fleep import get
@@ -17,7 +17,7 @@ TE = TypeVar("TE", bound="Element")
 
 
 def conv_bool(v: str) -> bool:
-    if v.lower() not in ("true", "false"):
+    if v.lower() not in {"true", "false"}:
         raise ValueError(v)
     return v.lower() == "true"
 
@@ -28,13 +28,17 @@ class Element:
     _children: list["Element"] = field(init=False, default_factory=list)
 
     __names__: ClassVar[tuple[str, ...]]
-    __convert_fields__: ClassVar[dict[str, Callable[[str], Any]]]
+    __convert_fields__: ClassVar[dict[str, Literal[True] | Callable[[str], Any]]]
+    __unpack_names__: ClassVar[frozenset[str]]
 
     def __init_subclass__(cls, **kwargs):
-        cls.__convert_fields__ = {}
+        convert_fields = {}
+        for base in cls.__mro__:
+            if hasattr(base, "__convert_fields__"):
+                convert_fields.update(base.__convert_fields__)
         annotations = cls.__annotations__
         for name, typ in annotations.items():
-            if name.startswith("_"):
+            if name.startswith("_") or isinstance(typ, InitVar):
                 continue
             # _type = get_args(typ)[0] if hasattr(typ, "__origin__") else typ
             orig = get_origin(typ)
@@ -46,13 +50,41 @@ class Element:
                     _type = args[0]
             else:
                 _type = typ
-            if _type is not str:
-                if _type is bool:
-                    cls.__convert_fields__[name] = conv_bool
-                elif _type in (list, dict):
-                    cls.__convert_fields__[name] = decode
+            if _type is bool:
+                convert_fields[name] = conv_bool
+            elif _type in (list, dict):
+                convert_fields[name] = decode
+            else:
+                convert_fields[name] = True if _type is str else _type
+        cls.__convert_fields__ = convert_fields
+        names = getattr(cls, "__names__", None)
+        for base in cls.__mro__:
+            if parent_names := getattr(base, "__names__", None):
+                if names is None:
+                    names = parent_names
                 else:
-                    cls.__convert_fields__[name] = _type
+                    names = names + parent_names
+        cls.__unpack_names__ = frozenset(names if names is not None else annotations.keys())
+
+    @classmethod
+    def unpack(cls, attrs: dict[str, Any]):
+        data = {}
+        args = {}
+        convert_fields = cls.__convert_fields__
+        names = cls.__unpack_names__
+        for name in convert_fields:
+            if name not in attrs:
+                continue
+            convert = convert_fields[name]
+            if convert is True:
+                data[name] = attrs[name]
+            else:
+                data[name] = convert(attrs[name])
+            if name in names:
+                args[name] = data[name]
+        obj = cls(**args)  # type: ignore
+        obj._attrs.update(data)
+        return obj
 
     @property
     def children(self) -> list["Element"]:
@@ -61,24 +93,6 @@ class Element:
     @property
     def tag(self) -> str:
         return self.__class__.__name__.lower()
-
-    @classmethod
-    def unpack(cls, attrs: dict[str, Any]):
-        data = {}
-        names = getattr(cls, "__names__", None)
-        for name in cls.__dataclass_fields__.keys():
-            if name not in attrs:
-                continue
-            if name in cls.__convert_fields__:
-                data[name] = cls.__convert_fields__[name](attrs[name])
-            else:
-                data[name] = attrs[name]
-        obj = cls(**{k: v for k, v in data.items() if names is None or k in names})  # type: ignore
-        obj._attrs.update(data)
-        return obj
-
-    def __post_init__(self):
-        self._attrs = {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
 
     def attributes(self) -> str:
         def _attr(key: str, value: Any):
@@ -94,6 +108,8 @@ class Element:
         return "".join(_attr(k, v) for k, v in self._attrs.items())
 
     def dumps(self, strip: bool = False) -> str:
+        if not self._attrs:
+            self._attrs = {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
         if self.tag == "text" and "text" in self._attrs:
             return self._attrs["text"] if strip else escape(self._attrs["text"])
         inner = "".join(c.dumps(strip) for c in self._children)
@@ -124,12 +140,22 @@ class Element:
     def __getitem__(self, key: str) -> Any:
         return self._attrs[key]
 
+    def raw(self) -> RawElement:
+        return RawElement(self.tag, self._attrs, [c.raw() for c in self._children])
+
 
 @dataclass(repr=False)
 class Text(Element):
     """一段纯文本。"""
 
     text: str
+
+    @override
+    @classmethod
+    def unpack(cls, attrs: dict[str, Any]):
+        obj = cls(attrs["text"])
+        obj._attrs["text"] = attrs["text"]
+        return obj
 
     @override
     def dumps(self, strip: bool = False) -> str:
@@ -144,6 +170,12 @@ class At(Element):
     name: str | None = None
     role: str | None = None
     type: str | None = None
+
+    @classmethod
+    def unpack(cls, attrs: dict[str, Any]):
+        obj = cls(attrs.get("id"), attrs.get("name"), attrs.get("role"), attrs.get("type"))
+        obj._attrs.update(attrs)
+        return obj
 
     @staticmethod
     def role_(
@@ -164,6 +196,12 @@ class Emoji(Element):
     id: str
     name: str | None = None
 
+    @classmethod
+    def unpack(cls, attrs: dict[str, Any]):
+        obj = cls(attrs["id"], attrs.get("name"))
+        obj._attrs.update(attrs)
+        return obj
+
     def to_model(self):
         from .model import EmojiObject
 
@@ -177,12 +215,24 @@ class Sharp(Element):
     id: str
     name: str | None = None
 
+    @classmethod
+    def unpack(cls, attrs: dict[str, Any]):
+        obj = cls(attrs["id"], attrs.get("name"))
+        obj._attrs.update(attrs)
+        return obj
+
 
 @dataclass(repr=False)
 class Link(Element):
     """<a> 元素用于显示一个链接。"""
 
     href: str
+
+    @classmethod
+    def unpack(cls, attrs: dict[str, Any]):
+        obj = cls(attrs["href"])
+        obj._attrs.update(attrs)
+        return obj
 
     def __post_call__(self):
         if not self._children:
@@ -255,7 +305,6 @@ class Resource(Element):
         return cls(**data)
 
     def __post_init__(self, extra: dict[str, Any] | None = None):
-        super().__post_init__()
         if extra:
             self._attrs.update(extra)
 
@@ -267,7 +316,7 @@ class Image(Resource):
     width: int | None = None
     height: int | None = None
 
-    __names__ = ("src", "title", "width", "height")
+    __names__ = ("width", "height")
 
     @property
     @override
@@ -282,7 +331,7 @@ class Audio(Resource):
     duration: float | None = None
     poster: str | None = None
 
-    __names__ = ("src", "title", "duration", "poster")
+    __names__ = ("duration", "poster")
 
 
 @dataclass(repr=False)
@@ -294,7 +343,7 @@ class Video(Resource):
     duration: float | None = None
     poster: str | None = None
 
-    __names__ = ("src", "title", "width", "height", "duration", "poster")
+    __names__ = ("width", "height", "duration", "poster")
 
 
 @dataclass(repr=False)
@@ -303,7 +352,7 @@ class File(Resource):
 
     poster: str | None = None
 
-    __names__ = ("src", "title", "poster")
+    __names__ = ("poster",)
 
 
 @dataclass(init=False, repr=False)
@@ -311,6 +360,12 @@ class Style(Element):
     """样式元素的基类。"""
 
     __names__ = ()
+
+    @classmethod
+    def unpack(cls, attrs: dict[str, Any]):
+        obj = cls()
+        obj._attrs.update(attrs)
+        return obj
 
     def __init__(self, *text: "str | Text | Style"):
         super().__init__()
@@ -422,6 +477,12 @@ class Message(Element):
     id: str | None
     forward: bool | None
 
+    @classmethod
+    def unpack(cls, attrs: dict[str, Any]):
+        obj = cls(attrs.get("id"), conv_bool(attrs["forward"]) if "forward" in attrs else None)
+        obj._attrs.update(attrs)
+        return obj
+
     def __init__(
         self,
         id: str | None = None,
@@ -451,6 +512,12 @@ class Author(Element):
     name: str | None = None
     avatar: str | None = None
 
+    @classmethod
+    def unpack(cls, attrs: dict[str, Any]):
+        obj = cls(attrs["id"], attrs.get("name"), attrs.get("avatar"))
+        obj._attrs.update(attrs)
+        return obj
+
 
 @dataclass(repr=False)
 class Button(Element):
@@ -461,6 +528,12 @@ class Button(Element):
     href: str | None = None
     text: str | None = None
     theme: str | None = None
+
+    @classmethod
+    def unpack(cls, attrs: dict[str, Any]):
+        obj = cls(attrs["type"], attrs.get("id"), attrs.get("href"), attrs.get("text"), attrs.get("theme"))
+        obj._attrs.update(attrs)
+        return obj
 
     @classmethod
     def action(cls, button_id: str, theme: str | None = None):
@@ -547,7 +620,7 @@ def register_element(cls: type[TE], tag: str | None = None) -> type[TE]:
     return cls
 
 
-ELEMENT_TYPE_MAP = {
+COMMON_TYPE_MAP = {
     "text": Text,
     "at": At,
     "emoji": Emoji,
@@ -558,6 +631,9 @@ ELEMENT_TYPE_MAP = {
     "video": Video,
     "file": File,
     "author": Author,
+    "button": Button,
+    "a": Link,
+    "link": Link,
 }
 
 STYLE_TYPE_MAP = {
@@ -586,35 +662,32 @@ STYLE_TYPE_MAP = {
     "br": Br,
 }
 
+ELEMENT_TYPE_MAP = {**COMMON_TYPE_MAP, **STYLE_TYPE_MAP}
+
 
 def transform(elements: list[RawElement]) -> list[Element]:
     msg = []
     for elem in elements:
         tag = elem.tag()
         if tag in ELEMENT_TYPE_MAP:
-            seg_cls = ELEMENT_TYPE_MAP[tag]
-            msg.append(seg_cls.unpack(elem.attrs)(*transform(elem.children)))
-        elif tag in ("a", "link"):
-            link = Link.unpack(elem.attrs)
+            seg = ELEMENT_TYPE_MAP[tag].unpack(elem.attrs)
             if elem.children:
-                link(*transform(elem.children))
-            msg.append(link)
-        elif tag == "button":
-            button = Button.unpack(elem.attrs)
-            if elem.children:
-                button(*transform(elem.children))
-            msg.append(button)
-        elif tag in STYLE_TYPE_MAP:
-            seg_cls = STYLE_TYPE_MAP[tag]
-            msg.append(seg_cls.unpack(elem.attrs)(*transform(elem.children)))
-        elif tag in ("br", "newline"):
-            msg.append(Br())
+                seg(*transform(elem.children))
+            msg.append(seg)
         elif tag == "message":
             msg.append(Message.unpack(elem.attrs)(*transform(elem.children)))
         elif tag == "quote":
-            msg.append(Quote.unpack(elem.attrs)(*transform(elem.children)))
+            quot = Quote.unpack(elem.attrs)
+            if elem.children:
+                quot(*transform(elem.children))
+            msg.append(quot)
+        elif tag in ("br", "newline"):
+            msg.append(Br())
         else:
-            msg.append(Custom(elem.type, elem.attrs)(*transform(elem.children)))
+            custom = Custom(tag, elem.attrs)
+            if elem.children:
+                custom(*transform(elem.children))
+            msg.append(custom)
     return msg
 
 
