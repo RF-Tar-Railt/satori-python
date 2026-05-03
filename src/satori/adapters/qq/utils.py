@@ -18,6 +18,9 @@ CallMethod = Literal["get", "post", "fetch", "update", "multipart", "put", "dele
 class QQBotNetwork(Protocol):
     session: ClientSession
 
+    @property
+    def bot_id_mapping(self) -> dict[str, str]: ...
+
     async def call_api(self, method: CallMethod, action: str, params: dict | None = None) -> dict: ...
 
 
