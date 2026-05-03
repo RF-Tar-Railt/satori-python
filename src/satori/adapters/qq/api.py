@@ -29,7 +29,7 @@ from satori.server.route import (
 )
 
 from .message import QQGroupMessageEncoder, QQGuildMessageEncoder, decode_segments
-from .utils import ROLE_MAPPING, QQBotNetwork, decode_channel, decode_guild, decode_member, decode_user, USER_AVATAR_URL
+from .utils import ROLE_MAPPING, USER_AVATAR_URL, QQBotNetwork, decode_channel, decode_guild, decode_member, decode_user
 
 
 def apply(
@@ -266,10 +266,12 @@ def apply(
         # raise NotFoundException("qq platform does not support guild.member.get")
         app_id = net.bot_id_mapping[login_getter(request.self_id, request.platform == "qqguild").id]
         return Member(
-            decode_user({
-                "id": request.params["user_id"],
-                "avatar": USER_AVATAR_URL.format(app_id=app_id, user_id=request.params["user_id"]),
-            }),
+            decode_user(
+                {
+                    "id": request.params["user_id"],
+                    "avatar": USER_AVATAR_URL.format(app_id=app_id, user_id=request.params["user_id"]),
+                }
+            ),
             joined_at=None,
             roles=[ROLE_MAPPING["1"]],
         )

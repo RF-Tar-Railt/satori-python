@@ -5,7 +5,7 @@ from datetime import datetime
 from satori import EventType
 from satori.model import Channel, ChannelType, Event, Guild, User
 
-from ..utils import Payload, USER_AVATAR_URL
+from ..utils import USER_AVATAR_URL, Payload
 from .base import register_event
 
 
@@ -42,7 +42,9 @@ async def group_event(login, guild_login, net, payload: Payload):
     else:
         guild = Guild(raw["guild_id"])
     app_id = net.bot_id_mapping[login.id]
-    operator = User(raw["op_member_openid"], avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["op_member_openid"]))
+    operator = User(
+        raw["op_member_openid"], avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["op_member_openid"])
+    )
     t = {
         "GROUP_ADD_ROBOT": EventType.GUILD_ADDED,
         "GROUP_DEL_ROBOT": EventType.GUILD_REMOVED,

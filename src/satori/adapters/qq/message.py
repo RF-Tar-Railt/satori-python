@@ -21,6 +21,17 @@ from .utils import QQBotNetwork, parse_file_uri
 
 _BASE64_RE = re.compile(r"^data:([\w/.+-]+);base64,")
 MAX_FILESIZE_ONCE = 10 * 1024 * 1024  # 10MB
+BUTTON_STYLES = {
+    "grey": 0,
+    "secondary": 0,
+    "blue": 1,
+    "primary": 1,
+    "success": 1,
+    "info": 2,
+    "warning": 3,
+    "danger": 3,
+    "link": 4,
+}
 
 
 def escape(s: str) -> str:
@@ -530,7 +541,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             "render_data": {
                 "label": label,
                 "visited_label": label,
-                "style": 1 if attrs.get("class") == "primary" else 0,
+                "style": BUTTON_STYLES.get(attrs.get("class", "grey"), 1),
             },
             "action": {
                 "type": {"input": 2, "link": 0}.get(attrs.get("type", "action"), 1),
