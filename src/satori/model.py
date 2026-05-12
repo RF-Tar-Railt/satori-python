@@ -1,4 +1,6 @@
 import mimetypes
+import sys
+import typing
 from collections.abc import AsyncIterable, Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -11,6 +13,11 @@ from typing_extensions import Self
 from .element import Element, Emoji, transform
 from .parser import Element as RawElement
 from .parser import parse
+
+if sys.version_info >= (3, 12):
+    _generic_init_subclass = typing._generic_init_subclass
+else:
+    _generic_init_subclass = Generic.__init_subclass__.__func__
 
 
 @dataclass(slots=True)
@@ -41,7 +48,7 @@ class ModelBase:
         keys = set()
         for c in cls.__mro__:
             if c is Generic:
-                Generic.__init_subclass__.__func__(cls, **kwargs)
+                _generic_init_subclass(cls, **kwargs)
             if getattr(c, "__converter__", None):
                 has_converter = True
             keys.update(getattr(c, "__annotations__", {}).keys())
