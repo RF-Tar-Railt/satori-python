@@ -82,6 +82,62 @@ async def direct_message_create(login, guild_login, net, payload: Payload):
     )
 
 
+@register_event("GROUP_MESSAGE_CREATE")
+async def group_message_create(login, guild_login, net, payload: Payload):
+    raw = payload.data
+    if "group_openid" in raw:
+        channel = Channel(raw["group_openid"], ChannelType.TEXT)
+    else:
+        channel = Channel(raw["group_id"], ChannelType.TEXT)
+    app_id = net.bot_id_mapping[login.id]
+    name = raw["author"].get("username")
+    if "member_openid" in raw["author"]:
+        user = User(
+            raw["author"]["member_openid"],
+            name=name,
+            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["member_openid"]),
+            is_bot=raw["author"].get("bot", False),
+        )
+    else:
+        user = User(
+            raw["author"]["id"],
+            name=name,
+            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]),
+            is_bot=raw["author"].get("bot", False),
+        )
+    member = Member(user, avatar=user.avatar)
+    msg = decode_segments(raw)
+    if msg and isinstance(elem := msg[0], At) and elem.id == "all" and isinstance(msg[1], Text):
+        text = msg[1].text.lstrip()
+        if not text:
+            msg.pop(1)
+        else:
+            msg[1] = Text(text)
+    for mention in reversed(raw["mentions"]):
+        if mention["scope"] == "all":
+            continue
+        msg.insert(0, At(mention["id"], name=mention.get("username")))
+    return Event(
+        EventType.MESSAGE_CREATED,
+        (
+            datetime.fromtimestamp(int(raw["timestamp"]))
+            if isinstance(raw["timestamp"], (int, float)) or raw["timestamp"].isdigit()
+            else datetime.fromisoformat(str(raw["timestamp"]))
+        ),
+        login,
+        channel=channel,
+        guild=Guild(channel.id),
+        member=member,
+        user=user,
+        message=MessageObject.from_elements(raw["id"], msg),
+        referrer={
+            "msg_id": raw["id"],
+            "msg_seq": -1,
+            "msg_scene": raw["message_scene"],
+        },
+    )
+
+
 @register_event("GROUP_AT_MESSAGE_CREATE")
 async def group_at_message_create(login, guild_login, net, payload: Payload):
     raw = payload.data
@@ -96,10 +152,14 @@ async def group_at_message_create(login, guild_login, net, payload: Payload):
             raw["author"]["member_openid"],
             name=name,
             avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["member_openid"]),
+            is_bot=raw["author"].get("bot", False),
         )
     else:
         user = User(
-            raw["author"]["id"], name=name, avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"])
+            raw["author"]["id"],
+            name=name,
+            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]),
+            is_bot=raw["author"].get("bot", False),
         )
     member = Member(user, avatar=user.avatar)
     msg = decode_segments(raw)
@@ -141,10 +201,14 @@ async def c2c_message_create(login, guild_login, net, payload: Payload):
             raw["author"]["user_openid"],
             name,
             avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["user_openid"]),
+            is_bot=raw["author"].get("bot"),
         )
     else:
         user = User(
-            raw["author"]["id"], name, avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"])
+            raw["author"]["id"],
+            name,
+            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]),
+            is_bot=raw["author"].get("bot"),
         )
     channel = Channel(f"private:{user.id}", ChannelType.DIRECT)
     return Event(

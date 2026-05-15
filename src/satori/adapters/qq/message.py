@@ -597,7 +597,10 @@ def decode_segments(event: dict) -> list[Element]:
             if seg_type == "text":
                 result.append(E.text(i["text"]))
             elif seg_type == "mention_user":
-                result.append(E.at(i["user_id"]))
+                if i["user_id"] == "all":
+                    result.append(E.at_all())
+                else:
+                    result.append(E.at(i["user_id"]))
             elif seg_type == "mention_channel":
                 result.append(E.sharp(i["channel_id"]))
             elif seg_type == "emoji":
