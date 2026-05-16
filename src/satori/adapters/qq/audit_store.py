@@ -23,7 +23,7 @@ class AuditResultStore:
     def add_result(self, result: dict):
         if "group_id" in result:
             result["channel_id"] = result.pop("group_id")
-        elif "group_open_id" in result:
+        elif "group_openid" in result:
             result["channel_id"] = result.pop("group_openid")
         audit = Audit(
             result["audit_id"],
