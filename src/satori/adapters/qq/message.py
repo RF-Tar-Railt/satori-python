@@ -274,7 +274,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         refidx = msg_scene.get("ext", ["="])[0].partition("=")[-1]
         data = {
             "content": self.content,
-            "message_reference": {"message_id": refidx or self.reference} if refidx or self.reference else None,
+            "message_reference": {"message_id": refidx or self.reference} if self.reference else None,
             "msg_type": 0,
             "event_id": event_id,
             "msg_id": msg_id,
