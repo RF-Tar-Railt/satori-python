@@ -113,7 +113,7 @@ async def group_message_create(login, guild_login, net, payload: Payload):
             msg.pop(1)
         else:
             msg[1] = Text(text)
-    for mention in reversed(raw["mentions"]):
+    for mention in reversed(raw.get("mentions", [])):
         if mention["scope"] == "all":
             continue
         msg.insert(0, At(mention["id"], name=mention.get("username")))
