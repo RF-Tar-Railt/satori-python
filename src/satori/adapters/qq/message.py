@@ -314,11 +314,24 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 "event_id": event_id,
                 "msg_id": msg_id,
                 "msg_seq": data["msg_seq"],
-                "ref_idx": resp["ext_info"].get("ref_idx"),
             }
+            if "ext_info" in resp:
+                referrer["ref_idx"] = resp["ext_info"].get("ref_idx")
             self.results.append(MessageObject(resp["id"], self._raw_content, referrer=referrer))
+        except AuditException as e:
+            audit_res = await e.get_audit_result()
+            if not audit_res or not audit_res.message_id:
+                logger.error(f"Failed to send message to {self.channel_id}: {self._raw_content}")
+            else:
+                referrer = self.referrer.copy() if self.referrer else {}
+                referrer |= {
+                    "event_id": event_id,
+                    "msg_id": msg_id,
+                    "msg_seq": data["msg_seq"],
+                }
+                self.results.append(MessageObject(audit_res.message_id, self._raw_content, referrer=referrer))
         except Exception as e:
-            logger.error(f"Failed to send message to {self.channel_id}: {self._raw_content}\nError: {e}")
+            logger.error(f"Failed to send message to {self.channel_id}: {self._raw_content}\nError: {e!r}")
         self.content = ""
         self.reference = ""
         self.attachment = None

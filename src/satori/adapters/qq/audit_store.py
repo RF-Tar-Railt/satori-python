@@ -7,12 +7,12 @@ from weakref import finalize
 @dataclass
 class Audit:
     id: str
-    guild_id: str
     channel_id: str
-    seq: str
     create_time: datetime
     audit_time: datetime
     message_id: str | None = None
+    guild_id: str | None = None
+    seq: str | None = None
 
 
 class AuditResultStore:
@@ -21,14 +21,18 @@ class AuditResultStore:
         finalize(self, self._futures.clear)
 
     def add_result(self, result: dict):
+        if "group_id" in result:
+            result["channel_id"] = result.pop("group_id")
+        elif "group_open_id" in result:
+            result["channel_id"] = result.pop("group_openid")
         audit = Audit(
             result["audit_id"],
-            result["guild_id"],
             result["channel_id"],
-            result["seq_in_channel"],
             datetime.fromisoformat(result["create_time"]),
             datetime.fromisoformat(result["audit_time"]),
             result.get("message_id"),
+            result.get("guild_id"),
+            result.get("seq_in_channel"),
         )
         if future := self._futures.get(audit.id):
             future.set_result(audit)
