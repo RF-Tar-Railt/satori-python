@@ -107,7 +107,7 @@ async def group_message_create(login, guild_login, net, payload: Payload):
         )
     member = Member(user, avatar=user.avatar)
     msg = decode_segments(raw)
-    if msg and isinstance(elem := msg[0], At) and elem.id == "all" and isinstance(msg[1], Text):
+    if msg and isinstance(elem := msg[0], At) and elem.type == "all" and isinstance(msg[1], Text):
         text = msg[1].text.lstrip()
         if not text:
             msg.pop(1)
@@ -116,7 +116,10 @@ async def group_message_create(login, guild_login, net, payload: Payload):
     for mention in reversed(raw.get("mentions", [])):
         if mention["scope"] == "all":
             continue
-        msg.insert(0, At(mention["id"], name=mention.get("username")))
+        if mention.get("is_you", False):
+            msg.insert(0, At(mention["id"], name=mention.get("username")))
+        else:
+            msg.append(At(mention["id"], name=mention.get("username")))
     return Event(
         EventType.MESSAGE_CREATED,
         (
