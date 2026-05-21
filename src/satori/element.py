@@ -124,6 +124,8 @@ class Element:
         return self.dumps()
 
     def __repr__(self) -> str:
+        if not self._attrs:
+            self._attrs = {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
         args = {**self._attrs}
         elem = f"{self.__class__.__name__}(" + ", ".join(f"{k}={v!r}" for k, v in args.items())
         if self._children:
@@ -487,7 +489,7 @@ class Message(Element):
         self,
         id: str | None = None,
         forward: bool | None = None,
-        content: list[str | Element] | None = None,
+        content: Sequence[str | Element] | None = None,
     ):
         self.id = id
         self.forward = forward
