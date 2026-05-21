@@ -5,7 +5,7 @@ from datetime import datetime
 from satori import At, EventType, Text
 from satori.model import Channel, ChannelType, EmojiObject, Event, Guild, Member, MessageObject, Role, User
 
-from ..message import decode_segments
+from ..message import decode_reply, decode_segments
 from ..utils import ROLE_MAPPING, USER_AVATAR_URL, Payload, decode_user
 from .base import register_event
 
@@ -83,6 +83,7 @@ async def direct_message_create(login, guild_login, net, payload: Payload):
 
 
 @register_event("GROUP_MESSAGE_CREATE")
+@register_event("GROUP_AT_MESSAGE_CREATE")
 async def group_message_create(login, guild_login, net, payload: Payload):
     raw = payload.data
     if "group_openid" in raw:
@@ -107,72 +108,33 @@ async def group_message_create(login, guild_login, net, payload: Payload):
         )
     member = Member(user, avatar=user.avatar)
     msg = decode_segments(raw)
-    if msg and isinstance(elem := msg[0], At) and elem.type == "all" and isinstance(msg[1], Text):
-        text = msg[1].text.lstrip()
-        if not text:
-            msg.pop(1)
-        else:
-            msg[1] = Text(text)
-    for mention in reversed(raw.get("mentions", [])):
-        if mention["scope"] == "all":
-            continue
-        if mention.get("is_you", False):
-            msg.insert(0, At(mention["id"], name=mention.get("username")))
-        else:
-            msg.append(At(mention["id"], name=mention.get("username")))
-    return Event(
-        EventType.MESSAGE_CREATED,
-        (
-            datetime.fromtimestamp(int(raw["timestamp"]))
-            if isinstance(raw["timestamp"], (int, float)) or raw["timestamp"].isdigit()
-            else datetime.fromisoformat(str(raw["timestamp"]))
-        ),
-        login,
-        channel=channel,
-        guild=Guild(channel.id),
-        member=member,
-        user=user,
-        message=MessageObject.from_elements(raw["id"], msg),
-        referrer={
-            "msg_id": raw["id"],
-            "msg_seq": -1,
-            "msg_scene": raw["message_scene"],
-        },
-    )
-
-
-@register_event("GROUP_AT_MESSAGE_CREATE")
-async def group_at_message_create(login, guild_login, net, payload: Payload):
-    raw = payload.data
-    if "group_openid" in raw:
-        channel = Channel(raw["group_openid"], ChannelType.TEXT)
+    if payload.type == "GROUP_AT_MESSAGE_CREATE":
+        msg.insert(0, At(login.id))
+        if len(msg) >= 2 and isinstance(msg[1], Text):
+            text = msg[1].text.lstrip()
+            if not text:
+                msg.pop(1)
+            else:
+                msg[1] = Text(text)
     else:
-        channel = Channel(raw["group_id"], ChannelType.TEXT)
-    app_id = net.bot_id_mapping[login.id]
-    name = raw["author"].get("username")
-    if "member_openid" in raw["author"]:
-        user = User(
-            raw["author"]["member_openid"],
-            name=name,
-            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["member_openid"]),
-            is_bot=raw["author"].get("bot", False),
-        )
-    else:
-        user = User(
-            raw["author"]["id"],
-            name=name,
-            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]),
-            is_bot=raw["author"].get("bot", False),
-        )
-    member = Member(user, avatar=user.avatar)
-    msg = decode_segments(raw)
-    msg.insert(0, At(login.id))
-    if len(msg) >= 2 and isinstance(msg[1], Text):
-        text = msg[1].text.lstrip()
-        if not text:
-            msg.pop(1)
+        mentions = {m["id"]: m for m in raw.get("mentions", []) if m["scope"] != "all"}
+        ats = [elem for elem in msg if isinstance(elem, At) and elem.id]
+        if not ats:
+            for mention in mentions.values():  # 兼容有 mentions 但没有 At 的情况
+                username = mention.get("username")
+                if mention.get("is_you", False):
+                    msg.insert(0, At(login.id, name=username))
+                else:
+                    msg.append(At(mention["id"], name=username))
         else:
-            msg[1] = Text(text)
+            for at in ats:
+                mention = mentions.get(at.id)
+                if mention:
+                    at.name = mention.get("username")
+                    if mention.get("is_you", False):
+                        at.id = login.id
+    if raw.get("message_type") == 103:
+        msg.insert(0, decode_reply(raw["msg_elements"][0]))
     return Event(
         EventType.MESSAGE_CREATED,
         (
@@ -214,6 +176,9 @@ async def c2c_message_create(login, guild_login, net, payload: Payload):
             is_bot=raw["author"].get("bot"),
         )
     channel = Channel(f"private:{user.id}", ChannelType.DIRECT)
+    msg = decode_segments(raw)
+    if raw.get("message_type") == 103:
+        msg.insert(0, decode_reply(raw["msg_elements"][0]))
     return Event(
         EventType.MESSAGE_CREATED,
         (
@@ -224,7 +189,7 @@ async def c2c_message_create(login, guild_login, net, payload: Payload):
         login,
         channel=channel,
         user=user,
-        message=MessageObject.from_elements(raw["id"], decode_segments(raw)),
+        message=MessageObject.from_elements(raw["id"], msg),
         referrer={
             "direct": True,
             "msg_id": raw["id"],

@@ -10,7 +10,7 @@ from hashlib import md5, sha1
 
 from loguru import logger
 
-from satori.element import Custom, E, Element, Raw
+from satori.element import Custom, E, Element, Quote, Raw
 from satori.model import Login, MessageObject
 from satori.parser import Element as RawElement
 from satori.parser import parse, select
@@ -51,7 +51,9 @@ def handle_text(msg: str):
     msg = msg.replace("@everyone", "")
     msg = re.sub(r"\<qqbot-at-everyone\s/\>", "", msg)
     for embed in re.finditer(
-        r"\<(?P<type>(?:@|#|emoji:))!?(?P<id>\w+?)\>|\<(?P<type1>qqbot-at-user) id=\"(?P<id1>\w+)\"\s/\>",
+        r"\<(?P<type>(?:@|#|emoji:))!?(?P<id>\w+?)\>|"
+        r"\<(?P<type1>qqbot-at-user) id=\"(?P<id1>\w+)\"\s/\>|"
+        r"\<faceType=(?P<faceType>\d+),faceId=\"(?P<faceId>\d+)\",ext=\"[\w\=]+\"\>",
         msg,
     ):
         if content := msg[text_begin : embed.pos + embed.start()]:
@@ -65,6 +67,8 @@ def handle_text(msg: str):
             yield {"type": "emoji", "id": embed.group("id")}
         elif embed["type1"] == "qqbot-at-user":
             yield {"type": "mention_user", "user_id": embed.group("id1")}
+        elif embed.group("faceType") and embed["faceId"] != "0":
+            yield {"type": "emoji", "id": embed["faceId"]}
     if content := msg[text_begin:]:
         yield {"type": "text", "text": unescape(content)}
 
@@ -271,10 +275,15 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         msg_id = self.referrer.get("msg_id") if self.referrer else None
         msg_seq = self.referrer.get("msg_seq") if self.referrer else None
         msg_scene = self.referrer.get("msg_scene", {}) if self.referrer else {}
-        refidx = msg_scene.get("ext", ["="])[0].partition("=")[-1]
+        exts = msg_scene.get("ext", [])
+        refidx = next((ext.partition("=")[-1] for ext in exts if ext.startswith("msg_idx=")), "")
         data = {
             "content": self.content,
-            "message_reference": {"message_id": refidx or self.reference} if self.reference else None,
+            "message_reference": (
+                {"message_id": self.reference if self.reference.startswith("REFIDX") else refidx}
+                if self.reference
+                else None
+            ),
             "msg_type": 0,
             "event_id": event_id,
             "msg_id": msg_id,
@@ -627,3 +636,26 @@ def decode_segments(event: dict) -> list[Element]:
     if ark := event.get("ark"):
         result.append(Custom("qq:ark", children=[Raw(json.dumps(ark, ensure_ascii=False))]))
     return result
+
+
+def decode_reply(msg_element: dict) -> Quote:
+    elements: list[Element] = []
+    if "author" in msg_element:
+        elements.append(E.author(id=msg_element["author"]["username"], name=msg_element["author"]["username"]))
+    for i in handle_text(msg_element["content"]):
+        seg_type = i["type"]
+        if seg_type == "text":
+            elements.append(E.text(i["text"]))
+        elif seg_type == "mention_user":
+            if i["user_id"] == "all":
+                elements.append(E.at_all())
+            else:
+                elements.append(E.at(i["user_id"]))
+        elif seg_type == "mention_channel":
+            elements.append(E.sharp(i["channel_id"]))
+        elif seg_type == "emoji":
+            elements.append(E.emoji(i["id"]))
+    if attachments := msg_element.get("attachments"):
+        for i in attachments:
+            elements.append(_decode_attachment(i))
+    return Quote(msg_element["msg_idx"], content=elements)
