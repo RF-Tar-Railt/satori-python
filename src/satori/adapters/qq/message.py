@@ -358,9 +358,9 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         match type_:
             case "img" | "image":
                 file_type = 1
-            case "audio":
-                file_type = 2
             case "video":
+                file_type = 2
+            case "audio":
                 file_type = 3
             case _:
                 file_type = 4
