@@ -120,7 +120,7 @@ def decode_channel(profile: dict) -> Channel:
 def decode_user(profile: dict) -> User:
     return User(
         profile["id"],
-        profile["username"],
+        profile.get("username"),
         avatar=profile.get("avatar"),
         is_bot=profile.get("bot", False),
     )
@@ -135,7 +135,7 @@ def decode_member(profile: dict) -> Member:
     )
 
 
-USER_AVATAR_URL = "https://q.qlogo.cn/qqapp/{app_id}/{user_id}/100"
+USER_AVATAR_URL = "https://q.qlogo.cn/qqapp/{app_id}/{user_id}/640"
 
 
 ROLE_MAPPING = {
