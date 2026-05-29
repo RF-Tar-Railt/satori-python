@@ -411,15 +411,17 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
                             origin = await decode_message(net, response["message"])
                             content = []
                             if origin.user:
-                                content.append(E.author(origin.user.id, origin.user.name or sender_name, origin.user.avatar or avatar))
+                                content.append(
+                                    E.author(
+                                        origin.user.id, origin.user.name or sender_name, origin.user.avatar or avatar
+                                    )
+                                )
                             content.extend(origin.message)
 
                         else:
                             content = await _decode_segments(net, payload, msg.get("segments", []))
                             content.insert(0, E.author(str(msg.get("sender_id")), sender_name, avatar))
-                        forward_elements.append(
-                            E.message(str(msg.get("message_seq")), content=content)
-                        )
+                        forward_elements.append(E.message(str(msg.get("message_seq")), content=content))
                     result.append(E.message(forward_id, content=forward_elements, forward=True))
             case _:
                 result.append(Custom(f"milky:{seg_type}", data))

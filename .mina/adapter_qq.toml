@@ -6,7 +6,7 @@ raw-dependencies = [
 
 [project]
 name = "satori-python-adapter-qq"
-version = "0.4.0-rc8"
+version = "0.4.0-rc9"
 authors = [
   {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
 ]

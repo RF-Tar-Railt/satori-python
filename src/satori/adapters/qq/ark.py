@@ -106,10 +106,27 @@ def parse_ark24(attrs: dict, children: list[Element]):
 def parse_ark37(attrs: dict, children: list[Element]):
     source = attrs["content"] if "content" in attrs and isinstance(attrs["content"], dict) else attrs
     prompt = _parse_text_field(source, "prompt")
-    title = _parse_text_field(source, "metatitle") or _parse_text_field(source, "metaTitle") or _parse_text_field(source, "title")
-    subtitle = _parse_text_field(source, "metasubtitle") or _parse_text_field(source, "metasubTitle") or _parse_text_field(source, "subtitle")
-    cover = _parse_text_field(source, "metacover") or _parse_text_field(source, "metaCover") or _parse_text_field(source, "cover")
-    url = _parse_text_field(source, "metaurl") or _parse_text_field(source, "metaUrl") or _parse_text_field(source, "url") or extract_text(children)
+    title = (
+        _parse_text_field(source, "metatitle")
+        or _parse_text_field(source, "metaTitle")
+        or _parse_text_field(source, "title")
+    )
+    subtitle = (
+        _parse_text_field(source, "metasubtitle")
+        or _parse_text_field(source, "metasubTitle")
+        or _parse_text_field(source, "subtitle")
+    )
+    cover = (
+        _parse_text_field(source, "metacover")
+        or _parse_text_field(source, "metaCover")
+        or _parse_text_field(source, "cover")
+    )
+    url = (
+        _parse_text_field(source, "metaurl")
+        or _parse_text_field(source, "metaUrl")
+        or _parse_text_field(source, "url")
+        or extract_text(children)
+    )
     if any(field is None for field in [prompt, title, subtitle, cover, url]):
         return
     return create_payload(

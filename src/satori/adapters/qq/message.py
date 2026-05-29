@@ -14,11 +14,11 @@ from satori.element import Custom, E, Element, Quote, Raw
 from satori.model import Login, MessageObject
 from satori.parser import Element as RawElement
 from satori.parser import parse, select
-from .ark import parse_qq_ark
-from .markdown import extract_markdown_text
 
 from ...exception import ActionFailed
+from .ark import parse_qq_ark
 from .exception import AuditException
+from .markdown import extract_markdown_text
 from .utils import QQBotNetwork, parse_file_uri
 
 _BASE64_RE = re.compile(r"^data:([\w/.+-]+);base64,")
@@ -571,7 +571,11 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
     def decode_button(self, attrs: dict, label: str) -> dict:
         attr_action = attrs["action"] if attrs.get("action") else {}
         attr_render = attrs["render"] if attrs.get("render") else {}
-        attr_permission = attrs["permission"] if attrs.get("permission") else attr_action["permission"] if attr_action.get("permission") else {}
+        attr_permission = (
+            attrs["permission"]
+            if attrs.get("permission")
+            else attr_action["permission"] if attr_action.get("permission") else {}
+        )
 
         typ = attrs.get("type") or attr_action.get("type")
         text = attrs.get("text")
