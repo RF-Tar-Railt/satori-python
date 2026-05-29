@@ -14,6 +14,8 @@ from satori.element import Custom, E, Element, Quote, Raw
 from satori.model import Login, MessageObject
 from satori.parser import Element as RawElement
 from satori.parser import parse, select
+from .ark import parse_qq_ark
+from .markdown import extract_markdown_text
 
 from ...exception import ActionFailed
 from .exception import AuditException
@@ -258,7 +260,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
     def __init__(self, login: Login, net: QQBotNetwork, channel_id: str, referrer: dict | None = None):
         super().__init__(login, net, channel_id, referrer)
         self.use_markdown = False
-        self.has_ark = False
+        self.ark_payload: dict | None = None
         self.content = ""
         self.reference = ""
         self.attachment: dict | None = None
@@ -278,26 +280,22 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         exts = msg_scene.get("ext", [])
         refidx = next((ext.partition("=")[-1] for ext in exts if ext.startswith("msg_idx=")), "")
         data = {
-            "content": self.content,
             "message_reference": (
                 {"message_id": self.reference if self.reference.startswith("REFIDX") else refidx}
                 if self.reference
                 else None
             ),
-            "msg_type": 0,
             "event_id": event_id,
             "msg_id": msg_id,
             "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
+            **(self.ark_payload if self.ark_payload else {"content": self.content, "msg_type": 0}),
         }
-        if self.has_ark:
-            data["msg_type"] = 3
-            data["ark"] = json.loads(self.content) if self.content else {}
-        elif self.attachment:
+        if not self.ark_payload and self.attachment:
             if not self.content:
                 self.content = " "
             data["media"] = self.attachment
             data["msg_type"] = 7
-        elif self.use_markdown:
+        if not self.ark_payload and self.use_markdown:
             data["msg_type"] = 2
             del data["content"]
             data["markdown"] = {
@@ -344,7 +342,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         self.content = ""
         self.reference = ""
         self.attachment = None
-        self.has_ark = False
+        self.ark_payload = None
         self.use_markdown = False
         self.md_templates = None
         self.rows = []
@@ -469,20 +467,55 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
 
     async def visit(self, element: RawElement):
         type_, attrs, children = element.type, element.attrs, element.children
+        if type_ == "markdown":
+            if not self.use_markdown:
+                self.content = escape_markdown(self.content)
+                self.use_markdown = True
+            self.content += extract_markdown_text(children)
+            return
+            # if self.content:
+            #     self.content += "\n"
+            # self.use_markdown = True
+            # await self.render(children)
+        if type_ == "button" or type_ == "qq:button":
+            if not self.use_markdown:
+                self.content = escape_markdown(self.content)
+                self.use_markdown = True
+            last = self.last_row()
+            last.append(self.decode_button(attrs, extract_markdown_text(children)))
+            return
+        if ark_payload := parse_qq_ark(element):
+            await self.flush()
+            self.ark_payload = ark_payload
+            await self.flush()
         match type_:
+            case "qq:markdown":
+                if self.content:
+                    self.content = escape_markdown(self.content) + "\n"
+                self.use_markdown = True
+                if attrs.get("template_id"):
+                    self.md_templates = {
+                        "custom_template_id": attrs["template_id"],
+                        "params": [{"key": k, "value": v} for k, v in attrs.items() if k != "template_id"],
+                    }
+                await self.render(children)
             case "text":
-                self.content += attrs["text"]
+                self.content += escape_markdown(attrs["text"]) if self.use_markdown else attrs["text"]
             case "at":
+                if not self.use_markdown:
+                    self.use_markdown = True
                 if attrs.get("id"):
                     self.content += f"<qqbot-at-user id=\"{attrs['id']}\" />"
+                elif attrs.get("type"):
+                    self.content += "<qqbot-at-everyone />"
                 else:
                     await self.render(children)
-            case "img" | "image":
+            case "img" | "image" | "file":
                 if attrs.get("src") or attrs.get("url"):
-                    # await self.flush()
+                    await self.flush()
                     if data := (await self.send_file(type_, attrs)):
                         self.attachment = data
-            case "video" | "audio" | "file":
+            case "video" | "audio":
                 if attrs.get("src") or attrs.get("url"):
                     await self.flush()
                     if data := (await self.send_file(type_, attrs)):
@@ -496,35 +529,13 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 await self.render(children)
                 if not self.content.endswith("\n"):
                     self.content += "\n"
-            case "qq:ark":
-                await self.flush()
-                self.has_ark = True
-                await self.render(children)
-                await self.flush()
-            case "qq:button-group":
-                self.use_markdown = True
+            case "button-group" | "qq:button-group":
+                if not self.use_markdown:
+                    self.content = escape_markdown(self.content)
+                    self.use_markdown = True
                 self.rows.append([])
                 await self.render(children)
                 self.rows.append([])
-            case "button":
-                self.use_markdown = True
-                last = self.last_row()
-                last.append(self.decode_button(attrs, "".join(map(str, children))))
-            case "markdown":
-                if self.content:
-                    self.content += "\n"
-                self.use_markdown = True
-                await self.render(children)
-            case "qq:markdown":
-                if self.content:
-                    self.content += "\n"
-                self.use_markdown = True
-                if attrs.get("template_id"):
-                    self.md_templates = {
-                        "custom_template_id": attrs["template_id"],
-                        "params": [{"key": k, "value": v} for k, v in attrs.items() if k != "template_id"],
-                    }
-                await self.render(children)
             case "qq:cmd-enter":
                 self.use_markdown = True
                 self.content += RawElement("qqbot-cmd-enter", attrs, []).dumps()
@@ -558,22 +569,40 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         return [{"buttons": row} for row in self.rows]
 
     def decode_button(self, attrs: dict, label: str) -> dict:
-        return {
-            "id": attrs["id"],
+        attr_action = attrs["action"] if attrs.get("action") else {}
+        attr_render = attrs["render"] if attrs.get("render") else {}
+        attr_permission = attrs["permission"] if attrs.get("permission") else attr_action["permission"] if attr_action.get("permission") else {}
+
+        typ = attrs.get("type") or attr_action.get("type")
+        text = attrs.get("text")
+        action_data = attrs.get("data") or attr_action.get("data")
+        if not action_data:
+            if typ == "link" or typ == 0:
+                action_data = attrs.get("href") or attr_action.get("data") or ""
+            else:
+                action_data = text or label or attrs["id"]
+        display = attr_render.get("label") or label or text or action_data
+        result = {
             "render_data": {
-                "label": label,
-                "visited_label": label,
-                "style": BUTTON_STYLES.get(attrs.get("class", "grey"), 1),
+                "label": display or "",
+                "visited_label": display or "",
+                "style": attr_render.get("style", BUTTON_STYLES.get(attrs.get("theme", "grey"), 1)),
             },
             "action": {
-                "type": {"input": 2, "link": 0}.get(attrs.get("type", "action"), 1),
-                "permission": {"type": 2},
-                "data": {
-                    "input": attrs.get("text"),
-                    "link": attrs.get("href"),
-                }.get(attrs.get("type", "action"), attrs["id"]),
+                "type": typ if isinstance(typ, int) else 0 if typ == "link" else 1 if typ == "action" else 2,
+                "permission": attr_permission or {"type": 2},
+                "data": action_data or "",
+                **({"enter": True} if typ != "link" and typ != 0 else {}),
             },
+            **({"id": attrs["id"]} if attrs.get("id") else {}),
         }
+        result["action"].update(attr_action)
+        result["render_data"].update(attr_render)
+        if not result["render_data"]["label"]:
+            result["render_data"]["label"] = str(result["action"]["data"] or "")
+        if not result["render_data"]["visited_label"]:
+            result["render_data"]["visited_label"] = result["render_data"]["label"]
+        return result
 
 
 def _decode_attachment(attachment: dict) -> Element:

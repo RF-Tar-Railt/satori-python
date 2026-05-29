@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import warnings
 from contextlib import suppress
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
@@ -121,7 +122,6 @@ class QQBotWebsocketAdapter(BaseAdapter):
     def __init__(
         self,
         app_id: str,
-        token: str,
         secret: str,
         shard: tuple[int, int] | None = None,
         intent: Intents = Intents(),
@@ -130,10 +130,10 @@ class QQBotWebsocketAdapter(BaseAdapter):
         api_base: str | URL = URL("https://api.sgroup.qq.com/"),
         sandbox_api_base: str | URL = URL("https://sandbox.api.sgroup.qq.com"),
         auth_base: str | URL = URL("https://bots.qq.com/app/getAppAccessToken"),
+        token: str | None = None,
     ):
         super().__init__()
         self.app_id = app_id
-        self.token = token
         self.secret = secret
         self.shard = shard
         self.intent = intent
@@ -148,6 +148,13 @@ class QQBotWebsocketAdapter(BaseAdapter):
         self.session_id = None
         self._access_token = None
         self._expires_in = None
+
+        if token:
+            warnings.warn(
+                "The 'token' config is deprecated and will be removed",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         apply(self, lambda _, __: self, self._get_login)
 
     def get_platform(self) -> str:
