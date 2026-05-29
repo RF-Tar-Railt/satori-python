@@ -167,6 +167,9 @@ class MilkyMessageEncoder:
             case "file":
                 await self.flush()
                 await self._send_file(attrs)
+            case "milky:light_app":
+                await self.flush()
+                self.segments.append({"type": "light_app", "data": {"json_payload": attrs["json_payload"]}})
             case "author":
                 self.stack[0].author.update(attrs)
             case "quote":
@@ -364,7 +367,7 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
             case "text":
                 result.append(E.text(data.get("text", "")))
             case "mention":
-                result.append(E.at(str(data.get("user_id"))))
+                result.append(E.at(str(data.get("user_id")), name=data.get("name")))
             case "mention_all":
                 result.append(E.at_all())
             case "face":
@@ -380,15 +383,58 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
             case "reply":
                 seq = data.get("message_seq")
                 if seq is not None:
-                    quote = await _decode_reply(net, payload, int(seq))
+                    quote = await _decode_reply(net, payload, data, int(seq))
                     if quote:
                         result.append(quote)
+            case "forward":
+                forward_id = data.get("forward_id")
+                if forward_id is not None:
+                    messages = (await net.call_api("get_forwarded_messages", {"forward_id": forward_id}))["messages"]
+                    forward_elements = []
+                    for msg in messages:
+                        sender_name = msg.get("sender_name")
+                        avatar = msg.get("avatar_url")
+                        response = {}
+                        if "message_seq" in msg:
+                            try:
+                                response = await net.call_api(
+                                    "get_message",
+                                    {
+                                        "message_scene": payload["message_scene"],
+                                        "peer_id": payload["peer_id"],
+                                        "message_seq": msg["message_seq"],
+                                    },
+                                )
+                            except Exception:
+                                pass
+                        if response:
+                            origin = await decode_message(net, response["message"])
+                            content = []
+                            if origin.user:
+                                content.append(E.author(origin.user.id, origin.user.name or sender_name, origin.user.avatar or avatar))
+                            content.extend(origin.message)
+
+                        else:
+                            content = await _decode_segments(net, payload, msg.get("segments", []))
+                            content.insert(0, E.author(str(msg.get("sender_id")), sender_name, avatar))
+                        forward_elements.append(
+                            E.message(str(msg.get("message_seq")), content=content)
+                        )
+                    result.append(E.message(forward_id, content=forward_elements, forward=True))
             case _:
                 result.append(Custom(f"milky:{seg_type}", data))
     return result
 
 
-async def _decode_reply(net: MilkyNetwork, payload: dict, message_seq: int) -> Element | None:
+async def _decode_reply(net: MilkyNetwork, payload: dict, data: dict, message_seq: int) -> Element | None:
+    if all(k in data for k in ("sender_id", "time", "segments")):
+        user = User(str(data["sender_id"]), data.get("sender_name"), avatar=user_avatar(data["sender_id"]))
+        elements = await _decode_segments(net, payload, data["segments"])
+        content = []
+        if user:
+            content.append(E.author(user.id, user.name, user.avatar))
+        content.extend(elements)
+        return E.quote(str(message_seq), content=content)
     try:
         response = await net.call_api(
             "get_message",
