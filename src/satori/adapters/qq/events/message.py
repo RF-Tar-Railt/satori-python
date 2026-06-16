@@ -106,7 +106,7 @@ async def group_message_create(login, guild_login, net, payload: Payload):
             avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]),
             is_bot=raw["author"].get("bot", False),
         )
-    member = Member(user, avatar=user.avatar)
+    member = Member(user, avatar=user.avatar, roles=[Role(raw["author"].get("member_role", "member"))])
     msg = decode_segments(raw)
     if payload.type == "GROUP_AT_MESSAGE_CREATE":
         msg.insert(0, At(login.id))

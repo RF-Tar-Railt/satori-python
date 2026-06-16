@@ -102,6 +102,7 @@ def apply(
                 user,
                 avatar=user.avatar,
                 joined_at=datetime.fromisoformat(raw["member"]["joined_at"]),
+                roles=[(ROLE_MAPPING.get(r) or Role(r)) for r in raw["member"]["roles"]],
             )
             msg = decode_segments(raw)
             if len(msg) >= 2 and isinstance(msg[0], At) and isinstance(msg[1], Text):
