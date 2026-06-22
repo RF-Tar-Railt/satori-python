@@ -67,6 +67,8 @@ class Intents:
     """频道私信消息事件"""
     open_forum_event: bool = False
     audio_live_member: bool = False
+    group_members: bool = True
+    """群成员事件"""
     c2c_group_at_messages: bool = False
     """群聊和单聊事件"""
     interaction: bool = False
@@ -96,6 +98,7 @@ class Intents:
             | self.direct_messages << 12
             | self.open_forum_event << 18
             | self.audio_live_member << 19
+            | self.group_members << 24
             | self.c2c_group_at_messages << 25
             | self.interaction << 26
             | self.message_audit << 27
