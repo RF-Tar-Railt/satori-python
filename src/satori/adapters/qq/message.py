@@ -7,6 +7,7 @@ import random
 import re
 from datetime import datetime, timezone
 from hashlib import md5, sha1
+from urllib.parse import quote
 
 from loguru import logger
 
@@ -45,7 +46,7 @@ def unescape(s: str) -> str:
 
 
 def escape_markdown(s: str) -> str:
-    return re.sub(r"([\\`*_{}\[\]()#+\-.!>~])", r"\\\1", s)
+    return re.sub(r"([\\`*_[_~`\]\-(#!>])", r"\\\1", s)
 
 
 def handle_text(msg: str):
@@ -94,6 +95,15 @@ def form_data(message: dict):
 
 def remove_empty(d: dict):
     return {k: (remove_empty(v) if isinstance(v, dict) else v) for k, v in d.items() if v is not None}
+
+
+def inlinecmd_url(text: str, enter: bool = False, reply: bool = False):
+    cmd = quote(text).replace("(", "%28").replace(")", "%29")
+    return f"mqqapi://aio/inlinecmd?command={cmd}&enter={str(enter).lower()}&reply={str(reply).lower()}"
+
+
+def inlinecmd(text: str, show: str, enter: bool = False, reply: bool = False):
+    return f"[{show or text}]({inlinecmd_url(text, enter, reply)})"
 
 
 class QQBotMessageEncoder:
@@ -216,7 +226,7 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
                 if not self.content.endswith("\n"):
                     self.content += "\n"
             case "sharp":
-                self.content += f"<#!{attrs['id']}>"
+                self.content += f"<#{attrs['id']}>"
             case "quote":
                 self.reference = attrs["id"]
                 await self.flush()
@@ -256,10 +266,21 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
             self.file_data = {"value": data, "content_type": content_type, "filename": filename}
 
 
+MARKDOWN_MODIFIERS = {
+    "**": ["b", "strong"],
+    "__": ["i", "em"],
+    "~~": ["s", "del"],
+    "`": ["code"],
+    # "/": ["u", "ins"],
+    # "==": ["mark"],
+}
+
+
 class QQGroupMessageEncoder(QQBotMessageEncoder):
     def __init__(self, login: Login, net: QQBotNetwork, channel_id: str, referrer: dict | None = None):
         super().__init__(login, net, channel_id, referrer)
         self.use_markdown = False
+        self.in_markdown = 0
         self.ark_payload: dict | None = None
         self.content = ""
         self.reference = ""
@@ -270,7 +291,8 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         # self.file_data = {}  # value, content_type, filename
 
     async def flush(self):
-        if not self.content and not self.attachment and not self.rows:
+        if not self.content and not self.attachment and not self.rows and not self.ark_payload:
+            self.reset()
             return
         self.strip_buttons()
         event_id = self.referrer.get("event_id") if self.referrer else None
@@ -288,14 +310,15 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             "event_id": event_id,
             "msg_id": msg_id,
             "msg_seq": (msg_seq + 1) if isinstance(msg_seq, int) else 0,
-            **(self.ark_payload if self.ark_payload else {"content": self.content, "msg_type": 0}),
+            "content": self.content,
+            "msg_type": 0,
         }
-        if not self.ark_payload and self.attachment:
+        if self.attachment:
             if not self.content:
                 self.content = " "
             data["media"] = self.attachment
             data["msg_type"] = 7
-        if not self.ark_payload and self.use_markdown:
+        elif self.use_markdown:
             data["msg_type"] = 2
             del data["content"]
             data["markdown"] = {
@@ -304,6 +327,10 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             }
             if self.rows:
                 data["keyboard"] = {"content": {"rows": self.export_buttons()}}
+        if self.ark_payload:
+            data["content"] = " "
+            data.pop("markdown", None)
+            data.update(self.ark_payload)
         try:
             if self.channel_id.startswith("private:") or (self.referrer and self.referrer.get("direct", False)):
                 endpoint = f"v2/users/{self.channel_id.split(':',1)[-1]}/messages"
@@ -339,11 +366,15 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 self.results.append(MessageObject(audit_res.message_id, self._raw_content, referrer=referrer))
         except Exception as e:
             logger.error(f"Failed to send message to {self.channel_id}: {self._raw_content}\nError: {e!r}")
+        self.reset()
+
+    def reset(self):
         self.content = ""
         self.reference = ""
         self.attachment = None
         self.ark_payload = None
         self.use_markdown = False
+        self.in_markdown = 0
         self.md_templates = None
         self.rows = []
 
@@ -465,52 +496,59 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             logger.error(f"Failed to finalize file upload to {self.channel_id}: {filename}\nError: {e}")
             return None
 
+    def _ensure_markdown(self):
+        if not self.use_markdown:
+            self.content = escape_markdown(self.content)
+            self.use_markdown = True
+
     async def visit(self, element: RawElement):
         type_, attrs, children = element.type, element.attrs, element.children
-        if type_ == "markdown":
-            if not self.use_markdown:
-                self.content = escape_markdown(self.content)
-                self.use_markdown = True
-            self.content += extract_markdown_text(children)
-            return
-            # if self.content:
-            #     self.content += "\n"
-            # self.use_markdown = True
-            # await self.render(children)
-        if type_ == "button" or type_ == "qq:button":
-            if not self.use_markdown:
-                self.content = escape_markdown(self.content)
-                self.use_markdown = True
-            last = self.last_row()
-            last.append(self.decode_button(attrs, extract_markdown_text(children)))
-            return
         if ark_payload := parse_qq_ark(element):
             await self.flush()
             self.ark_payload = ark_payload
             await self.flush()
         match type_:
-            case "qq:markdown":
-                if self.content:
-                    self.content = escape_markdown(self.content) + "\n"
-                self.use_markdown = True
-                if attrs.get("template_id"):
-                    self.md_templates = {
-                        "custom_template_id": attrs["template_id"],
-                        "params": [{"key": k, "value": v} for k, v in attrs.items() if k != "template_id"],
-                    }
-                await self.render(children)
             case "text":
-                self.content += escape_markdown(attrs["text"]) if self.use_markdown else attrs["text"]
+                self.content += (
+                    escape_markdown(attrs["text"]) if self.use_markdown and not self.in_markdown else attrs["text"]
+                )
             case "at":
-                if not self.use_markdown:
-                    self.use_markdown = True
+                if not self.reference:
+                    self._ensure_markdown()
                 if attrs.get("id"):
                     self.content += f"<qqbot-at-user id=\"{attrs['id']}\" />"
                 elif attrs.get("type"):
                     self.content += "<qqbot-at-everyone />"
                 else:
                     await self.render(children)
+            case "inlinecmd":
+                self._ensure_markdown()
+                self.content += "["
+                length = len(self.content)
+                await self.render(children)
+                inline_data = attrs.copy()
+                if "text" not in inline_data:
+                    inline_data["text"] = self.content[length:]
+                self.content += f"]({inlinecmd_url(**inline_data)})"
+            case "a":
+                if attrs.get("href"):
+                    self._ensure_markdown()
+                    self.content += "["
+                    await self.render(children)
+                    self.content += f"]({attrs['href']})"
             case "img" | "image" | "file":
+                if attrs.get("src") or attrs.get("url"):
+                    if self.use_markdown:
+                        alt = attrs.get("title") or attrs.get("name") or attrs.get("alt") or ""
+                        url = attrs.get("url") or attrs.get("src")
+                        if attrs.get("width") and attrs.get("height"):
+                            alt += f" #{attrs['width']}px #{attrs['height']}px"
+                        self.content += f"![{alt}]({url})"
+                    else:
+                        await self.flush()
+                        if data := (await self.send_file(type_, attrs)):
+                            self.attachment = data
+            case "file":
                 if attrs.get("src") or attrs.get("url"):
                     await self.flush()
                     if data := (await self.send_file(type_, attrs)):
@@ -530,12 +568,26 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 if not self.content.endswith("\n"):
                     self.content += "\n"
             case "button-group" | "qq:button-group":
-                if not self.use_markdown:
-                    self.content = escape_markdown(self.content)
-                    self.use_markdown = True
+                self._ensure_markdown()
                 self.rows.append([])
                 await self.render(children)
                 self.rows.append([])
+            case "button" | "qq:button":
+                self._ensure_markdown()
+                last = self.last_row()
+                last.append(self.decode_button(attrs, extract_markdown_text(children)))
+            case "markdown" | "qq:markdown":
+                if self.attachment:
+                    await self.flush()
+                self._ensure_markdown()
+                self.in_markdown += 1
+                await self.render(children)
+                self.in_markdown -= 1
+                if type_ == "qq:markdown" and attrs.get("template_id"):
+                    self.md_templates = {
+                        "custom_template_id": attrs["template_id"],
+                        "params": [{"key": k, "value": v} for k, v in attrs.items() if k != "template_id"],
+                    }
             case "qq:cmd-enter":
                 self.use_markdown = True
                 self.content += RawElement("qqbot-cmd-enter", attrs, []).dumps()
@@ -550,6 +602,13 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 self.reference = attrs["id"]
                 await self.flush()
             case _:
+                for delimiter, types in MARKDOWN_MODIFIERS.items():
+                    if type_ in types:
+                        self._ensure_markdown()
+                        self.content += delimiter
+                        await self.render(children)
+                        self.content += delimiter
+                        return
                 await self.render(children)
 
     def last_row(self) -> list[dict]:
