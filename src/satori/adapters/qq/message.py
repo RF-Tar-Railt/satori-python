@@ -521,7 +521,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                     self.content += "<qqbot-at-everyone />"
                 else:
                     await self.render(children)
-            case "inlinecmd":
+            case "qq:inlinecmd":
                 self._ensure_markdown()
                 self.content += "["
                 length = len(self.content)

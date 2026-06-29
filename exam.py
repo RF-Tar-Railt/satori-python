@@ -50,7 +50,7 @@ print(message)
 from satori import E
 
 print(E("<qq:passive id={ id }/>", {"id": "123456789"}))
-
+print(repr(E("<qq:passive id={ id }/>", {"id": "123456789"})))
 from dataclasses import dataclass
 
 from satori import register_element

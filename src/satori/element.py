@@ -129,7 +129,7 @@ class Element:
         args = {**self._attrs}
         elem = f"{self.__class__.__name__}(" + ", ".join(f"{k}={v!r}" for k, v in args.items())
         if self._children:
-            elem += ", { " + ", ".join(repr(i) for i in self._children) + " }"
+            elem += ", [" + ", ".join(repr(i) for i in self._children) + "]"
         return elem + ")"
 
     def __call__(self, *content: "str | Element"):
@@ -257,7 +257,6 @@ class Link(Element):
 class Resource(Element):
     src: str
     title: str | None = None
-    extra: InitVar[dict[str, Any] | None] = None
     cache: bool | None = None
     timeout: int | None = None
 
@@ -271,14 +270,15 @@ class Resource(Element):
         raw: bytes | BytesIO | None = None,
         mime: str | None = None,
         name: str | None = None,
+        width: int | None = None,
+        height: int | None = None,
         duration: float | None = None,
         poster: str | None = None,
-        extra: dict[str, Any] | None = None,
         cache: bool | None = None,
         timeout: int | None = None,
         **kwargs,
     ) -> Self:
-        data: dict[str, Any] = {"extra": extra, **kwargs}
+        data: dict[str, Any] = {**kwargs}
         if url is not None:
             data |= {"src": url}
         elif path:
@@ -296,6 +296,10 @@ class Resource(Element):
             raise ValueError(f"{cls} need at least one of url, path and raw")
         if name is not None:
             data["title"] = name
+        if width is not None and cls in (Image, Video):
+            data["width"] = width
+        if height is not None and cls in (Image, Video):
+            data["height"] = height
         if duration is not None and cls is Audio:
             data["duration"] = duration
         if poster is not None and cls in (Video, Audio, File):
@@ -304,11 +308,7 @@ class Resource(Element):
             data["cache"] = cache
         if timeout is not None:
             data["timeout"] = timeout
-        return cls(**data)
-
-    def __post_init__(self, extra: dict[str, Any] | None = None):
-        if extra:
-            self._attrs.update(extra)
+        return cls.unpack(data)
 
 
 @dataclass(repr=False)
@@ -582,7 +582,7 @@ class Custom(Element):
         attrs: dict[str, Any] | None = None,
         children: Sequence[str | Element] | None = None,
     ):
-        self.type = type
+        self._type = type
         if not hasattr(self, "_attrs"):
             self._attrs = attrs or {}
         else:
@@ -595,7 +595,21 @@ class Custom(Element):
     @property
     @override
     def tag(self) -> str:
-        return self.type
+        return self._type
+
+    def __repr__(self) -> str:
+        if not self._attrs:
+            self._attrs = {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+        args = {**self._attrs}
+        elem = (
+            f"{self.__class__.__name__}({self._type!r}"
+            + ", {"
+            + ", ".join(f"{k!r}: {v!r}" for k, v in args.items())
+            + "}"
+        )
+        if self._children:
+            elem += ", [" + ", ".join(repr(i) for i in self._children) + "]"
+        return elem + ")"
 
 
 @dataclass(repr=False)
