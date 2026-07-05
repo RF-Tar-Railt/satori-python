@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from satori import EventType
-from satori.model import Channel, ChannelType, Event, Guild, Member, User
+from satori.model import Channel, ChannelType, Event, Guild, Member, Role, User
 
 from ..utils import group_avatar, user_avatar
 from .base import register_event
@@ -15,8 +15,18 @@ async def group_member_increase(login, net, raw):
     guild_id = str(data["group_id"])
     guild = Guild(guild_id, avatar=group_avatar(guild_id))
     channel = Channel(guild_id, ChannelType.TEXT)
+    if data["user_id"] == raw["self_id"]:
+        return Event(
+            EventType.GUILD_ADDED,
+            datetime.now(),
+            login=login,
+            user=login.user,
+            member=Member(login.user, avatar=user_avatar(data["user_id"]), roles=[Role("member", "群成员")]),
+            guild=guild,
+            channel=channel,
+        )
     user = User(str(data["user_id"]), avatar=user_avatar(data["user_id"]))
-    member = Member(user, avatar=user.avatar)
+    member = Member(user, avatar=user.avatar, roles=[Role("member", "群成员")])
     operator = None
     if data.get("operator_id"):
         operator = User(str(data["operator_id"]), avatar=user_avatar(data["operator_id"]))
@@ -38,6 +48,16 @@ async def group_member_decrease(login, net, raw):
     guild_id = str(data["group_id"])
     guild = Guild(guild_id, avatar=group_avatar(guild_id))
     channel = Channel(guild_id, ChannelType.TEXT)
+    if data["user_id"] == raw["self_id"]:
+        return Event(
+            EventType.GUILD_REMOVED,
+            datetime.now(),
+            login=login,
+            user=login.user,
+            member=Member(login.user, avatar=user_avatar(data["user_id"]), roles=[Role("member", "群成员")]),
+            guild=guild,
+            channel=channel,
+        )
     user = User(str(data["user_id"]), avatar=user_avatar(data["user_id"]))
     member = Member(user, avatar=user.avatar)
     operator = None
