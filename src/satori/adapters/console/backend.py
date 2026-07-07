@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import asdict
 from datetime import datetime
 from typing import TYPE_CHECKING, cast
@@ -150,7 +149,4 @@ class SatoriConsoleBackend(Backend):
                 _data=asdict(event),
             )
 
-        async def _task():
-            await self._adapter.server.post(post)
-
-        asyncio.create_task(_task())
+        await self._adapter.server.post(post)

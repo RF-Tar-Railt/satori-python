@@ -70,68 +70,65 @@ class OneBot11ForwardAdapter(BaseAdapter):
                     future.set_result(data)
                 continue
 
-            async def event_parse_task(data: dict):
-                event_type = onebot11_event_type(data)
-                if event_type == "meta_event.lifecycle.connect":
-                    self_id = str(data["self_id"])
-                    if self_id not in self.logins:
-                        self_info = await self.call_api("get_login_info")
-                        login = Login(
-                            sn=0,
-                            status=LoginStatus.ONLINE,
-                            adapter="onebot",
-                            platform="onebot",
-                            user=User(
-                                self_id,
-                                (self_info or {})["nickname"],
-                                avatar=USER_AVATAR_URL.format(uin=self_id),
-                            ),
-                            features=["guild.plain"],
-                        )
-                        self.logins[self_id] = login
-                        await self.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
-                elif event_type == "meta_event.lifecycle.enable":
-                    logger.warning(f"received lifecycle.enable event that is only supported in http adapter: {data}")
+            event_type = onebot11_event_type(data)
+            if event_type == "meta_event.lifecycle.connect":
+                self_id = str(data["self_id"])
+                if self_id not in self.logins:
+                    self_info = await self.call_api("get_login_info")
+                    login = Login(
+                        sn=0,
+                        status=LoginStatus.ONLINE,
+                        adapter="onebot",
+                        platform="onebot",
+                        user=User(
+                            self_id,
+                            (self_info or {})["nickname"],
+                            avatar=USER_AVATAR_URL.format(uin=self_id),
+                        ),
+                        features=["guild.plain"],
+                    )
+                    self.logins[self_id] = login
+                    await self.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+            elif event_type == "meta_event.lifecycle.enable":
+                logger.warning(f"received lifecycle.enable event that is only supported in http adapter: {data}")
+                return
+            elif event_type == "meta_event.lifecycle.disable":
+                logger.warning(f"received lifecycle.disable event that is only supported in http adapter: {data}")
+                return
+            elif event_type == "meta_event.heartbeat":
+                self_id = str(data["self_id"])
+                if self_id not in self.logins:
+                    self_info = await self.call_api("get_login_info")
+                    login = Login(
+                        sn=0,
+                        status=LoginStatus.ONLINE,
+                        adapter="onebot",
+                        platform="onebot",
+                        user=User(
+                            self_id,
+                            (self_info or {})["nickname"],
+                            avatar=USER_AVATAR_URL.format(uin=self_id),
+                        ),
+                        features=["guild.plain"],
+                    )
+                    self.logins[self_id] = login
+                    await self.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+                logger.trace(f"received heartbeat from {self_id}")
+            else:
+                self_id = str(data["self_id"])
+                if self_id not in self.logins:
+                    logger.warning(f"received event from unknown self_id: {data}")
                     return
-                elif event_type == "meta_event.lifecycle.disable":
-                    logger.warning(f"received lifecycle.disable event that is only supported in http adapter: {data}")
-                    return
-                elif event_type == "meta_event.heartbeat":
-                    self_id = str(data["self_id"])
-                    if self_id not in self.logins:
-                        self_info = await self.call_api("get_login_info")
-                        login = Login(
-                            sn=0,
-                            status=LoginStatus.ONLINE,
-                            adapter="onebot",
-                            platform="onebot",
-                            user=User(
-                                self_id,
-                                (self_info or {})["nickname"],
-                                avatar=USER_AVATAR_URL.format(uin=self_id),
-                            ),
-                            features=["guild.plain"],
-                        )
-                        self.logins[self_id] = login
-                        await self.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
-                    logger.trace(f"received heartbeat from {self_id}")
+                login = self.logins[self_id]
+                handler = events.get(event_type)
+                if not handler:
+                    event = Event(EventType.INTERNAL, datetime.now(), login)
                 else:
-                    self_id = str(data["self_id"])
-                    if self_id not in self.logins:
-                        logger.warning(f"received event from unknown self_id: {data}")
-                        return
-                    login = self.logins[self_id]
-                    handler = events.get(event_type)
-                    if not handler:
-                        event = Event(EventType.INTERNAL, datetime.now(), login)
-                    else:
-                        event = await handler(login, self, data)
-                    if event:
-                        event._type = event_type
-                        event._data = data
-                        await self.server.post(event)
-
-            asyncio.create_task(event_parse_task(data))
+                    event = await handler(login, self, data)
+                if event:
+                    event._type = event_type
+                    event._data = data
+                    await self.server.post(event)
 
     async def message_receive(self):
         if self.connection is None:

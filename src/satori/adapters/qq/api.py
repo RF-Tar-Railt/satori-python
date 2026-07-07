@@ -201,7 +201,10 @@ def apply(
             )
             channels = [decode_channel(channel) for channel in res]
             return PageResult(channels, next=None)
-        raise NotFoundException("qq platform does not support channel.list")
+        is_private = request.params["guild_id"].startswith("private:")
+        return PageResult(
+            [Channel(request.params["guild_id"], ChannelType.DIRECT if is_private else ChannelType.TEXT)],
+        )
 
     @adapter.route(Api.CHANNEL_CREATE)
     async def channel_create(request: Request[ChannelCreateParam]):

@@ -111,15 +111,15 @@ class OneBot11MessageEncoder:
 
         slot = self.stack[0]
         type_, author = slot.type, slot.author
-        if not self.children and "message_id" not in author:
+        if not self.children and "messageId" not in author:
             return
         if type_ == "forward":
-            if "message_id" in author:
+            if "messageId" in author:
                 self.stack[1].children.append(
                     {
                         "type": "node",
                         "data": {
-                            "id": author["message_id"],
+                            "id": author["messageId"],
                         },
                     }
                 )
@@ -286,7 +286,7 @@ class OneBot11MessageEncoder:
                     self.stack.pop(0)
                     await self.send_forward()
                 elif "id" in attrs:
-                    self.stack[0].author["message_id"] = str(attrs["id"])
+                    self.stack[0].author["messageId"] = str(attrs["id"])
                 else:
                     payload = {}
                     if "name" in attrs:
@@ -299,6 +299,8 @@ class OneBot11MessageEncoder:
                         payload["id"] = int(attrs["id"])
                     if "user_id" in attrs:
                         payload["id"] = int(attrs["user_id"])
+                    if "userId" in attrs:
+                        payload["id"] = int(attrs["userId"])
                     if "time" in attrs:
                         payload["time"] = int(attrs["time"])
                     self.stack[0].author.update(payload)

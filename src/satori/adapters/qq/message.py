@@ -583,10 +583,13 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 self.in_markdown += 1
                 await self.render(children)
                 self.in_markdown -= 1
-                if type_ == "qq:markdown" and attrs.get("template_id"):
+                if type_ == "qq:markdown" and attrs.get("template_id") or attrs.get("templateId"):
+                    tid = attrs.get("template_id") or attrs.get("templateId")
                     self.md_templates = {
-                        "custom_template_id": attrs["template_id"],
-                        "params": [{"key": k, "value": v} for k, v in attrs.items() if k != "template_id"],
+                        "custom_template_id": tid,
+                        "params": [
+                            {"key": k, "value": v} for k, v in attrs.items() if k != "template_id" and k != "templateId"
+                        ],
                     }
             case "qq:cmd-enter":
                 self.use_markdown = True

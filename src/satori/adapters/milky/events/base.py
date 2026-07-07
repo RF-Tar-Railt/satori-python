@@ -34,5 +34,5 @@ async def bot_offline(login, net, raw):
             user=login.user,
             features=login.features.copy(),
         ),
-        message=MessageObject("", raw["data"]["reason"])
+        message=MessageObject("", raw["data"]["reason"]),
     )

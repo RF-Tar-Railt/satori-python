@@ -138,7 +138,10 @@ class MilkyMessageEncoder:
                 if match := _BASE64_RE.match(uri):
                     uri = f"base64://{uri[len(match.group(0)) :]}"
                 self.segments.append(
-                    {"type": "image", "data": {"uri": uri, "sub_type": attrs.get("sub_type", "normal")}}
+                    {
+                        "type": "image",
+                        "data": {"uri": uri, "sub_type": attrs.get("sub_type", attrs.get("subTyoe", "normal"))},
+                    }
                 )
             case "audio":
                 uri = attrs.get("src") or attrs.get("url")
@@ -169,7 +172,9 @@ class MilkyMessageEncoder:
                 await self._send_file(attrs)
             case "milky:light_app":
                 await self.flush()
-                self.segments.append({"type": "light_app", "data": {"json_payload": attrs["json_payload"]}})
+                self.segments.append(
+                    {"type": "light_app", "data": {"json_payload": attrs.get("json_payload", attrs["jsonPayload"])}}
+                )
             case "author":
                 self.stack[0].author.update(attrs)
             case "quote":
@@ -196,7 +201,7 @@ class MilkyMessageEncoder:
                     if "id" in attrs:
                         payload["id"] = int(attrs["id"])
                     if "user_id" in attrs:
-                        payload["id"] = int(attrs["user_id"])
+                        payload["id"] = int(attrs.get("user_id", attrs["userId"]))
                     if "time" in attrs:
                         payload["time"] = int(attrs["time"])
                     self.stack[0].author.update(payload)

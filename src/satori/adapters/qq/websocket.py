@@ -235,28 +235,25 @@ class QQBotWebsocketAdapter(BaseAdapter):
             payload = Payload(**data)
             connection.sequence = payload.sequence  # type: ignore
 
-            async def event_parse_task(_data: Payload):
-                event_type = _data.type
-                if not event_type:
-                    return
-                login, guild_login = self.logins[:2]
-                if event_type.startswith("MESSAGE_AUDIT_"):
-                    audit_result.add_result(_data.data)
-                handler = event_handlers.get(event_type)
-                if handler:
-                    event = await handler(login, guild_login, self, _data)
-                else:
-                    event = Event(
-                        EventType.INTERNAL,
-                        datetime.now(),
-                        guild_login,
-                    )
-                if event:
-                    event._type = event_type
-                    event._data = _data.data
-                    await self.server.post(event)
-
-            asyncio.create_task(event_parse_task(payload))
+            event_type = payload.type
+            if not event_type:
+                return
+            login, guild_login = self.logins[:2]
+            if event_type.startswith("MESSAGE_AUDIT_"):
+                audit_result.add_result(payload.data)
+            handler = event_handlers.get(event_type)
+            if handler:
+                event = await handler(login, guild_login, self, payload)
+            else:
+                event = Event(
+                    EventType.INTERNAL,
+                    datetime.now(),
+                    guild_login,
+                )
+            if event:
+                event._type = event_type
+                event._data = payload.data
+                await self.server.post(event)
 
     async def connection_closed(self):
         self.session_id = None

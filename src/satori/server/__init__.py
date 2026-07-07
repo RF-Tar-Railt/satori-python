@@ -7,13 +7,13 @@ import re
 import secrets
 import signal
 import threading
+import traceback
 import urllib.parse
 from collections.abc import Awaitable, Callable, Iterable
 from contextlib import suppress
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from traceback import print_exc
 from typing import Any, TypeVar
 
 import aiohttp
@@ -103,10 +103,10 @@ async def _request_handler(action: str, request: StarletteRequest, func: RouteCa
         return Response(status_code=504, content="Request timeout")
     except ActionFailed as ae:
         logger.warning(ae)
-        return Response(status_code=ae.CODE, content=str(ae))
+        return Response(status_code=ae.CODE, content=repr(ae))
     except Exception as e:
         logger.error(e)
-        return Response(status_code=500, content=str(e))
+        return Response(status_code=500, content=repr(e))
     if isinstance(res, ModelBase):
         return JSONResponse(content=res.dump())
     if res and isinstance(res, list) and isinstance(res[0], ModelBase):
@@ -239,16 +239,22 @@ class Server(Service, RouterMixin):
         event.sn = self._sequence
         self._event_cache.append(event)
         self._sequence += 1
-        for connection in self.connections:
-            if not connection.alive:
-                continue
-            try:
-                await connection.send({"op": Opcode.EVENT, "body": event.dump()})
-            except (WebSocketDisconnect, RuntimeError):
-                break
-            except Exception as e:
-                print_exc()
-                logger.error(e)
+        connections = [conn for conn in self.connections if conn.alive]
+        payload = {"op": Opcode.EVENT, "body": event.dump()}
+        ws_tasks = [conn.send(payload) for conn in connections]
+        if ws_tasks:
+            results = await asyncio.gather(*ws_tasks, return_exceptions=True)
+            for conn, result in zip(connections, results):
+                if not result:
+                    continue
+                if isinstance(result, (WebSocketDisconnect, RuntimeError)):
+                    logger.warning(f"Connection {id(conn):x} closed: {result}")
+                else:
+                    traceback.print_exception(type(result), result, result.__traceback__)
+                    logger.error(result)
+                await conn.connection_closed()
+                if conn in self.connections:
+                    self.connections.remove(conn)
         for hook in self.webhooks:
             try:
                 async with self.session.post(
@@ -263,7 +269,7 @@ class Server(Service, RouterMixin):
                 ) as resp:
                     resp.raise_for_status()
             except Exception as e:
-                print_exc()
+                traceback.print_exception(type(e), e, e.__traceback__)
                 logger.error(e)
 
     async def websocket_server_handler(self, ws: WebSocket):
