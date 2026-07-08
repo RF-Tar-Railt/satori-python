@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC
-from datetime import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing_extensions import TypeVar
 
 import aiohttp

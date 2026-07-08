@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import aiohttp
 from dataclasses import dataclass
 
+import aiohttp
 from launart import Launart
 from loguru import logger
 from starlette.requests import Request as StarletteRequest

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import suppress
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 from typing import cast
 
 import aiohttp

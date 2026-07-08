@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Union, TypeVar, Generic
+from typing import TYPE_CHECKING, Generic, TypeVar, Union
 
 from launart import Service
 from starlette.responses import Response
