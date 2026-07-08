@@ -4,7 +4,7 @@ import asyncio
 import sys
 import warnings
 from contextlib import suppress
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import cast
 
@@ -121,7 +121,7 @@ class QQBotWebsocketConfig:
     """QQ 机器人的应用密钥"""
     shard: list[int] | None = None
     """分片信息，格式为 [shard_id, shard_count]，若不设置则自动获取分片信息"""
-    intent: Intents = Intents()
+    intent: Intents = field(default_factory=Intents)
     """该 QQ 机器人的事件订阅掩码，具体请参考 QQ 机器人文档"""
     is_sandbox: bool = False
     """是否连接到 QQ 机器人的沙箱环境，默认为False"""
