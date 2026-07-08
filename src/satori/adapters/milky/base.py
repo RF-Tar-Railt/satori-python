@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from abc import ABC
 from datetime import datetime
+from dataclasses import dataclass, field
+from typing_extensions import TypeVar
 
 import aiohttp
 from launart.status import Phase
@@ -23,24 +25,37 @@ from .utils import decode_login_user
 DEFAULT_FEATURES = ["guild.plain", "reaction"]
 
 
-class MilkyBaseAdapter(BaseAdapter, ABC):
+@dataclass
+class MilkyBaseConfig:
+    endpoint: str
+    """连接 Milky 协议端的路径"""
+    token: str | None = None
+    """Milky 协议的访问令牌, 默认为空"""
+    token_in_query: bool = False
+    """是否将 token 放在查询参数中, 默认为 False"""
+    headers: dict[str, str] = field(default_factory=dict)
+    """连接时使用的自定义请求头, 默认为空字典"""
+
+
+TMilkyBaseConfig = TypeVar("TMilkyBaseConfig", bound=MilkyBaseConfig, default=MilkyBaseConfig)
+
+
+class MilkyBaseAdapter(BaseAdapter[TMilkyBaseConfig], ABC):
     """Base adapter for Milky protocol with common functionality."""
 
     session: aiohttp.ClientSession | None
 
     def __init__(
         self,
-        endpoint: str | URL,
-        *,
-        token: str | None = None,
-        headers: dict[str, str] | None = None,
+        config: TMilkyBaseConfig,
     ):
         super().__init__()
-        self.base_url = URL(str(endpoint))
+        self.config = config
+        self.base_url = URL(self.config.endpoint)
         base_path = self.base_url.path.rstrip("/")
         self.api_base = self.base_url.with_path(f"{base_path}/api")
-        self.token = token
-        self.headers = headers.copy() if headers else {}
+        self.token = config.token
+        self.headers = config.headers.copy()
         self.session = None
         self.logins: dict[str, Login] = {}
         self.features: list[str] = list(DEFAULT_FEATURES)
@@ -155,4 +170,4 @@ class MilkyBaseAdapter(BaseAdapter, ABC):
         return self.logins[self_id]
 
 
-__all__ = ["MilkyBaseAdapter", "DEFAULT_FEATURES"]
+__all__ = ["MilkyBaseAdapter", "DEFAULT_FEATURES", "MilkyBaseConfig"]

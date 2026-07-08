@@ -31,10 +31,7 @@ from .protocol import ApiProtocol as ApiProtocol
 TConfig = TypeVar("TConfig", bound=Config)
 TE = TypeVar("TE", bound=Event, contravariant=True)
 
-MAPPING: dict[type[Config], type[BaseNetwork]] = {
-    WebhookInfo: WebhookNetwork,
-    WebsocketsInfo: WsNetwork,
-}
+MAPPING: dict[type[Config], type[BaseNetwork]] = {WebhookInfo: WebhookNetwork, WebsocketsInfo: WsNetwork}  # noqa
 
 _app: App | None = None
 

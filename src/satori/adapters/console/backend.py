@@ -37,8 +37,8 @@ class SatoriConsoleBackend(Backend):
         self._adapter = adapter
 
     def on_console_load(self):
-        if self._adapter._logger_id >= 0:
-            current_handler: Handler = cast(Logger, logger)._core.handlers[self._adapter._logger_id]
+        if self._adapter.config.logger_id >= 0:
+            current_handler: Handler = cast(Logger, logger)._core.handlers[self._adapter.config.logger_id]
         else:
             current_handler: Handler = list(cast(Logger, logger)._core.handlers.values())[-1]
         if current_handler._colorize and _colorama.should_wrap(self.frontend._fake_output):
@@ -74,8 +74,8 @@ class SatoriConsoleBackend(Backend):
 
     async def on_console_unmount(self):
         if self._origin_sink is not None:
-            if self._adapter._logger_id >= 0:
-                current_handler: Handler = cast(Logger, logger)._core.handlers[self._adapter._logger_id]
+            if self._adapter.config.logger_id >= 0:
+                current_handler: Handler = cast(Logger, logger)._core.handlers[self._adapter.config.logger_id]
             else:
                 current_handler: Handler = list(cast(Logger, logger)._core.handlers.values())[-1]
             current_handler._sink = self._origin_sink

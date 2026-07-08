@@ -1,4 +1,5 @@
 from .main import QQBotWebhookAdapter as QQBotWebhookAdapter
+from .main import QQBotWebhookConfig as QQBotWebhookConfig
 from .websocket import QQBotWebsocketAdapter as QQBotWebsocketAdapter
-
-__all__ = ["QQBotWebsocketAdapter", "QQBotWebsocketAdapter"]
+from .websocket import Intents as Intents
+from .websocket import QQBotWebsocketConfig as QQBotWebsocketConfig

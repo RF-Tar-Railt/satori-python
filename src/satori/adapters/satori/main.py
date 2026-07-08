@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import cast
 
 from launart import Launart, any_completed
@@ -6,24 +7,29 @@ from starlette.datastructures import FormData
 from starlette.responses import JSONResponse, Response
 
 from satori import Api
-from satori.client import App, WebsocketsInfo
+from satori.client import MAPPING, App, WebsocketsInfo, WsNetwork
 from satori.exception import ActionFailed
 from satori.server import Adapter as BaseAdapter
 from satori.server import Request
 from satori.server.adapter import LoginType
 
 
-class SatoriAdapter(BaseAdapter):
+@dataclass
+class SatoriAdapterConfig(WebsocketsInfo):
+    post_upload: bool = False
+
+
+MAPPING[SatoriAdapterConfig] = WsNetwork  # noqa
+
+
+class SatoriAdapter(BaseAdapter[SatoriAdapterConfig]):
     def __init__(
         self,
-        host: str = "localhost",
-        port: int = 5140,
-        path: str = "",
-        token: str | None = None,
-        post_upload: bool = False,
+        config: SatoriAdapterConfig,
     ):
         super().__init__()
-        self.app = App(WebsocketsInfo(host, port, path, token), main_app=False)
+        self.config = config
+        self.app = App(config, main_app=False)
 
         @self.app.register
         async def _(acc, event):
@@ -31,7 +37,7 @@ class SatoriAdapter(BaseAdapter):
 
         self.routes["internal/*"] = self._handle_request
         self.routes |= {api.value: self._handle_request for api in Api.__members__.values()}
-        if not post_upload:
+        if not self.config.post_upload:
             self.routes.pop(Api.UPLOAD_CREATE.value, None)
 
     @property

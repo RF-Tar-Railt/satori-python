@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, TypeVar, Generic
 
 from launart import Service
 from starlette.responses import Response
@@ -16,10 +16,12 @@ if TYPE_CHECKING:
 
 
 LoginType = Union[Login, LoginPartial]  # noqa: UP007
+T = TypeVar("T")
 
 
-class Adapter(Service, RouterMixin):
+class Adapter(Service, RouterMixin, Generic[T]):
     server: "Server"
+    config: T
 
     @abstractmethod
     def get_platform(self) -> str:

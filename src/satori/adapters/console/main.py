@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 
 from creart import it
 from launart import Launart, any_completed
@@ -16,37 +17,28 @@ from .api import apply
 from .backend import SatoriConsoleBackend
 
 
-class ConsoleAdapter(BaseAdapter):
+@dataclass
+class ConsoleConfig(ConsoleSetting):
+    logger_id: int = -1
+    """Loguru logger 的 handler id，用以将控制台输出重定向到 Satori Console 中。"""
+
+
+class ConsoleAdapter(BaseAdapter[ConsoleConfig]):
     def __init__(
         self,
-        logger_id: int = -1,
-        title: str = "Console",
-        sub_title: str = "powered by Textual",
-        room_title: str | None = None,
-        icon: str | None = None,
-        toolbar_exit: str = "⛔",
-        toolbar_clear: str = "🗑️",
-        toolbar_setting: str = "⚙️",
-        toolbar_log: str = "📝",
-        toolbar_fold: str = "⏪",
-        toolbar_expand: str = "⏩",
-        user_avatar: str = "👤",
-        user_name: str = "User",
-        bot_avatar: str = "🤖",
-        bot_name: str = "Bot",
-        new_message_color: str = "lime blink",
+        config: ConsoleConfig | None = None,
     ):
         kwargs = locals().copy()
         kwargs.pop("self")
         kwargs.pop("logger_id")
         kwargs.pop("__class__")
         super().__init__()
+        self.config = config or ConsoleConfig()
         self.app = Frontend(
             SatoriConsoleBackend,
-            ConsoleSetting(**kwargs),
+            self.config,
         )
         self.app.backend.set_adapter(self)
-        self._logger_id = logger_id
         apply(self)
 
     @property

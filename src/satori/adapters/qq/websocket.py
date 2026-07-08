@@ -113,7 +113,26 @@ class Intents:
         return self.c2c_group_at_messages is True
 
 
-class QQBotWebsocketAdapter(BaseAdapter):
+@dataclass
+class QQBotWebsocketConfig:
+    app_id: str
+    """QQ 机器人的应用 ID"""
+    secret: str
+    """QQ 机器人的应用密钥"""
+    shard: list[int] | None = None
+    """分片信息，格式为 [shard_id, shard_count]，若不设置则自动获取分片信息"""
+    intent: Intents = Intents()
+    """该 QQ 机器人的事件订阅掩码，具体请参考 QQ 机器人文档"""
+    is_sandbox: bool = False
+    """是否连接到 QQ 机器人的沙箱环境，默认为False"""
+    api_base: str = "https://api.sgroup.qq.com/"
+    sandbox_api_base: str = "https://sandbox.api.sgroup.qq.com"
+    auth_base: str = "https://bots.qq.com/app/getAppAccessToken"
+    token: str | None = None
+    """[Deprecated] 该 QQ 机器人的访问令牌，已废弃，请使用 app_id 和 secret"""
+
+
+class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
 
     connections: dict[tuple[int, int], aiohttp.ClientWebSocketResponse]
     session: aiohttp.ClientSession
@@ -124,24 +143,16 @@ class QQBotWebsocketAdapter(BaseAdapter):
 
     def __init__(
         self,
-        app_id: str,
-        secret: str,
-        shard: tuple[int, int] | None = None,
-        intent: Intents = Intents(),
-        *,
-        is_sandbox: bool = False,
-        api_base: str | URL = URL("https://api.sgroup.qq.com/"),
-        sandbox_api_base: str | URL = URL("https://sandbox.api.sgroup.qq.com"),
-        auth_base: str | URL = URL("https://bots.qq.com/app/getAppAccessToken"),
-        token: str | None = None,
+        config: QQBotWebsocketConfig,
     ):
         super().__init__()
-        self.app_id = app_id
-        self.secret = secret
-        self.shard = shard
-        self.intent = intent
-        self.api_base = URL(str(api_base if not is_sandbox else sandbox_api_base))
-        self.auth_base = URL(str(auth_base))
+        self.config = config
+        self.app_id = config.app_id
+        self.secret = config.secret
+        self.shard: tuple[int, int] | None = (config.shard[0], config.shard[1]) if config.shard else None
+        self.intent = config.intent
+        self.api_base = URL(config.api_base if not config.is_sandbox else config.sandbox_api_base)
+        self.auth_base = URL(config.auth_base)
         self.session = None  # type: ignore
         self.logins: list[Login] = []
         self.bot_id_mapping: dict[str, str] = {}  # login.id -> bot app_id
@@ -152,7 +163,7 @@ class QQBotWebsocketAdapter(BaseAdapter):
         self._access_token = None
         self._expires_in = None
 
-        if token:
+        if config.token:
             warnings.warn(
                 "The 'token' config is deprecated and will be removed",
                 DeprecationWarning,
@@ -583,4 +594,4 @@ class QQBotWebsocketAdapter(BaseAdapter):
         return self.id
 
 
-__all__ = ["QQBotWebsocketAdapter", "Intents"]
+__all__ = ["QQBotWebsocketAdapter", "Intents", "QQBotWebsocketConfig"]

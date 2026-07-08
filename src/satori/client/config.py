@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from yarl import URL
 
@@ -25,8 +25,8 @@ class WebsocketsInfo(Config):
     token: str | None = None
     secure: bool = False
     timeout: float | None = None
-    identity: str = None  # type: ignore
-    api_base: URL = None  # type: ignore
+    identity: str = field(init=False, default=None)  # type: ignore
+    api_base: URL = field(init=False, default=None)  # type: ignore
 
     def __post_init__(self):
         if self.path and not self.path.startswith("/"):

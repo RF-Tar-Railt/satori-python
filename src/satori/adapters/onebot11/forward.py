@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import suppress
 from datetime import datetime
+from dataclasses import dataclass
 from typing import cast
 
 import aiohttp
@@ -25,21 +26,30 @@ from .events.base import events
 from .utils import USER_AVATAR_URL, onebot11_event_type
 
 
-class OneBot11ForwardAdapter(BaseAdapter):
+@dataclass
+class OneBot11ForwardConfig:
+    endpoint: str
+    """连接 OneBot V11协议端的路径"""
+    access_token: str | None = None
+    """OneBot V11协议的访问令牌, 默认为空"""
+    timeout: float = 60
+    """连接超时时间, 默认为 60 秒"""
+
+
+class OneBot11ForwardAdapter(BaseAdapter[OneBot11ForwardConfig]):
 
     session: ClientSession
     connection: ClientWebSocketResponse | None
 
     def __init__(
         self,
-        endpoint: str | URL,
-        access_token: str | None = None,
-        timeout: float = 60,
+        config: OneBot11ForwardConfig,
     ):
         super().__init__()
-        self.endpoint = URL(endpoint)
-        self.timeout = timeout
-        self.access_token = access_token
+        self.config = config
+        self.endpoint = URL(config.endpoint)
+        self.timeout = config.timeout
+        self.access_token = config.access_token
         self.close_signal = asyncio.Event()
         self.response_waiters: dict[str, asyncio.Future] = {}
         self.logins: dict[str, Login] = {}

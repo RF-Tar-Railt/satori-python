@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from datetime import datetime
 
 from launart import Launart, any_completed
@@ -127,22 +128,33 @@ class _Connection:
         return result.get("data", {})
 
 
-class OneBot11ReverseAdapter(BaseAdapter):
+@dataclass
+class OneBot11ReverseConfig:
+    prefix: str = "/"
+    """反向适配器于 Server 的路径前缀, 默认为 /"""
+    path: str = "onebot/v11"
+    """反向适配器于 Server 的路径, 默认为 onebot/v11"""
+    endpoint: str = "ws"
+    """反向适配器于 Server 的路径端点, 默认为 ws (完整路径即为 /onebot/v11/ws)"""
+    access_token: str | None = None
+    """反向适配器的访问令牌, 默认为空"""
+    timeout: int = 60
+    """发送请求的超时时间，默认为 60 秒"""
+
+
+class OneBot11ReverseAdapter(BaseAdapter[OneBot11ReverseConfig]):
 
     def __init__(
         self,
-        prefix: str = "/",
-        path: str = "onebot/v11",
-        endpoint: str = "ws",
-        access_token: str | None = None,
-        timeout: int = 60,
+        config: OneBot11ReverseConfig,
     ):
         super().__init__()
-        self.endpoint = URL(prefix) / path / endpoint
-        self.access_token = access_token
+        self.config = config
+        self.endpoint = URL(config.prefix) / config.path / config.endpoint
+        self.access_token = config.access_token
         self.logins: dict[str, Login] = {}
         self.connections: dict[str, _Connection] = {}
-        self.timeout = timeout
+        self.timeout = config.timeout
 
         apply(self, lambda _: self.connections[_], lambda _: self.logins[_])
 

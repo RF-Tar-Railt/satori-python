@@ -5,28 +5,23 @@ import asyncio
 import aiohttp
 from launart import Launart, any_completed
 from loguru import logger
-from yarl import URL
 
 from satori.utils import decode
 
-from .base import MilkyBaseAdapter
+from .base import MilkyBaseAdapter, MilkyBaseConfig
 
 
 class MilkySSEAdapter(MilkyBaseAdapter):
 
     def __init__(
         self,
-        endpoint: str | URL,
-        *,
-        token: str | None = None,
-        token_in_query: bool = False,
-        headers: dict[str, str] | None = None,
+        config: MilkyBaseConfig,
     ):
-        super().__init__(endpoint, token=token, headers=headers)
+        super().__init__(config)
         base_path = self.base_url.path.rstrip("/")
         self.event_url = self.base_url.with_path(f"{base_path}/event")
-        if token_in_query and token:
-            self.event_url = self.event_url.update_query(access_token=token)
+        if config.token_in_query and self.token:
+            self.event_url = self.event_url.update_query(access_token=self.token)
         self.close_signal = asyncio.Event()
 
     async def launch(self, manager: Launart):

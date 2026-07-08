@@ -1,30 +1,34 @@
 from __future__ import annotations
 
 import aiohttp
+from dataclasses import dataclass
+
 from launart import Launart
 from loguru import logger
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
-from yarl import URL
 
-from .base import MilkyBaseAdapter
+from .base import MilkyBaseAdapter, MilkyBaseConfig
 
 
-class MilkyWebhookAdapter(MilkyBaseAdapter):
+@dataclass
+class MilkyWebhookConfig(MilkyBaseConfig):
+    path: str = "/milky"
+    """Webhook 适配器于 Server 的路径, 默认为 /milky"""
+    self_token: str | None = None
+    """Webhook 适配器的自定义访问令牌, 默认为 None, 若未设置则使用 Milky 协议的 token"""
+
+
+class MilkyWebhookAdapter(MilkyBaseAdapter[MilkyWebhookConfig]):
 
     def __init__(
         self,
-        endpoint: str | URL,
-        *,
-        token: str | None = None,
-        headers: dict[str, str] | None = None,
-        path: str = "/milky",
-        self_token: str | None = None,
+        config: MilkyWebhookConfig,
     ):
-        super().__init__(endpoint, token=token, headers=headers)
-        self.webhook_token = self_token if self_token is not None else token
-        self.webhook_paths = self._normalize_webhook_paths(path)
+        super().__init__(config)
+        self.webhook_token = config.self_token if config.self_token is not None else config.token
+        self.webhook_paths = self._normalize_webhook_paths(config.path)
 
     async def launch(self, manager: Launart):
         async with self.stage("preparing"):
@@ -79,4 +83,4 @@ class MilkyWebhookAdapter(MilkyBaseAdapter):
         return Response(status_code=204)
 
 
-__all__ = ["MilkyWebhookAdapter"]
+__all__ = ["MilkyWebhookAdapter", "MilkyWebhookConfig"]

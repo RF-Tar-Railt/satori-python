@@ -3,6 +3,7 @@ from __future__ import annotations
 import binascii
 import os
 from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
 from typing import cast
 
 import aiohttp
@@ -186,31 +187,42 @@ class _QQNetwork:
         return {"Authorization": await self._get_authorization_header()}
 
 
-class QQBotWebhookAdapter(BaseAdapter):
+@dataclass
+class QQBotWebhookConfig:
+    secrets: dict[str, str]
+    """QQ 机器人的 app_id 和 app_secret 的映射字典，格式为 {app_id: app_secret}"""
+    path: str = "/qqbot"
+    """Webhook 适配器于 Server 的路径, 默认为 /qqbot"""
+    certfile: str | os.PathLike[str] | None = None
+    """SSL 证书文件路径, 默认为 None, 若未设置则不启用 SSL"""
+    keyfile: str | os.PathLike[str] | None = None
+    """SSL 私钥文件路径, 默认为 None, 若未设置则不启用 SSL"""
+    verify_payload: bool = True
+    """是否验证请求负载的签名，默认为True"""
+    is_sandbox: bool = False
+    """是否连接到 QQ 机器人的沙箱环境，默认为False"""
+    api_base: str = "https://api.sgroup.qq.com/"
+    sandbox_api_base: str = "https://sandbox.api.sgroup.qq.com"
+    auth_base: str = "https://bots.qq.com/app/getAppAccessToken"
+
+
+class QQBotWebhookAdapter(BaseAdapter[QQBotWebhookConfig]):
 
     session: aiohttp.ClientSession | None
 
     def __init__(
         self,
-        secrets: dict[str, str],  # app_id 对应的 secret
-        path: str = "/qqbot",
-        *,
-        certfile: str | os.PathLike[str] | None = None,
-        keyfile: str | os.PathLike[str] | None = None,
-        verify_payload: bool = True,
-        is_sandbox: bool = False,
-        api_base: str | URL = URL("https://api.sgroup.qq.com/"),
-        sandbox_api_base: str | URL = URL("https://sandbox.api.sgroup.qq.com"),
-        auth_base: str | URL = URL("https://bots.qq.com/app/getAppAccessToken"),
+        config: QQBotWebhookConfig,
     ):
         super().__init__()
-        self.api_base = URL(str(api_base if not is_sandbox else sandbox_api_base))
-        self.auth_base = URL(str(auth_base))
-        self._ssl_certfile = certfile
-        self._ssl_keyfile = keyfile
-        self.verify_payload = verify_payload
-        self.secrets = secrets
-        self.path = path
+        self.config = config
+        self.api_base = URL(config.api_base if not config.is_sandbox else config.sandbox_api_base)
+        self.auth_base = URL(config.auth_base)
+        self._ssl_certfile = config.certfile
+        self._ssl_keyfile = config.keyfile
+        self.verify_payload = config.verify_payload
+        self.secrets = config.secrets
+        self.path = config.path
         self.session = None
         self.logins: list[Login] = []
         self.bot_id_mapping: dict[str, str] = {}  # login.id -> bot app_id
@@ -448,4 +460,4 @@ class QQBotWebhookAdapter(BaseAdapter):
         return self.id
 
 
-__all__ = ["QQBotWebhookAdapter"]
+__all__ = ["QQBotWebhookAdapter", "QQBotWebhookConfig"]
