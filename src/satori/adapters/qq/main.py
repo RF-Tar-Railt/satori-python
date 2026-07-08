@@ -299,19 +299,18 @@ class QQBotWebhookAdapter(BaseAdapter):
         if event_type.startswith("MESSAGE_AUDIT_"):
             audit_result.add_result(payload.data)
         handler = event_handlers.get(event_type)
-
+        event = None
         if handler:
-            event = await handler(login, guild_login, network, payload)
-        else:
-            event = Event(
-                EventType.INTERNAL,
-                datetime.now(),
-                guild_login,
-            )
-        if event:
-            event._type = event_type
-            event._data = payload.data
-            await self.server.post(event)
+            try:
+                event = await handler(login, guild_login, network, payload)
+            except Exception as e:
+                logger.exception(f"failed to handle event {event_type}: {e!r}")
+                event = None
+        if not event:
+            event = Event(EventType.INTERNAL, datetime.now(), guild_login)
+        event._type = event_type
+        event._data = payload.data
+        await self.server.post(event)
 
     async def refresh_login(self, app_id: str):
         network = self.networks[app_id]

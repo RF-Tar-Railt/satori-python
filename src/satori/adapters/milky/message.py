@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
 
+from loguru import logger
+
 from satori.element import Custom, E, Element
 from satori.model import Channel, ChannelType, Login, MessageObject, User
 from satori.parser import Element as RawElement
@@ -394,7 +396,15 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
             case "forward":
                 forward_id = data.get("forward_id")
                 if forward_id is not None:
-                    messages = (await net.call_api("get_forwarded_messages", {"forward_id": forward_id}))["messages"]
+                    try:
+                        messages = (await net.call_api("get_forwarded_messages", {"forward_id": forward_id}))[
+                            "messages"
+                        ]
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to fetch forwarded messages for forward_id {forward_id}: {payload}", exc_info=e
+                        )
+                        messages = []
                     forward_elements = []
                     for msg in messages:
                         sender_name = msg.get("sender_name")
@@ -410,7 +420,10 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
                                         "message_seq": msg["message_seq"],
                                     },
                                 )
-                            except Exception:
+                            except Exception as e:
+                                logger.error(
+                                    f"Failed to fetch message {msg['message_seq']} for forward: {payload}", exc_info=e
+                                )
                                 pass
                         if response:
                             origin = await decode_message(net, response["message"])
@@ -422,7 +435,6 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
                                     )
                                 )
                             content.extend(origin.message)
-
                         else:
                             content = await _decode_segments(net, payload, msg.get("segments", []))
                             content.insert(0, E.author(str(msg.get("sender_id")), sender_name, avatar))
@@ -451,7 +463,8 @@ async def _decode_reply(net: MilkyNetwork, payload: dict, data: dict, message_se
                 "message_seq": message_seq,
             },
         )
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to fetch message {message_seq} for reply: {payload}", exc_info=e)
         return None
     if not response or "message" not in response:
         return None

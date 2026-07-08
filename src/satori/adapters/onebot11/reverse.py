@@ -44,6 +44,23 @@ class _Connection:
         self.close_signal.set()
 
     async def message_handle(self):
+        async def _login_add():
+            self_info = await self.call_api("get_login_info")
+            login = Login(
+                sn=0,
+                status=LoginStatus.ONLINE,
+                adapter="onebot",
+                platform="onebot",
+                user=User(
+                    self_id,
+                    (self_info or {})["nickname"],
+                    avatar=USER_AVATAR_URL.format(uin=self_id),
+                ),
+                features=["guild.plain"],
+            )
+            self.adapter.logins[self_id] = login
+            await self.adapter.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+
         async for connection, data in self.message_receive():
             if echo := data.get("echo"):
                 if future := self.response_waiters.get(echo):
@@ -54,21 +71,7 @@ class _Connection:
             if event_type == "meta_event.lifecycle.connect":
                 self_id = str(data["self_id"])
                 if self_id not in self.adapter.logins:
-                    self_info = await self.call_api("get_login_info")
-                    login = Login(
-                        sn=0,
-                        status=LoginStatus.ONLINE,
-                        adapter="onebot",
-                        platform="onebot",
-                        user=User(
-                            self_id,
-                            (self_info or {})["nickname"],
-                            avatar=USER_AVATAR_URL.format(uin=self_id),
-                        ),
-                        features=["guild.plain"],
-                    )
-                    self.adapter.logins[self_id] = login
-                    await self.adapter.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+                    asyncio.create_task(_login_add())
             elif event_type == "meta_event.lifecycle.enable":
                 logger.warning(f"received lifecycle.enable event that is only supported in http adapter: {data}")
                 return
@@ -78,21 +81,7 @@ class _Connection:
             elif event_type == "meta_event.heartbeat":
                 self_id = str(data["self_id"])
                 if self_id not in self.adapter.logins:
-                    self_info = await self.call_api("get_login_info")
-                    login = Login(
-                        sn=0,
-                        status=LoginStatus.ONLINE,
-                        adapter="onebot",
-                        platform="onebot",
-                        user=User(
-                            self_id,
-                            (self_info or {})["nickname"],
-                            avatar=USER_AVATAR_URL.format(uin=self_id),
-                        ),
-                        features=["guild.plain"],
-                    )
-                    self.adapter.logins[self_id] = login
-                    await self.adapter.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+                    asyncio.create_task(_login_add())
                 logger.trace(f"received heartbeat from {self_id}")
             else:
                 self_id = str(data["self_id"])
@@ -101,14 +90,22 @@ class _Connection:
                     return
                 login = self.adapter.logins[self_id]
                 handler = events.get(event_type)
-                if not handler:
-                    event = Event(EventType.INTERNAL, datetime.now(), login)
-                else:
-                    event = await handler(login, self, data)
-                if event:
+
+                async def _event_parse():
+                    event = None
+                    if handler:
+                        try:
+                            event = await handler(login, self, data)
+                        except Exception as e:
+                            logger.exception(f"failed to handle event {event_type}: {e!r}")
+                            event = None
+                    if not event:
+                        event = Event(EventType.INTERNAL, datetime.now(), login)
                     event._type = event_type
                     event._data = data
                     await self.adapter.server.post(event)
+
+                asyncio.create_task(_event_parse())
 
     async def call_api(self, action: str, params: dict | None = None) -> dict:
         if not self.ws:

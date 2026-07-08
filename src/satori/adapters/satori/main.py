@@ -64,7 +64,7 @@ class SatoriAdapter(BaseAdapter):
                 for k, v in data.items()
             }
             return await acc.protocol.call_api(request.action, files, multipart=True)
-        return await acc.protocol.call_api(request.action, request.params)
+        return await acc.protocol.call_api(request.action, request.params, method=request.origin.method)
 
     async def handle_internal(self, request: Request, path: str) -> Response:
         if path.startswith("_api"):

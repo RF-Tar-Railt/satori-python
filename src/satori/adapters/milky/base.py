@@ -110,18 +110,22 @@ class MilkyBaseAdapter(BaseAdapter, ABC):
             return
         login = self.logins[self_id]
         handler = event_handlers.get(event_type)
+        event = None
         if handler:
-            event = await handler(login, self, payload)
-        else:
+            try:
+                event = await handler(login, self, payload)
+            except Exception as e:
+                logger.exception(f"failed to handle event {event_type}: {e!r}")
+                event = None
+        if not event:
             event = Event(
                 EventType.INTERNAL,
                 datetime.fromtimestamp(payload.get("time", datetime.now().timestamp())),
                 login,
             )
-        if event:
-            event._type = event_type
-            event._data = payload.get("data", {})
-            await self.server.post(event)
+        event._type = event_type
+        event._data = payload.get("data", {})
+        await self.server.post(event)
 
     async def refresh_login(self):
         try:
