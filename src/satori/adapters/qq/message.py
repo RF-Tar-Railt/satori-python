@@ -268,8 +268,8 @@ class QQGuildMessageEncoder(QQBotMessageEncoder):
 
 MARKDOWN_MODIFIERS = {
     "**": ["b", "strong"],
-    "__": ["i", "em"],
     "~~": ["s", "del"],
+    "_": ["i", "em"],
     "`": ["code"],
     # "/": ["u", "ins"],
     # "==": ["mark"],
