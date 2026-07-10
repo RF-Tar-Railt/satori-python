@@ -604,6 +604,11 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             case "quote":
                 self.reference = attrs["id"]
                 await self.flush()
+            case "blockquote":
+                self._ensure_markdown()
+                self.content += "\n> "
+                await self.render(children)
+                self.content += "\n"
             case _:
                 for delimiter, types in MARKDOWN_MODIFIERS.items():
                     if type_ in types:

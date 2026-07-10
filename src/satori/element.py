@@ -469,6 +469,15 @@ class Paragraph(Style):
         return "p"
 
 
+class Blockquote(Style):
+    """<blockquote> 元素表示块引用"""
+
+    @property
+    @override
+    def tag(self) -> str:
+        return "blockquote"
+
+
 @dataclass(init=False, repr=False)
 class Message(Element):
     """<message> 元素的基本用法是表示一条消息。
