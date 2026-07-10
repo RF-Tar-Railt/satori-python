@@ -283,6 +283,8 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         self.in_markdown = 0
         self.ark_payload: dict | None = None
         self.content = ""
+        self.blockquote_depth = 0
+        self.blockquote_line_start = True
         self.reference = ""
         self.attachment: dict | None = None
         self.rows: list[list[dict]] = []
@@ -370,6 +372,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
 
     def reset(self):
         self.content = ""
+        self.blockquote_line_start = True
         self.reference = ""
         self.attachment = None
         self.ark_payload = None
@@ -501,6 +504,21 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             self.content = escape_markdown(self.content)
             self.use_markdown = True
 
+    def _append_content(self, text: str):
+        if not text:
+            return
+        if not self.blockquote_depth:
+            self.content += text
+            return
+        prefix = ">" * self.blockquote_depth + " "
+        for char in text:
+            if self.blockquote_line_start and char != "\n":
+                self.content += prefix
+                self.blockquote_line_start = False
+            self.content += char
+            if char == "\n":
+                self.blockquote_line_start = True
+
     async def visit(self, element: RawElement):
         type_, attrs, children = element.type, element.attrs, element.children
         if ark_payload := parse_qq_ark(element):
@@ -509,33 +527,33 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
             await self.flush()
         match type_:
             case "text":
-                self.content += (
+                self._append_content(
                     escape_markdown(attrs["text"]) if self.use_markdown and not self.in_markdown else attrs["text"]
                 )
             case "at":
                 if not self.reference:
                     self._ensure_markdown()
                 if attrs.get("id"):
-                    self.content += f"<qqbot-at-user id=\"{attrs['id']}\" />"
+                    self._append_content(f"<qqbot-at-user id=\"{attrs['id']}\" />")
                 elif attrs.get("type"):
-                    self.content += "<qqbot-at-everyone />"
+                    self._append_content("<qqbot-at-everyone />")
                 else:
                     await self.render(children)
             case "qq:inlinecmd":
                 self._ensure_markdown()
-                self.content += "["
+                self._append_content("[")
                 length = len(self.content)
                 await self.render(children)
                 inline_data = attrs.copy()
                 if "text" not in inline_data:
                     inline_data["text"] = self.content[length:]
-                self.content += f"]({inlinecmd_url(**inline_data)})"
+                self._append_content(f"]({inlinecmd_url(**inline_data)})")
             case "a":
                 if attrs.get("href"):
                     self._ensure_markdown()
-                    self.content += "["
+                    self._append_content("[")
                     await self.render(children)
-                    self.content += f"]({attrs['href']})"
+                    self._append_content(f"]({attrs['href']})")
             case "img" | "image" | "file":
                 if attrs.get("src") or attrs.get("url"):
                     if self.use_markdown:
@@ -543,7 +561,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                         url = attrs.get("url") or attrs.get("src")
                         if attrs.get("width") and attrs.get("height"):
                             alt += f" #{attrs['width']}px #{attrs['height']}px"
-                        self.content += f"![{alt}]({url})"
+                        self._append_content(f"![{alt}]({url})")
                     else:
                         await self.flush()
                         if data := (await self.send_file(type_, attrs)):
@@ -560,13 +578,13 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                         self.attachment = data
                     await self.flush()
             case "br":
-                self.content += "\n"
+                self._append_content("\n")
             case "p":
                 if not self.content.endswith("\n"):
-                    self.content += "\n"
+                    self._append_content("\n")
                 await self.render(children)
                 if not self.content.endswith("\n"):
-                    self.content += "\n"
+                    self._append_content("\n")
             case "button-group" | "qq:button-group":
                 self._ensure_markdown()
                 self.rows.append([])
@@ -593,10 +611,10 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                     }
             case "qq:cmd-enter":
                 self.use_markdown = True
-                self.content += RawElement("qqbot-cmd-enter", attrs, []).dumps()
+                self._append_content(RawElement("qqbot-cmd-enter", attrs, []).dumps())
             case "qq:cmd-input":
                 self.use_markdown = True
-                self.content += RawElement("qqbot-cmd-input", attrs, []).dumps()
+                self._append_content(RawElement("qqbot-cmd-input", attrs, []).dumps())
             case "message":
                 await self.flush()
                 await self.render(children)
@@ -606,16 +624,25 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 await self.flush()
             case "blockquote":
                 self._ensure_markdown()
-                self.content += "\n> "
+                if self.content and not self.content.endswith("\n"):
+                    self._append_content("\n")
+
+                self.blockquote_depth += 1
+                self.blockquote_line_start = True
+
                 await self.render(children)
-                self.content += "\n"
+
+                if not self.content.endswith("\n"):
+                    self._append_content("\n")
+                self.blockquote_depth -= 1
+                self.blockquote_line_start = True
             case _:
                 for delimiter, types in MARKDOWN_MODIFIERS.items():
                     if type_ in types:
                         self._ensure_markdown()
-                        self.content += delimiter
+                        self._append_content(delimiter)
                         await self.render(children)
-                        self.content += delimiter
+                        self._append_content(delimiter)
                         return
                 await self.render(children)
 
