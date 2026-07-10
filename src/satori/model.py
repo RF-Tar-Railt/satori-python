@@ -34,7 +34,7 @@ class ModelBase:
         data = {}
         cls.before_parse(data)
         for name in cls.__dataclass_fields__:
-            if name in raw:
+            if name in raw and raw[name] is not None:
                 if name in cls.__converter__:
                     data[name] = cls.__converter__[name](raw[name])
                 else:
@@ -55,7 +55,7 @@ class ModelBase:
         keys = frozenset(k for k in keys if not k.startswith("_"))
 
         def parse1(cls_: type[Self], raw: dict, _keys=keys) -> Self:
-            data = {k: v for k, v in raw.items() if k in _keys}
+            data = {k: v for k, v in raw.items() if k in _keys and v is not None}
             obj = cls_(**data)  # type: ignore
             obj._raw_data = raw
             return obj
@@ -64,7 +64,7 @@ class ModelBase:
             data = {}
             cls_.before_parse(data)
             for name in _keys:
-                if name in raw:
+                if name in raw and raw[name] is not None:
                     if name in cls_.__converter__:
                         data[name] = cls_.__converter__[name](raw[name])
                     else:
