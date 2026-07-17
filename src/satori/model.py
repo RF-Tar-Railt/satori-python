@@ -32,7 +32,7 @@ class ModelBase:
     @classmethod
     def parse(cls: type[Self], raw: dict) -> Self:
         data = {}
-        cls.before_parse(data)
+        cls.before_parse(raw)
         for name in cls.__dataclass_fields__:
             if name in raw and raw[name] is not None:
                 if name in cls.__converter__:
@@ -46,13 +46,13 @@ class ModelBase:
     def __init_subclass__(cls, **kwargs):
         has_converter = False
         keys = set()
-        for c in cls.__mro__:
+        for c in cls.__mro__[-1:0:-1]:
             if c is Generic:
                 _generic_init_subclass(cls, **kwargs)
             if getattr(c, "__converter__", None):
                 has_converter = True
             keys.update(getattr(c, "__annotations__", {}).keys())
-        keys = frozenset(k for k in keys if not k.startswith("_"))
+        keys = frozenset({k for k in keys if not (k.startswith("_") and k not in {"_type", "_data"})})
 
         def parse1(cls_: type[Self], raw: dict, _keys=keys) -> Self:
             data = {k: v for k, v in raw.items() if k in _keys and v is not None}
@@ -62,7 +62,7 @@ class ModelBase:
 
         def parse2(cls_: type[Self], raw: dict, _keys=keys) -> Self:
             data = {}
-            cls_.before_parse(data)
+            cls_.before_parse(raw)
             for name in _keys:
                 if name in raw and raw[name] is not None:
                     if name in cls_.__converter__:
@@ -101,9 +101,9 @@ class Channel(ModelBase):
 
     def dump(self):
         res = {"id": self.id, "type": self.type.value}
-        if self.name:
+        if self.name is not None:
             res["name"] = self.name
-        if self.parent_id:
+        if self.parent_id is not None:
             res["parent_id"] = self.parent_id
         return res
 
@@ -116,9 +116,9 @@ class Guild(ModelBase):
 
     def dump(self):
         res = {"id": self.id}
-        if self.name:
+        if self.name is not None:
             res["name"] = self.name
-        if self.avatar:
+        if self.avatar is not None:
             res["avatar"] = self.avatar
         return res
 
@@ -133,13 +133,13 @@ class User(ModelBase):
 
     def dump(self):
         res: dict[str, Any] = {"id": self.id}
-        if self.name:
+        if self.name is not None:
             res["name"] = self.name
-        if self.nick:
+        if self.nick is not None:
             res["nick"] = self.nick
-        if self.avatar:
+        if self.avatar is not None:
             res["avatar"] = self.avatar
-        if self.is_bot:
+        if self.is_bot is not None:
             res["is_bot"] = self.is_bot
         return res
 
@@ -157,9 +157,9 @@ class Friend(ModelBase):
 
     def dump(self):
         res = {}
-        if self.user:
+        if self.user is not None:
             res["user"] = self.user.dump()
-        if self.nick:
+        if self.nick is not None:
             res["nick"] = self.nick
         return res
 
@@ -177,7 +177,7 @@ class Role(ModelBase):
 
     def dump(self):
         res = {"id": self.id}
-        if self.name:
+        if self.name is not None:
             res["name"] = self.name
         return res
 
@@ -200,11 +200,11 @@ class Member(ModelBase):
         res = {}
         if self.user:
             res["user"] = self.user.dump()
-        if self.nick:
+        if self.nick is not None:
             res["nick"] = self.nick
-        if self.avatar:
+        if self.avatar is not None:
             res["avatar"] = self.avatar
-        if self.joined_at:
+        if self.joined_at is not None:
             res["joined_at"] = int(self.joined_at.timestamp() * 1000)
         if self.roles:
             res["roles"] = [role.dump() for role in self.roles]
@@ -282,7 +282,7 @@ class ButtonInteraction(ModelBase):
 
     def dump(self):
         res = {"id": self.id}
-        if self.data:
+        if self.data is not None:
             res["data"] = self.data
         return res
 
@@ -362,7 +362,7 @@ class EmojiObject(ModelBase):
 
     def dump(self):
         res = {"id": self.id}
-        if self.name:
+        if self.name is not None:
             res["name"] = self.name
         return res
 
@@ -438,11 +438,11 @@ class MessageObject(ModelBase):
             res["member"] = self.member.dump()
         if self.user:
             res["user"] = self.user.dump()
-        if self.created_at:
+        if self.created_at is not None:
             res["created_at"] = int(self.created_at.timestamp() * 1000)
-        if self.updated_at:
+        if self.updated_at is not None:
             res["updated_at"] = int(self.updated_at.timestamp() * 1000)
-        if self.referrer:
+        if self.referrer is not None:
             res["referrer"] = self.referrer
         return res
 
@@ -535,13 +535,13 @@ class Event(ModelBase):
             res["role"] = self.role.dump()
         if self.user:
             res["user"] = self.user.dump()
-        if self.referrer:
+        if self.referrer is not None:
             res["referrer"] = self.referrer
         if self.emoji:
             res["emoji"] = self.emoji.dump()
-        if self._type:
+        if self._type is not None:
             res["_type"] = self._type
-        if self._data:
+        if self._data is not None:
             res["_data"] = self._data
         return res
 
@@ -561,7 +561,7 @@ class PageResult(ModelBase, Generic[T]):
 
     def dump(self):
         res: dict = {"data": [item.dump() for item in self.data]}
-        if self.next:
+        if self.next is not None:
             res["next"] = self.next
         return res
 
@@ -577,9 +577,9 @@ class PageDequeResult(PageResult[T]):
 
     def dump(self):
         res: dict = {"data": [item.dump() for item in self.data]}
-        if self.next:
+        if self.next is not None:
             res["next"] = self.next
-        if self.prev:
+        if self.prev is not None:
             res["prev"] = self.prev
         return res
 
