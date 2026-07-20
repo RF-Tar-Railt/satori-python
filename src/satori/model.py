@@ -46,7 +46,7 @@ class ModelBase:
     def __init_subclass__(cls, **kwargs):
         has_converter = False
         keys = set()
-        for c in cls.__mro__[-1:0:-1]:
+        for c in cls.__mro__[-1::-1]:
             if c is Generic:
                 _generic_init_subclass(cls, **kwargs)
             if getattr(c, "__converter__", None):
