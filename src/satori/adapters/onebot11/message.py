@@ -85,7 +85,7 @@ class OneBot11MessageEncoder:
                 },
             )
         if resp:
-            self.results.append(MessageObject(resp["message_id"], ""))
+            self.results.append(MessageObject(str(resp["message_id"]), ""))
 
     async def flush(self):
         if not self.children:
