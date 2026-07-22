@@ -490,7 +490,5 @@ async def _resource_url(net: MilkyNetwork, data: dict) -> str:
     if "temp_url" in data:
         return data["temp_url"]
     if "resource_id" in data:
-        return (
-            await net.call_api("get_resource_temp_url", {"resource_id": data["resource_id"]})
-        )["url"]
+        return (await net.call_api("get_resource_temp_url", {"resource_id": data["resource_id"]}))["url"]
     return ""
