@@ -35,6 +35,8 @@ class MilkyBaseConfig:
     """是否将 token 放在查询参数中, 默认为 False"""
     headers: dict[str, str] = field(default_factory=dict)
     """连接时使用的自定义请求头, 默认为空字典"""
+    fetch_forward_message: bool = False
+    """是否在事件中获取转发消息, 默认为 False"""
 
 
 TMilkyBaseConfig = TypeVar("TMilkyBaseConfig", bound=MilkyBaseConfig, default=MilkyBaseConfig)
@@ -58,6 +60,7 @@ class MilkyBaseAdapter(BaseAdapter[TMilkyBaseConfig], ABC):
         self.headers = config.headers.copy()
         self.session = None
         self.logins: dict[str, Login] = {}
+        self.fetch_forward_message = config.fetch_forward_message
         self.features: list[str] = list(DEFAULT_FEATURES)
         apply(self, lambda _: self, self._get_login)
 

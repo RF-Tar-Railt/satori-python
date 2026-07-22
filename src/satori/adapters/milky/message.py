@@ -380,13 +380,13 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
             case "face":
                 result.append(E.emoji(str(data.get("face_id"))))
             case "image":
-                result.append(E.image(_resource_url(data)))
+                result.append(E.image(await _resource_url(net, data)))
             case "record":
-                result.append(E.audio(_resource_url(data)))
+                result.append(E.audio(await _resource_url(net, data)))
             case "video":
-                result.append(E.video(_resource_url(data)))
+                result.append(E.video(await _resource_url(net, data)))
             case "file":
-                result.append(E.file(_resource_url(data)))
+                result.append(E.file(await _resource_url(net, data)))
             case "reply":
                 seq = data.get("message_seq")
                 if seq is not None:
@@ -396,6 +396,9 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
             case "forward":
                 forward_id = data.get("forward_id")
                 if forward_id is not None:
+                    if not net.fetch_forward_message:
+                        result.append(E.message(forward_id, content=[], forward=True))
+                        continue
                     try:
                         messages = (await net.call_api("get_forwarded_messages", {"forward_id": forward_id}))[
                             "messages"
@@ -441,7 +444,10 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
                         forward_elements.append(E.message(str(msg.get("message_seq")), content=content))
                     result.append(E.message(forward_id, content=forward_elements, forward=True))
             case _:
-                result.append(Custom(f"milky:{seg_type}", data))
+                elem = Custom(f"milky:{seg_type}", data)
+                if seg_type == "market_face" and "url" in data:
+                    elem.children.append(E.image(data["url"]))
+                result.append(elem)
     return result
 
 
@@ -476,5 +482,15 @@ async def _decode_reply(net: MilkyNetwork, payload: dict, data: dict, message_se
     return E.quote(str(message_seq), content=content)
 
 
-def _resource_url(data: dict) -> str:
-    return data.get("temp_url") or data.get("url") or data.get("uri") or ""
+async def _resource_url(net: MilkyNetwork, data: dict) -> str:
+    if "uri" in data:
+        return data["uri"]
+    if "url" in data:
+        return data["url"]
+    if "temp_url" in data:
+        return data["temp_url"]
+    if "resource_id" in data:
+        return (
+            await net.call_api("get_resource_temp_url", {"resource_id": data["resource_id"]})
+        )["url"]
+    return ""
