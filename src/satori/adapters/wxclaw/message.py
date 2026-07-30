@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any
 from urllib.parse import unquote, urlparse
@@ -11,6 +12,16 @@ from satori.parser import parse
 
 from .models import MessageItem, MessageItemType, TextItem, UploadMediaType
 from .network import MediaResource, WxClawNetwork
+
+MARKDOWN_MODIFIERS = {
+    "**": {"b", "strong", "bold"},
+    "_": {"i", "em", "italic"},
+    "`": {"code"},
+}
+
+
+def _escape_markdown(text: str) -> str:
+    return re.sub(r"([\\`*_[_~`\]\-(#!>])", r"\\\1", text)
 
 
 def _media_available(media) -> bool:
@@ -117,6 +128,9 @@ class WxClawMessageEncoder:
         self.items: list[MessageItem] = []
         self.source_parts: list[str] = []
         self.results: list[MessageObject] = []
+        self.use_markdown = False
+        self.blockquote_depth = 0
+        self.blockquote_line_start = True
 
     async def send(self, content: str) -> list[MessageObject]:
         await self.render(parse(content))
@@ -136,6 +150,34 @@ class WxClawMessageEncoder:
             self.items[-1].text_item.text = (self.items[-1].text_item.text or "") + text
         else:
             self.items.append(MessageItem(type=MessageItemType.TEXT, text_item=TextItem(text=text)))
+
+    def _ensure_markdown(self):
+        if self.use_markdown:
+            return
+        for item in self.items:
+            if item.type == MessageItemType.TEXT and item.text_item and item.text_item.text:
+                item.text_item.text = _escape_markdown(item.text_item.text)
+        self.use_markdown = True
+
+    def _append_content(self, text: str):
+        if not text:
+            return
+        if not self.blockquote_depth:
+            self._append_text(text)
+            return
+        prefix = ">" * self.blockquote_depth + " "
+        for char in text:
+            if self.blockquote_line_start and char != "\n":
+                self._append_text(prefix)
+                self.blockquote_line_start = False
+            self._append_text(char)
+            if char == "\n":
+                self.blockquote_line_start = True
+
+    def _reset_markdown(self):
+        self.use_markdown = False
+        self.blockquote_depth = 0
+        self.blockquote_line_start = True
 
     def _last_text(self) -> str:
         if self.items and self.items[-1].type == MessageItemType.TEXT and self.items[-1].text_item:
@@ -185,54 +227,37 @@ class WxClawMessageEncoder:
             self.source_parts.append(str(element))
 
         if type_ == "text":
-            self._append_text(attrs.get("text", ""))
+            text = attrs.get("text", "")
+            self._append_content(_escape_markdown(text) if self.use_markdown else text)
         elif type_ in {"br", "newline"}:
-            self._append_text("\n")
+            self._append_content("\n")
         elif type_ in {"p", "paragraph"}:
             if self.items and not self._last_text().endswith("\n"):
-                self._append_text("\n")
+                self._append_content("\n")
             await self.render(children, record=False)
             if not self._last_text().endswith("\n"):
-                self._append_text("\n")
-        elif type_ in {
-            "b",
-            "strong",
-            "bold",
-            "i",
-            "em",
-            "italic",
-            "u",
-            "ins",
-            "underline",
-            "s",
-            "del",
-            "strike",
-            "strikethrough",
-            "spl",
-            "spoiler",
-            "code",
-            "sup",
-            "sub",
-            "blockquote",
-        }:
-            await self.render(children, record=False)
+                self._append_content("\n")
         elif type_ == "at":
             if attrs.get("type") in {"all", "here"}:
-                self._append_text("@all" if attrs.get("type") == "all" else "@here")
+                self._append_content("@all" if attrs.get("type") == "all" else "@here")
             else:
                 target = attrs.get("name") or attrs.get("id") or attrs.get("role")
                 if target:
-                    self._append_text(f"@{target}")
+                    self._append_content(f"@{target}")
         elif type_ == "sharp":
             target = attrs.get("name") or attrs.get("id")
             if target:
-                self._append_text(f"#{target}")
-        elif type_ in {"a", "link"}:
-            await self.render(children, record=False)
+                self._append_content(f"#{target}")
+        elif type_ == "a":
             if href := attrs.get("href") or attrs.get("url"):
-                self._append_text(f" ({href})")
+                self._ensure_markdown()
+                self._append_content("[")
+                await self.render(children, record=False)
+                self._append_content(f"]({href})")
+            else:
+                await self.render(children, record=False)
         elif type_ == "emoji":
-            self._append_text(str(attrs.get("name") or attrs.get("id") or ""))
+            self._append_content(str(attrs.get("name") or attrs.get("id") or ""))
         elif type_ in {"img", "image"}:
             await self._append_resource(MessageItemType.IMAGE, attrs)
         elif type_ == "file":
@@ -243,17 +268,36 @@ class WxClawMessageEncoder:
             src = attrs.get("src") or attrs.get("url")
             if src:
                 title = attrs.get("title")
-                self._append_text(f"{title}: {src}" if title else src)
+                self._append_content(f"{title}: {src}" if title else src)
         elif type_ == "button":
             await self.render(children, record=False)
             if href := attrs.get("href"):
-                self._append_text(f" ({href})")
+                self._append_content(f" ({href})")
+        elif type_ == "blockquote":
+            self._ensure_markdown()
+            if self.items and not self._last_text().endswith("\n"):
+                self._append_content("\n")
+            self.blockquote_depth += 1
+            self.blockquote_line_start = True
+            await self.render(children, record=False)
+            if not self._last_text().endswith("\n"):
+                self._append_content("\n")
+            self.blockquote_depth -= 1
+            self.blockquote_line_start = True
         else:
+            for delimiter, types in MARKDOWN_MODIFIERS.items():
+                if type_ in types:
+                    self._ensure_markdown()
+                    self._append_content(delimiter)
+                    await self.render(children, record=False)
+                    self._append_content(delimiter)
+                    return
             await self.render(children, record=False)
 
     async def flush(self):
         if not self.items:
             self.source_parts.clear()
+            self._reset_markdown()
             return
         client_id = await self.network.send_items(
             self.user_id,
@@ -273,3 +317,4 @@ class WxClawMessageEncoder:
         )
         self.items = []
         self.source_parts = []
+        self._reset_markdown()
