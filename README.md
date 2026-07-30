@@ -55,6 +55,7 @@ pip install satori-python-server
 | Console    | `pip install satori-python-adapter-console`  | satori.adapters.console                                                              |
 | Milky      | `pip install satori-python-adapter-milky`    | satori.adapters.milky.main, satori.adapters.milky.webhook, satori.adapters.milky.sse |
 | QQ         | `pip install satori-python-adapter-qq`       | satori.adapters.qq.main, satori.adapters.qq.websocket                                |
+| WxClaw     | `pip install satori-python-adapter-wxclaw`   | satori.adapters.wxclaw                                                               |
 
 ### 社区适配器
 
