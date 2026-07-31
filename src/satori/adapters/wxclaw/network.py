@@ -180,18 +180,25 @@ class WxClawNetwork:
         session_id: str = "",
         context_token: str = "",
     ) -> str:
-        client_id = generate_client_id()
-        msg = WeixinMessage(
-            from_user_id="",
-            to_user_id=to_user_id,
-            client_id=client_id,
-            session_id=session_id or self.session_ids.get(to_user_id) or to_user_id,
-            message_type=MessageType.BOT,
-            message_state=MessageState.FINISH,
-            item_list=items,
-            context_token=context_token or self.context_tokens.get(to_user_id, ""),
-        )
-        await self.send_message(msg)
+        if not items:
+            raise ValueError("WxClaw requires at least one message item")
+
+        resolved_session_id = session_id or self.session_ids.get(to_user_id) or to_user_id
+        resolved_context_token = context_token or self.context_tokens.get(to_user_id, "")
+        client_id = ""
+        for item in items:
+            client_id = generate_client_id()
+            msg = WeixinMessage(
+                from_user_id="",
+                to_user_id=to_user_id,
+                client_id=client_id,
+                session_id=resolved_session_id,
+                message_type=MessageType.BOT,
+                message_state=MessageState.FINISH,
+                item_list=[item],
+                context_token=resolved_context_token,
+            )
+            await self.send_message(msg)
         return client_id
 
     async def send_typing(
