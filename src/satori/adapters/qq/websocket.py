@@ -390,6 +390,10 @@ class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
             raise RuntimeError("HTTP session not initialized")
         params = params or {}
         params = {k: v for k, v in params.items() if v is not None}
+
+        if action.startswith("/"):
+            action = action[1:]
+
         if method in {"get", "fetch"}:
             async with self.session.get(
                 (self.api_base / action).with_query(params),

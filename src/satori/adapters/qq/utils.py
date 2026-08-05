@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Literal, Protocol
 from urllib.parse import urlparse
@@ -75,7 +76,12 @@ class Payload:
 async def validate_response(resp: ClientResponse):
     status = resp.status
     if status == 200 or 203 <= status < 300:
-        data = await resp.json()
+        try:
+            data = await resp.json(content_type=None)
+        except JSONDecodeError:
+            return {}
+        if not isinstance(data, dict):
+            return {}
         return data.get("data", data)
     if status in {201, 202}:
         data = await resp.json()

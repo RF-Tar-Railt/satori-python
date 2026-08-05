@@ -25,8 +25,8 @@ async def interaction(login, guild_login, net: QQBotNetwork, payload: Payload):
         member = Member(user)
     else:
         guild = None
-        channel = Channel(f"private:{raw['user_openid ']}", ChannelType.DIRECT)
-        user = User(raw["data"]["user_openid"])
+        channel = Channel(f"private:{raw['user_openid']}", ChannelType.DIRECT)
+        user = User(raw["user_openid"])
         member = None
     button = ButtonInteraction(raw["data"]["resolved"]["button_id"], raw["data"]["resolved"]["button_data"])
     if net.__class__.__name__ == "QQBotWebsocketAdapter":
