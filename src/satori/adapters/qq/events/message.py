@@ -5,7 +5,7 @@ from datetime import datetime
 from satori import At, EventType, Text
 from satori.model import Channel, ChannelType, EmojiObject, Event, Guild, Member, MessageObject, Role, User
 
-from ..message import decode_reply, decode_segments
+from ..message import IDX_MAPPING, MESSAGE_MAPPING, decode_reply, decode_segments
 from ..utils import ROLE_MAPPING, USER_AVATAR_URL, Payload, decode_user
 from .base import register_event
 
@@ -131,11 +131,14 @@ async def group_message_create(login, guild_login, net, payload: Payload):
                 mention = mentions.get(at.id)
                 if mention:
                     at.name = mention.get("username")
+                    at._attrs["username"] = mention.get("username")
                     if mention.get("is_you", False):
                         at.id = login.id
+                        at._attrs["id"] = login.id
     if raw.get("message_type") == 103:
         msg.insert(0, decode_reply(raw["msg_elements"][0]))
-    return Event(
+    scene = raw["message_scene"]
+    event = Event(
         EventType.MESSAGE_CREATED,
         (
             datetime.fromtimestamp(int(raw["timestamp"]))
@@ -154,6 +157,20 @@ async def group_message_create(login, guild_login, net, payload: Payload):
             "msg_scene": raw["message_scene"],
         },
     )
+    msg_idx = {k: v for k, _, v in (i.partition("=") for i in scene["ext"])}.get("msg_idx")
+    if msg_idx:
+        IDX_MAPPING[raw["id"]] = msg_idx
+        MESSAGE_MAPPING[msg_idx] = MessageObject.from_elements(
+            raw["id"],
+            msg,
+            channel,
+            Guild(channel.id),
+            member,
+            user,
+            created_at=event.timestamp,
+            referrer=event.referrer,
+        )
+    return event
 
 
 @register_event("C2C_MESSAGE_CREATE")
@@ -179,7 +196,8 @@ async def c2c_message_create(login, guild_login, net, payload: Payload):
     msg = decode_segments(raw)
     if raw.get("message_type") == 103:
         msg.insert(0, decode_reply(raw["msg_elements"][0]))
-    return Event(
+    scene = raw["message_scene"]
+    event = Event(
         EventType.MESSAGE_CREATED,
         (
             datetime.fromtimestamp(int(raw["timestamp"]))
@@ -197,6 +215,13 @@ async def c2c_message_create(login, guild_login, net, payload: Payload):
             "msg_scene": raw["message_scene"],
         },
     )
+    msg_idx = {k: v for k, _, v in (i.partition("=") for i in scene["ext"])}.get("msg_idx")
+    if msg_idx:
+        IDX_MAPPING[raw["id"]] = msg_idx
+        MESSAGE_MAPPING[msg_idx] = MessageObject.from_elements(
+            raw["id"], msg, channel=channel, user=user, created_at=event.timestamp, referrer=event.referrer
+        )
+    return event
 
 
 @register_event("MESSAGE_DELETE")

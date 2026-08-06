@@ -302,10 +302,16 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
         msg_seq = self.referrer.get("msg_seq") if self.referrer else None
         msg_scene = self.referrer.get("msg_scene", {}) if self.referrer else {}
         exts = msg_scene.get("ext", [])
-        refidx = next((ext.partition("=")[-1] for ext in exts if ext.startswith("msg_idx=")), "")
+        refidx = {k: v for k, _, v in (ext.partition("=") for ext in exts)}.get("msg_idx", "")
         data = {
             "message_reference": (
-                {"message_id": self.reference if self.reference.startswith("REFIDX") else refidx}
+                {
+                    "message_id": (
+                        self.reference
+                        if self.reference.startswith("REFIDX")
+                        else IDX_MAPPING.get(self.reference, refidx)
+                    )
+                }
                 if self.reference
                 else None
             ),
@@ -621,7 +627,6 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
                 await self.flush()
             case "quote":
                 self.reference = attrs["id"]
-                await self.flush()
             case "blockquote":
                 self._ensure_markdown()
                 if self.content and not self.content.endswith("\n"):
@@ -767,6 +772,10 @@ def decode_segments(event: dict) -> list[Element]:
 
 def decode_reply(msg_element: dict) -> Quote:
     elements: list[Element] = []
+    if (obj := MESSAGE_MAPPING.get(msg_element["msg_idx"])) and obj.user:
+        elements.append(E.author(id=obj.user.id, name=obj.user.name, avatar=obj.user.avatar))
+        elements.extend(obj.message)
+        return Quote(msg_element["msg_idx"], content=elements)
     if "author" in msg_element:
         elements.append(E.author(id=msg_element["author"]["username"], name=msg_element["author"]["username"]))
     for i in handle_text(msg_element["content"]):
@@ -786,3 +795,7 @@ def decode_reply(msg_element: dict) -> Quote:
         for i in attachments:
             elements.append(_decode_attachment(i))
     return Quote(msg_element["msg_idx"], content=elements)
+
+
+IDX_MAPPING: dict[str, str] = {}
+MESSAGE_MAPPING: dict[str, MessageObject] = {}

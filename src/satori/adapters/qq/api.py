@@ -2,7 +2,7 @@ from collections.abc import Callable
 from datetime import datetime
 
 from satori import Api, At, Channel, ChannelType, Guild, Login, Member, MessageObject, PageResult, Role, Text
-from satori.exception import BadRequestException, NotFoundException
+from satori.exception import BadRequestException, NotFoundException, ServerException
 from satori.server import Adapter, Request
 from satori.server.route import (
     ChannelCreateParam,
@@ -28,7 +28,7 @@ from satori.server.route import (
     UserOpParam,
 )
 
-from .message import QQGroupMessageEncoder, QQGuildMessageEncoder, decode_segments
+from .message import IDX_MAPPING, MESSAGE_MAPPING, QQGroupMessageEncoder, QQGuildMessageEncoder, decode_segments
 from .utils import ROLE_MAPPING, USER_AVATAR_URL, QQBotNetwork, decode_channel, decode_guild, decode_member, decode_user
 
 
@@ -128,7 +128,10 @@ def apply(
                     "msg_seq": -1,
                 },
             )
-        raise NotFoundException("qq platform does not support message.get")
+        idx = IDX_MAPPING.get(request.params["message_id"], request.params["message_id"])
+        if idx in MESSAGE_MAPPING:
+            return MESSAGE_MAPPING[idx]
+        raise ServerException(f"message {request.params['message_id']} not found")
 
     @adapter.route(Api.USER_GET)
     async def guild_get_user(request: Request[UserOpParam]):
