@@ -1,9 +1,10 @@
+from collections import UserDict, deque
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Literal, Protocol, TypeVar
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
@@ -164,3 +165,28 @@ def parse_file_uri(uri):
         path = f"//{parsed.netloc}{path}"
 
     return Path(path)
+
+
+K = TypeVar("K")
+V = TypeVar("V")
+
+
+class DequeDict(UserDict[K, V]):
+    """一个带有最大长度的字典，超过最大长度时会删除最旧的条目"""
+
+    def __init__(self, maxlen: int, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.maxlen = maxlen
+        self._order = deque(self.data.keys(), maxlen=maxlen)
+
+    def __setitem__(self, key: K, item: V):
+        if key not in self.data and len(self.data) >= self.maxlen:
+            oldest_key = self._order.popleft()
+            del self.data[oldest_key]
+        self.data[key] = item
+        if key not in self._order:
+            self._order.append(key)
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        self._order.remove(key)

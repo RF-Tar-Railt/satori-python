@@ -20,7 +20,7 @@ from ...exception import ActionFailed
 from .ark import parse_qq_ark
 from .exception import AuditException
 from .markdown import extract_markdown_text
-from .utils import QQBotNetwork, parse_file_uri
+from .utils import DequeDict, QQBotNetwork, parse_file_uri
 
 _BASE64_RE = re.compile(r"^data:([\w/.+-]+);base64,")
 MAX_FILESIZE_ONCE = 10 * 1024 * 1024  # 10MB
@@ -797,5 +797,5 @@ def decode_reply(msg_element: dict) -> Quote:
     return Quote(msg_element["msg_idx"], content=elements)
 
 
-IDX_MAPPING: dict[str, str] = {}
-MESSAGE_MAPPING: dict[str, MessageObject] = {}
+IDX_MAPPING: DequeDict[str, str] = DequeDict(1024)
+MESSAGE_MAPPING: DequeDict[str, MessageObject] = DequeDict(1024)
