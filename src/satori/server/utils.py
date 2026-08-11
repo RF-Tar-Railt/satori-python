@@ -24,8 +24,8 @@ class Deque:
         return list(self.data)[i + 1 - self.offset :]
 
 
-ctx = ssl.create_default_context()
-ctx.set_ciphers("DEFAULT")
+SSL_CTX = ssl.create_default_context()
+SSL_CTX.set_ciphers("DEFAULT")
 
 
 if __name__ == "__main__":

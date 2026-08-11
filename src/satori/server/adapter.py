@@ -9,7 +9,7 @@ from satori.model import Login, LoginPartial
 
 from .model import Request
 from .route import RouterMixin
-from .utils import ctx
+from .utils import SSL_CTX
 
 if TYPE_CHECKING:
     from . import Server
@@ -41,7 +41,7 @@ class Adapter(Service, RouterMixin, Generic[T]):
     async def handle_internal(self, request: Request, path: str) -> Response: ...
 
     async def handle_proxied(self, prefix: str, url: str) -> Response | None:
-        async with self.server.session.get(url, ssl=ctx) as resp:
+        async with self.server.session.get(url, ssl=SSL_CTX) as resp:
             return Response(await resp.read())
 
     @abstractmethod

@@ -4,7 +4,7 @@ import binascii
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import cast
+from typing import TypedDict, cast
 
 import aiohttp
 from aiohttp import FormData
@@ -178,19 +178,25 @@ class _QQNetwork:
 
     async def _get_authorization_header(self) -> str:
         """获取当前 Bot 的鉴权信息"""
-        # if self.config.is_group_bot:
         return f"QQBot {await self.get_access_token()}"
-        # return f"Bot {self.config.id}.{self.config.token}"
 
     async def get_authorization_header(self) -> dict[str, str]:
         """获取当前 Bot 的鉴权信息"""
         return {"Authorization": await self._get_authorization_header()}
 
 
+class AppAccess(TypedDict):
+    app_id: str
+    app_secret: str
+
+
 @dataclass
 class QQBotWebhookConfig:
-    secrets: dict[str, str]
-    """QQ 机器人的 app_id 和 app_secret 的映射字典，格式为 {app_id: app_secret}"""
+    access: list[AppAccess]
+    """QQ 机器人的 app_id 和 app_secret 的列表，格式为 [{"app_id": "your_app_id", "app_secret": "your_app_secret"}]"""
+    secrets: dict[str, str] | None = None
+    """QQ 机器人的 app_id 和 app_secret 的字典，格式为 {"your_app_id": "your_app_secret"}，
+    如果同时设置了 access 和 secrets，则 access 会覆盖 secrets"""
     path: str = "/qqbot"
     """Webhook 适配器于 Server 的路径, 默认为 /qqbot"""
     certfile: str | os.PathLike[str] | None = None
@@ -199,11 +205,8 @@ class QQBotWebhookConfig:
     """SSL 私钥文件路径, 默认为 None, 若未设置则不启用 SSL"""
     verify_payload: bool = True
     """是否验证请求负载的签名，默认为True"""
-    is_sandbox: bool = False
-    """是否连接到 QQ 机器人的沙箱环境，默认为False"""
-    api_base: str = "https://api.sgroup.qq.com/"
-    sandbox_api_base: str = "https://sandbox.api.sgroup.qq.com"
-    auth_base: str = "https://bots.qq.com/app/getAppAccessToken"
+    api_base: str = "https://api.bot.qq.com/"
+    auth_base: str = "https://api.bot.qq.com/app/getAppAccessToken"
 
 
 class QQBotWebhookAdapter(BaseAdapter[QQBotWebhookConfig]):
@@ -216,12 +219,13 @@ class QQBotWebhookAdapter(BaseAdapter[QQBotWebhookConfig]):
     ):
         super().__init__()
         self.config = config
-        self.api_base = URL(config.api_base if not config.is_sandbox else config.sandbox_api_base)
+        self.api_base = URL(config.api_base)
         self.auth_base = URL(config.auth_base)
         self._ssl_certfile = config.certfile
         self._ssl_keyfile = config.keyfile
         self.verify_payload = config.verify_payload
-        self.secrets = config.secrets
+        self.accesses: dict[str, str] = config.secrets or {}
+        self.accesses = {**self.accesses, **{access["app_id"]: access["app_secret"] for access in config.access}}
         self.path = config.path
         self.session = None
         self.logins: list[Login] = []
@@ -305,7 +309,7 @@ class QQBotWebhookAdapter(BaseAdapter[QQBotWebhookConfig]):
             return
         network = self.networks.get(app_id)
         if not network:
-            network = _QQNetwork(self, self.session, app_id, self.secrets[app_id])
+            network = _QQNetwork(self, self.session, app_id, self.accesses[app_id])
             self.networks[app_id] = network
         login, guild_login = await self.refresh_login(app_id)
         if event_type.startswith("MESSAGE_AUDIT_"):
@@ -393,10 +397,10 @@ class QQBotWebhookAdapter(BaseAdapter[QQBotWebhookConfig]):
         data = decode(await request.body())
         payload = Payload(**data)
         app_id = str(header["X-Bot-Appid"])
-        if app_id not in self.secrets:
+        if app_id not in self.accesses:
             logger.error(f"Unauthorized bot id: {app_id}")
             return JSONResponse({"error": "unauthorized"}, status_code=401)
-        secret = self.secrets[app_id]
+        secret = self.accesses[app_id]
         if payload.opcode == Opcode.SERVER_VERIFY:
             logger.info("QQBot Verifying current server...")
             plain_token = payload.data["plain_token"]

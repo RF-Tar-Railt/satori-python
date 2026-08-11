@@ -123,13 +123,8 @@ class QQBotWebsocketConfig:
     """分片信息，格式为 [shard_id, shard_count]，若不设置则自动获取分片信息"""
     intent: Intents = field(default_factory=Intents)
     """该 QQ 机器人的事件订阅掩码，具体请参考 QQ 机器人文档"""
-    is_sandbox: bool = False
-    """是否连接到 QQ 机器人的沙箱环境，默认为False"""
-    api_base: str = "https://api.sgroup.qq.com/"
-    sandbox_api_base: str = "https://sandbox.api.sgroup.qq.com"
-    auth_base: str = "https://bots.qq.com/app/getAppAccessToken"
-    token: str | None = None
-    """[Deprecated] 该 QQ 机器人的访问令牌，已废弃，请使用 app_id 和 secret"""
+    api_base: str = "https://api.bot.qq.com"
+    auth_base: str = "https://api.bot.qq.com/app/getAppAccessToken"
 
 
 class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
@@ -151,7 +146,7 @@ class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
         self.secret = config.secret
         self.shard: tuple[int, int] | None = (config.shard[0], config.shard[1]) if config.shard else None
         self.intent = config.intent
-        self.api_base = URL(config.api_base if not config.is_sandbox else config.sandbox_api_base)
+        self.api_base = URL(config.api_base)
         self.auth_base = URL(config.auth_base)
         self.session = None  # type: ignore
         self.logins: list[Login] = []
@@ -163,12 +158,6 @@ class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
         self._access_token = None
         self._expires_in = None
 
-        if config.token:
-            warnings.warn(
-                "The 'token' config is deprecated and will be removed",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         apply(self, lambda _, __: self, self._get_login)
 
     def get_platform(self) -> str:
@@ -490,9 +479,7 @@ class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
 
     async def _get_authorization_header(self) -> str:
         """获取当前 Bot 的鉴权信息"""
-        # if self.config.is_group_bot:
         return f"QQBot {await self.get_access_token()}"
-        # return f"Bot {self.config.id}.{self.config.token}"
 
     async def get_authorization_header(self) -> dict[str, str]:
         """获取当前 Bot 的鉴权信息"""
