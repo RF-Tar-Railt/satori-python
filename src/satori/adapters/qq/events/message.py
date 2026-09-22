@@ -6,7 +6,7 @@ from satori import At, EventType, Text
 from satori.model import Channel, ChannelType, EmojiObject, Event, Guild, Member, MessageObject, Role, User
 
 from ..message import IDX_MAPPING, MESSAGE_MAPPING, decode_reply, decode_segments
-from ..utils import ROLE_MAPPING, USER_AVATAR_URL, Payload, decode_user
+from ..utils import ROLE_MAPPING, Payload, decode_group_member, decode_group_user, decode_user
 from .base import register_event
 
 
@@ -91,22 +91,7 @@ async def group_message_create(login, guild_login, net, payload: Payload):
     else:
         channel = Channel(raw["group_id"], ChannelType.TEXT)
     app_id = net.bot_id_mapping[login.id]
-    name = raw["author"].get("username")
-    if "member_openid" in raw["author"]:
-        user = User(
-            raw["author"]["member_openid"],
-            name=name,
-            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["member_openid"]),
-            is_bot=raw["author"].get("bot", False),
-        )
-    else:
-        user = User(
-            raw["author"]["id"],
-            name=name,
-            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]),
-            is_bot=raw["author"].get("bot", False),
-        )
-    member = Member(user, avatar=user.avatar, roles=[Role(raw["author"].get("member_role", "member"))])
+    member = decode_group_member(raw["author"], app_id)
     msg = decode_segments(raw)
     if payload.type == "GROUP_AT_MESSAGE_CREATE":
         msg.insert(0, At(login.id))
@@ -135,9 +120,11 @@ async def group_message_create(login, guild_login, net, payload: Payload):
                     if mention.get("is_you", False):
                         at.id = login.id
                         at._attrs["id"] = login.id
-    if raw.get("message_type") == 103:
-        msg.insert(0, decode_reply(raw["msg_elements"][0]))
     scene = raw["message_scene"]
+    msg_idx = {k: v for k, _, v in (i.partition("=") for i in scene["ext"])}.get("msg_idx")
+    if raw.get("message_type") == 103:
+        msg.insert(0, decode_reply(raw["msg_elements"][0], msg_idx))
+    print(msg, raw)
     event = Event(
         EventType.MESSAGE_CREATED,
         (
@@ -149,7 +136,7 @@ async def group_message_create(login, guild_login, net, payload: Payload):
         channel=channel,
         guild=Guild(channel.id),
         member=member,
-        user=user,
+        user=member.user,
         message=MessageObject.from_elements(raw["id"], msg),
         referrer={
             "msg_id": raw["id"],
@@ -157,7 +144,6 @@ async def group_message_create(login, guild_login, net, payload: Payload):
             "msg_scene": raw["message_scene"],
         },
     )
-    msg_idx = {k: v for k, _, v in (i.partition("=") for i in scene["ext"])}.get("msg_idx")
     if msg_idx:
         IDX_MAPPING[raw["id"]] = msg_idx
         MESSAGE_MAPPING[msg_idx] = MessageObject.from_elements(
@@ -166,7 +152,7 @@ async def group_message_create(login, guild_login, net, payload: Payload):
             channel,
             Guild(channel.id),
             member,
-            user,
+            member.user,
             created_at=event.timestamp,
             referrer=event.referrer,
         )
@@ -177,26 +163,13 @@ async def group_message_create(login, guild_login, net, payload: Payload):
 async def c2c_message_create(login, guild_login, net, payload: Payload):
     raw = payload.data
     app_id = net.bot_id_mapping[login.id]
-    name = raw["author"].get("username")
-    if "user_openid" in raw["author"]:
-        user = User(
-            raw["author"]["user_openid"],
-            name,
-            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["user_openid"]),
-            is_bot=raw["author"].get("bot"),
-        )
-    else:
-        user = User(
-            raw["author"]["id"],
-            name,
-            avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=raw["author"]["id"]),
-            is_bot=raw["author"].get("bot"),
-        )
+    user = decode_group_user(raw["author"], app_id)
     channel = Channel(f"private:{user.id}", ChannelType.DIRECT)
     msg = decode_segments(raw)
-    if raw.get("message_type") == 103:
-        msg.insert(0, decode_reply(raw["msg_elements"][0]))
     scene = raw["message_scene"]
+    msg_idx = {k: v for k, _, v in (i.partition("=") for i in scene["ext"])}.get("msg_idx")
+    if raw.get("message_type") == 103:
+        msg.insert(0, decode_reply(raw["msg_elements"][0], msg_idx))
     event = Event(
         EventType.MESSAGE_CREATED,
         (
@@ -215,7 +188,6 @@ async def c2c_message_create(login, guild_login, net, payload: Payload):
             "msg_scene": raw["message_scene"],
         },
     )
-    msg_idx = {k: v for k, _, v in (i.partition("=") for i in scene["ext"])}.get("msg_idx")
     if msg_idx:
         IDX_MAPPING[raw["id"]] = msg_idx
         MESSAGE_MAPPING[msg_idx] = MessageObject.from_elements(

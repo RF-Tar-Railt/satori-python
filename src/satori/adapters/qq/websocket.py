@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import sys
-import warnings
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone

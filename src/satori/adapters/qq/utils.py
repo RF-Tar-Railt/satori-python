@@ -142,6 +142,34 @@ def decode_member(profile: dict) -> Member:
     )
 
 
+def decode_group(profile: dict) -> tuple[Guild, Channel]:
+    group_openid = profile["group_openid"]
+    guild = Guild(group_openid, profile.get("group_name"))
+    channel = Channel(group_openid, ChannelType.TEXT, profile.get("group_name"), parent_id=None)
+    return guild, channel
+
+
+def decode_group_user(profile: dict, app_id: str) -> User:
+    user_id = profile.get("user_openid") or profile.get("member_openid") or profile["id"]
+    return User(
+        user_id,
+        profile.get("username"),
+        avatar=USER_AVATAR_URL.format(app_id=app_id, user_id=user_id),
+        is_bot=profile.get("bot", False),
+    )
+
+
+def decode_group_member(profile: dict, app_id: str) -> Member:
+    user = decode_group_user(profile, app_id)
+    return Member(
+        user,
+        profile.get("nick"),
+        avatar=user.avatar,
+        joined_at=datetime.fromisoformat(profile["joined_at"]) if "joined_at" in profile else None,
+        roles=[ROLE_MAPPING[profile.get("member_role", "member")]],
+    )
+
+
 USER_AVATAR_URL = "https://q.qlogo.cn/qqapp/{app_id}/{user_id}/640"
 
 
@@ -150,6 +178,9 @@ ROLE_MAPPING = {
     "5": Role("channel_admin", "子频道管理员"),
     "2": Role("admin", "管理员"),
     "4": Role("owner", "创建者"),
+    "member": Role("member", "成员"),
+    "owner": Role("owner", "群主"),
+    "admin": Role("admin", "管理员"),
 }
 
 

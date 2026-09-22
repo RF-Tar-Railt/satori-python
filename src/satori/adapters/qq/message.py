@@ -751,10 +751,13 @@ def decode_segments(event: dict) -> list[Element]:
             if seg_type == "text":
                 result.append(E.text(i["text"]))
             elif seg_type == "mention_user":
+                current_idx = len(result) - 1
                 if i["user_id"] == "all":
                     result.append(E.at_all())
                 else:
                     result.append(E.at(i["user_id"]))
+                if current_idx >= 0 and isinstance(text := result[current_idx], E.text) and not text.text.strip():
+                    result.pop(current_idx)
             elif seg_type == "mention_channel":
                 result.append(E.sharp(i["channel_id"]))
             elif seg_type == "emoji":
@@ -770,14 +773,15 @@ def decode_segments(event: dict) -> list[Element]:
     return result
 
 
-def decode_reply(msg_element: dict) -> Quote:
+def decode_reply(msg_element: dict, msg_idx: str | None) -> Quote:
     elements: list[Element] = []
-    if (obj := MESSAGE_MAPPING.get(msg_element["msg_idx"])) and obj.user:
+    if "msg_idx" in msg_element and (obj := MESSAGE_MAPPING.get(msg_element["msg_idx"])) and obj.user:
         elements.append(E.author(id=obj.user.id, name=obj.user.name, avatar=obj.user.avatar))
         elements.extend(obj.message)
         return Quote(msg_element["msg_idx"], content=elements)
     if "author" in msg_element:
-        elements.append(E.author(id=msg_element["author"]["username"], name=msg_element["author"]["username"]))
+        name = msg_element["author"]["username"]
+        elements.append(E.author(id=msg_element["author"].get("id", name), name=name))
     for i in handle_text(msg_element["content"]):
         seg_type = i["type"]
         if seg_type == "text":
@@ -794,7 +798,7 @@ def decode_reply(msg_element: dict) -> Quote:
     if attachments := msg_element.get("attachments"):
         for i in attachments:
             elements.append(_decode_attachment(i))
-    return Quote(msg_element["msg_idx"], content=elements)
+    return Quote(msg_element.get("msg_idx", msg_idx), content=elements)
 
 
 IDX_MAPPING: DequeDict[str, str] = DequeDict(1024)

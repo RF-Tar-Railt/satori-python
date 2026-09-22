@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from satori import Api, At, Channel, ChannelType, Guild, Login, Member, MessageObject, PageResult, Role, Text
 from satori.exception import BadRequestException, NotFoundException, ServerException
@@ -29,7 +29,17 @@ from satori.server.route import (
 )
 
 from .message import IDX_MAPPING, MESSAGE_MAPPING, QQGroupMessageEncoder, QQGuildMessageEncoder, decode_segments
-from .utils import ROLE_MAPPING, USER_AVATAR_URL, QQBotNetwork, decode_channel, decode_guild, decode_member, decode_user
+from .utils import (
+    ROLE_MAPPING,
+    USER_AVATAR_URL,
+    QQBotNetwork,
+    decode_channel,
+    decode_group,
+    decode_group_member,
+    decode_guild,
+    decode_member,
+    decode_user,
+)
 
 
 def apply(
@@ -163,8 +173,11 @@ def apply(
                 f"guilds/{request.params['guild_id']}",
             )
             return decode_guild(res)
-        # raise NotFoundException("qq platform does not support guild.get")
-        return Guild(request.params["guild_id"])  # type: ignore
+        res1 = await net.call_api(
+            "get",
+            f"v2/groups/{request.params['guild_id']}/info",
+        )
+        return decode_group(res1)[0]
 
     @adapter.route(Api.GUILD_LIST)
     async def guild_list(request: Request[GuildListParam]):
@@ -189,9 +202,22 @@ def apply(
                 f"channels/{channel_id}",
             )
             return decode_channel(res)
-        # raise NotFoundException("qq platform does not support channel.get")
         is_private = request.params["channel_id"].startswith("private:")
-        return Channel(request.params["channel_id"], ChannelType.DIRECT if is_private else ChannelType.TEXT)  # type: ignore
+        if is_private:
+            user_id = request.params["channel_id"][8:]
+            app_id = net.bot_id_mapping[login_getter(request.self_id, request.platform == "qqguild").id]
+            user = decode_user(
+                {
+                    "id": user_id,
+                    "avatar": USER_AVATAR_URL.format(app_id=app_id, user_id=user_id),
+                }
+            )
+            return Channel(f"private:{user.id}", ChannelType.DIRECT)
+        res1 = await net.call_api(
+            "get",
+            f"v2/groups/{request.params['channel_id']}/info",
+        )
+        return decode_group(res1)[1]
 
     @adapter.route(Api.CHANNEL_LIST)
     async def channel_list(request: Request[ChannelListParam]):
@@ -205,9 +231,23 @@ def apply(
             channels = [decode_channel(channel) for channel in res]
             return PageResult(channels, next=None)
         is_private = request.params["guild_id"].startswith("private:")
-        return PageResult(
-            [Channel(request.params["guild_id"], ChannelType.DIRECT if is_private else ChannelType.TEXT)],
-        )
+        if is_private:
+            user_id = request.params["guild_id"][8:]
+            app_id = net.bot_id_mapping[login_getter(request.self_id, request.platform == "qqguild").id]
+            user = decode_user(
+                {
+                    "id": user_id,
+                    "avatar": USER_AVATAR_URL.format(app_id=app_id, user_id=user_id),
+                }
+            )
+            channel = Channel(f"private:{user.id}", ChannelType.DIRECT)
+        else:
+            res1 = await net.call_api(
+                "get",
+                f"v2/groups/{request.params['guild_id']}/info",
+            )
+            channel = decode_group(res1)[1]
+        return PageResult([channel], next=None)
 
     @adapter.route(Api.CHANNEL_CREATE)
     async def channel_create(request: Request[ChannelCreateParam]):
@@ -270,18 +310,12 @@ def apply(
                 f"guilds/{guild_id}/members/{request.params['user_id']}",
             )
             return decode_member(res)
-        # raise NotFoundException("qq platform does not support guild.member.get")
-        app_id = net.bot_id_mapping[login_getter(request.self_id, request.platform == "qqguild").id]
-        return Member(
-            decode_user(
-                {
-                    "id": request.params["user_id"],
-                    "avatar": USER_AVATAR_URL.format(app_id=app_id, user_id=request.params["user_id"]),
-                }
-            ),
-            joined_at=None,
-            roles=[ROLE_MAPPING["1"]],
+        res1 = await net.call_api(
+            "get",
+            f"v2/groups/{request.params['guild_id']}/members/{request.params['user_id']}",
         )
+        app_id = net.bot_id_mapping[login_getter(request.self_id, request.platform == "qqguild").id]
+        return decode_group_member(res1, app_id)
 
     @adapter.route(Api.GUILD_MEMBER_LIST)
     async def guild_list_member(request: Request[GuildXXXListParam]):
@@ -295,7 +329,14 @@ def apply(
             )
             members = [decode_member(member) for member in res]
             return PageResult(members, next=members[-1].user.id if members else None)  # type: ignore
-        raise NotFoundException("qq platform does not support guild.member.list")
+        res1 = await net.call_api(
+            "get",
+            f"v2/groups/{request.params['guild_id']}/members",
+            {"cursor": request.params["next"] if "next" in request.params else None},
+        )
+        app_id = net.bot_id_mapping[login_getter(request.self_id, request.platform == "qqguild").id]
+        members = [decode_group_member(member, app_id) for member in res1["members"]]
+        return PageResult(members, next=res1.get("cursor"))
 
     @adapter.route(Api.GUILD_MEMBER_KICK)
     async def guild_kick_member(request: Request[GuildMemberKickParam]):
@@ -306,8 +347,11 @@ def apply(
                 "delete",
                 f"guilds/{guild_id}/members/{request.params['user_id']}",
             )
-        else:
-            raise NotFoundException("qq platform does not support guild.member.kick")
+        await net.call_api(
+            "post",
+            f"v2/groups/{request.params['guild_id']}/batch_remove_members",
+            {"member_openids": [request.params["user_id"]]},
+        )
 
     @adapter.route(Api.GUILD_MEMBER_MUTE)
     async def guild_mute_member(request: Request[GuildMemberMuteParam]):
@@ -319,8 +363,34 @@ def apply(
                 f"guilds/{guild_id}/members/{request.params['user_id']}/mute",
                 {"mute_seconds": request.params.get("duration", 0) // 1000},
             )
-        else:
-            raise NotFoundException("qq platform does not support guild.member.mute")
+        res = await net.call_api(
+            "get",
+            f"v2/groups/{request.params['guild_id']}/restrict_chat_setting",
+        )
+        mute_members = {m["member_openid"]: m for m in res.get("members", [])}
+        is_del = request.params.get("duration", 0) == 0
+        await net.call_api(
+            "post",
+            f"v2/groups/{request.params['guild_id']}/restrict_chat_setting",
+            {
+                "members": [
+                    {
+                        "op": "del" if is_del else "update" if request.params["user_id"] in mute_members else "add",
+                        "member_openid": request.params["user_id"],
+                        "mute_expire_at": (
+                            ""
+                            if is_del
+                            else (
+                                datetime.now(timezone(timedelta(seconds=28800)))
+                                + timedelta(milliseconds=request.params.get("duration", 0))
+                            )
+                            .replace(microsecond=0)
+                            .isoformat()
+                        ),
+                    }
+                ]
+            },
+        )
 
     @adapter.route(Api.REACTION_LIST)
     async def reaction_list(request: Request[ReactionListParam]):
