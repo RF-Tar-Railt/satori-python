@@ -537,4 +537,5 @@ class WxClawAdapter(BaseAdapter[WxClawConfig]):
     def __str__(self):
         return self.id
 
+
 __all__ = ["WxClawConfig", "WxClawAdapter"]

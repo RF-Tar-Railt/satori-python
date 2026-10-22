@@ -70,7 +70,9 @@ async def _json(self: StarletteRequest) -> Any:
 StarletteRequest.json = _json
 
 
-async def _request_handler(action: str, request: StarletteRequest, func: RouteCall[Any, Any], platform: str, self_id: str):
+async def _request_handler(
+    action: str, request: StarletteRequest, func: RouteCall[Any, Any], platform: str, self_id: str
+):
     if action == Api.UPLOAD_CREATE:
         async with request.form() as form:
             res = await func(

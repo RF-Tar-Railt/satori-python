@@ -1,11 +1,11 @@
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from launart import Service
 from starlette.responses import Response
 from starlette.routing import BaseRoute
 
-from satori.model import Login, LoginPartial
+from satori.model import Login
 
 from .model import Request
 from .route import RouterMixin
