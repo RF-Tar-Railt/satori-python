@@ -51,7 +51,7 @@ class _Connection:
                 sn=0,
                 status=LoginStatus.ONLINE,
                 adapter="onebot",
-                platform="onebot",
+                platform="qq-client",
                 user=User(
                     self_id,
                     (self_info or {})["nickname"],

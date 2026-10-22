@@ -258,6 +258,10 @@ class Login(ModelBase):
     def id(self) -> str:
         return self.user.id
 
+    @property
+    def identifier(self) -> str:
+        return f"{self.platform}:{self.adapter}_{self.user.id}#{self.sn}"
+
 
 @dataclass(slots=True)
 class LoginPartial(Login):

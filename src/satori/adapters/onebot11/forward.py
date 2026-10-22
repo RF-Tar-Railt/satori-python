@@ -80,7 +80,7 @@ class OneBot11ForwardAdapter(BaseAdapter[OneBot11ForwardConfig]):
                 sn=0,
                 status=LoginStatus.ONLINE,
                 adapter="onebot",
-                platform="onebot",
+                platform="qq-client",
                 user=User(
                     self_id,
                     (self_info or {})["nickname"],

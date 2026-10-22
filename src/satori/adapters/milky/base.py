@@ -155,7 +155,7 @@ class MilkyBaseAdapter(BaseAdapter[TMilkyBaseConfig], ABC):
             return
         user = decode_login_user(data)
         login = Login(
-            sn=0, status=LoginStatus.ONLINE, adapter="milky", platform="milky", user=user, features=self.features.copy()
+            sn=0, status=LoginStatus.ONLINE, adapter="milky", platform="qq-client", user=user, features=self.features.copy()
         )
         self_id = login.id
         previous = self.logins.get(self_id)
