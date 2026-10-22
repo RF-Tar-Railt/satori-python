@@ -75,6 +75,25 @@ async def group_member_decrease(login, net, raw):
     )
 
 
+@register_event("group_disband")
+async def group_disband(login, net, raw):
+    data = raw["data"]
+    guild_id = str(data["group_id"])
+    guild = Guild(guild_id, avatar=group_avatar(guild_id))
+    channel = Channel(guild_id, ChannelType.TEXT)
+    operator = None
+    if data.get("operator_id"):
+        operator = User(str(data["operator_id"]), avatar=user_avatar(data["operator_id"]))
+    return Event(
+        EventType.GUILD_REMOVED,
+        datetime.now(),
+        login,
+        guild=guild,
+        channel=channel,
+        operator=operator,
+    )
+
+
 @register_event("group_name_change")
 async def group_name_change(login, net, raw):
     data = raw["data"]

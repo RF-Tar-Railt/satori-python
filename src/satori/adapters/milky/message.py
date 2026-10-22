@@ -139,10 +139,17 @@ class MilkyMessageEncoder:
                     return
                 if match := _BASE64_RE.match(uri):
                     uri = f"base64://{uri[len(match.group(0)) :]}"
+                sub_type = "normal"
+                if "sub_type" in attrs:
+                    sub_type = attrs["sub_type"]
+                if "subType" in attrs:
+                    sub_type = attrs["subType"]
+                if "milky:type" in attrs:
+                    sub_type = attrs["milky:type"]
                 self.segments.append(
                     {
                         "type": "image",
-                        "data": {"uri": uri, "sub_type": attrs.get("sub_type", attrs.get("subTyoe", "normal"))},
+                        "data": {"uri": uri, "sub_type": sub_type},
                     }
                 )
             case "audio":
@@ -177,6 +184,9 @@ class MilkyMessageEncoder:
                 self.segments.append(
                     {"type": "light_app", "data": {"json_payload": attrs.get("json_payload", attrs["jsonPayload"])}}
                 )
+            case "markdown" | "milky:markdown":
+                await self.flush()
+                self.segments.append({"type": "markdown", "data": {"content": str(children[0])}})
             case "author":
                 self.stack[0].author.update(attrs)
             case "quote":
@@ -255,6 +265,7 @@ class MilkyMessageEncoder:
                         "user_id": origin["message"]["sender_id"],
                         "sender_name": nickname,
                         "segments": await self.sendable(segments),
+                        "time": origin["message"]["time"],
                     }
                 )
             else:
@@ -263,6 +274,7 @@ class MilkyMessageEncoder:
                         "user_id": int(author.get("id", self.login.id)),
                         "sender_name": author.get("name", self.login.user.name or self.login.id),
                         "segments": self.segments,
+                        "time": int(author.get("time", datetime.now().timestamp())),
                     }
                 )
             self.segments = []
