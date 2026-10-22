@@ -9,9 +9,9 @@ from launart.status import Phase
 from nonechat import ConsoleSetting, Frontend
 from starlette.responses import JSONResponse, Response
 
+from satori import Login
 from satori.server import Adapter as BaseAdapter
 from satori.server import Request
-from satori.server.adapter import LoginType
 
 from .api import apply
 from .backend import SatoriConsoleBackend
@@ -66,7 +66,7 @@ class ConsoleAdapter(BaseAdapter[ConsoleConfig]):
         async with self.server.session.get(path) as resp:
             return Response(await resp.read())
 
-    async def get_logins(self) -> list[LoginType]:
+    async def get_logins(self) -> list[Login]:
         return list(self.app.backend.logins.values())
 
     @property

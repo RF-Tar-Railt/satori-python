@@ -15,7 +15,6 @@ if TYPE_CHECKING:
     from . import Server
 
 
-LoginType = Union[Login, LoginPartial]  # noqa: UP007
 T = TypeVar("T")
 
 
@@ -45,7 +44,7 @@ class Adapter(Service, RouterMixin, Generic[T]):
             return Response(await resp.read())
 
     @abstractmethod
-    async def get_logins(self) -> list[LoginType]: ...
+    async def get_logins(self) -> list[Login]: ...
 
     def __init__(self):
         super().__init__()
