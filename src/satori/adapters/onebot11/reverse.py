@@ -92,18 +92,23 @@ class _Connection:
                 login = self.adapter.logins[self_id]
                 handler = events.get(event_type)
 
-                async def _event_parse():
+                async def _event_parse(
+                    _login=login,
+                    _handler=handler,
+                    _data=data,
+                    _event_type=event_type,
+                ):
                     event = None
-                    if handler:
+                    if _handler:
                         try:
-                            event = await handler(login, self, data)
+                            event = await _handler(_login, self, _data)
                         except Exception as e:
-                            logger.exception(f"failed to handle event {event_type}: {e!r}")
+                            logger.exception(f"failed to handle event {_event_type}: {e!r}")
                             event = None
                     if not event:
-                        event = Event(EventType.INTERNAL, datetime.now(), login)
-                    event._type = event_type
-                    event._data = data
+                        event = Event(EventType.INTERNAL, datetime.now(), _login)
+                    event._type = _event_type
+                    event._data = _data
                     await self.adapter.server.post(event)
 
                 asyncio.create_task(_event_parse())
