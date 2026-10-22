@@ -57,7 +57,7 @@ class OneBot11ForwardAdapter(BaseAdapter[OneBot11ForwardConfig]):
         apply(self, lambda _: self, lambda _: self.logins[_])
 
     def ensure(self, platform: str, self_id: str) -> bool:
-        return platform == "onebot" and self_id in self.logins
+        return platform == "qq-client" and self_id in self.logins
 
     async def get_logins(self) -> list[Login]:
         logins = list(self.logins.values())
