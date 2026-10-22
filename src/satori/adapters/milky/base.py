@@ -68,7 +68,7 @@ class MilkyBaseAdapter(BaseAdapter[TMilkyBaseConfig], ABC):
         return "milky"
 
     def ensure(self, platform: str, self_id: str) -> bool:
-        return platform == "milky" and self_id in self.logins
+        return platform == "qq-client" and self_id in self.logins
 
     async def get_logins(self) -> list[Login]:
         logins = list(self.logins.values())
