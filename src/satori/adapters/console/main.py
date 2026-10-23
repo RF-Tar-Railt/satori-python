@@ -28,10 +28,6 @@ class ConsoleAdapter(BaseAdapter[ConsoleConfig]):
         self,
         config: ConsoleConfig | None = None,
     ):
-        kwargs = locals().copy()
-        kwargs.pop("self")
-        kwargs.pop("logger_id")
-        kwargs.pop("__class__")
         super().__init__()
         self.config = config or ConsoleConfig()
         self.app = Frontend(
