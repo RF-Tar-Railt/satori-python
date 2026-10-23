@@ -203,8 +203,10 @@ class OneBot11ReverseAdapter(BaseAdapter[OneBot11ReverseConfig]):
             if connection.response_waiters:
                 for future in connection.response_waiters.values():
                     future.cancel()
-            self.logins[account_id].status = LoginStatus.OFFLINE
-            await self.server.post(Event(EventType.LOGIN_REMOVED, datetime.now(), self.logins[account_id]))
+            login = self.logins.get(account_id)
+            if login:
+                login.status = LoginStatus.OFFLINE
+                await self.server.post(Event(EventType.LOGIN_REMOVED, datetime.now(), login))
             await asyncio.sleep(1)
 
     async def launch(self, manager: Launart):
