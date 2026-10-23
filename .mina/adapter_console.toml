@@ -1,12 +1,12 @@
 includes = ["src/satori/adapters/console"]
 raw-dependencies = [
-    "satori-python-server<1.4.0,>= 1.3.7",
+    "satori-python-server<1.4.0,>= 1.3.10",
     "nonechat<0.7.0,>=0.6.0",
 ]
 
 [project]
 name = "satori-python-adapter-console"
-version = "0.6.0"
+version = "0.6.1"
 authors = [
   {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"}
 ]
