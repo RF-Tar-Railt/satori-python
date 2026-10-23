@@ -88,7 +88,7 @@ class _Connection:
                 self_id = str(data["self_id"])
                 if self_id not in self.adapter.logins:
                     logger.warning(f"received event from unknown self_id: {data}")
-                    return
+                    continue
                 login = self.adapter.logins[self_id]
                 handler = events.get(event_type)
 

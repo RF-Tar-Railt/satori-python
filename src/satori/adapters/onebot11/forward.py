@@ -117,7 +117,7 @@ class OneBot11ForwardAdapter(BaseAdapter[OneBot11ForwardConfig]):
                 self_id = str(data["self_id"])
                 if self_id not in self.logins:
                     logger.warning(f"received event from unknown self_id: {data}")
-                    return
+                    continue
                 login = self.logins[self_id]
                 handler = events.get(event_type)
 
