@@ -68,7 +68,11 @@ class MilkyBaseAdapter(BaseAdapter[TMilkyBaseConfig], ABC):
         return "milky"
 
     def ensure(self, platform: str, self_id: str) -> bool:
-        return platform == "qq-client" and self_id in self.logins
+        return (
+            platform == "qq-client"
+            and self_id in self.logins
+            and self.logins[self_id].status not in (LoginStatus.OFFLINE, LoginStatus.DISCONNECT)
+        )
 
     async def get_logins(self) -> list[Login]:
         logins = list(self.logins.values())
@@ -167,6 +171,18 @@ class MilkyBaseAdapter(BaseAdapter[TMilkyBaseConfig], ABC):
         self.logins[self_id] = login
         event_type = EventType.LOGIN_ADDED if previous is None else EventType.LOGIN_UPDATED
         await self.server.post(Event(event_type, datetime.now(), login))
+
+    async def _mark_reconnecting(self):
+        for login in self.logins.values():
+            if login.status != LoginStatus.RECONNECT:
+                login.status = LoginStatus.RECONNECT
+                await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
+
+    async def _mark_offline(self):
+        for login in self.logins.values():
+            if login.status != LoginStatus.OFFLINE:
+                login.status = LoginStatus.OFFLINE
+                await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
 
     async def _handle_disconnect(self):
         for self_id, login in list(self.logins.items()):

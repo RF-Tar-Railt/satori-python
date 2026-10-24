@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 
 from aiohttp import ClientTimeout, web
 from graia.amnesia.builtins.aiohttp import AiohttpClientService
@@ -10,7 +11,7 @@ from loguru import logger
 from satori.model import Event, LoginStatus, Meta, MetaPayload, Opcode
 from satori.utils import decode
 
-from ..account import Account
+from ... import EventType
 from ..config import WebhookInfo as WebhookInfo
 from .base import BaseNetwork
 from .util import validate_response
@@ -103,25 +104,19 @@ class WebhookNetwork(BaseNetwork[WebhookInfo]):
                 meta = Meta.parse(data)
             self.proxy_urls = meta.proxy_urls
             for login in meta.logins:
-                if not login.user:
-                    continue
-                login_sn = login.identifier
-                account = Account(login, self.config, meta.proxy_urls, self.app.default_api_cls)
-                logger.info(f"account registered: {account}")
-                (account.connected.set() if login.status == LoginStatus.ONLINE else account.connected.clear())
-                self.app.accounts[login_sn] = account
-                self.accounts[login_sn] = account
-                await self.app.account_update(account, LoginStatus.ONLINE)
+                if login.identifier in self.accounts:
+                    await self.app.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login), self)
+                else:
+                    await self.app.post(Event(EventType.LOGIN_ADDED, datetime.now(), login), self)
             await site.start()
             await manager.status.wait_for_sigexit()
             logger.info(f"{self.id} Webhook server exiting...")
             self.close_signal.set()
             for v in list(self.app.accounts.values()):
-                if (identity := v.self_info.identifier) in self.accounts:
+                if v.self_info.identifier in self.accounts:
                     v.connected.clear()
-                    await self.app.account_update(v, LoginStatus.OFFLINE)
-                    del self.app.accounts[identity]
-                    del self.accounts[identity]
+                    v.self_info.status = LoginStatus.OFFLINE
+                    await self.app.post(Event(EventType.LOGIN_REMOVED, datetime.now(), v.self_info), self)
 
         async with self.stage("cleanup"):
             await site.stop()

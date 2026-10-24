@@ -6,6 +6,7 @@ import aiohttp
 from launart import Launart, any_completed
 from loguru import logger
 
+from satori.reconnect import RECONNECT_STABLE_SECONDS, ReconnectPolicy, is_normal_close, is_server_shutdown
 from satori.utils import decode
 
 from .base import MilkyBaseAdapter, MilkyBaseConfig
@@ -45,7 +46,9 @@ class MilkyWebsocketAdapter(MilkyBaseAdapter):
             await self._handle_disconnect()
 
     async def connection_daemon(self, manager: Launart, session: aiohttp.ClientSession):
+        policy = ReconnectPolicy()
         while not manager.status.exiting:
+            await self._mark_reconnecting()
             headers = self.headers.copy()
             if self.token:
                 headers.setdefault("Authorization", f"Bearer {self.token}")
@@ -53,9 +56,13 @@ class MilkyWebsocketAdapter(MilkyBaseAdapter):
                 self.connection = await session.ws_connect(self.event_url, headers=headers)
             except Exception as e:
                 logger.error(f"Milky adapter websocket connect failed: {e}")
-                await asyncio.sleep(5)
+                if not await policy.sleep():
+                    logger.error("Milky adapter reconnect attempts exhausted, marking logins offline")
+                    await self._mark_offline()
+                    return
                 continue
             logger.info("Milky adapter websocket connected")
+            connected_at = asyncio.get_running_loop().time()
             self.close_signal.clear()
             await self.refresh_login()
             receiver_task = asyncio.create_task(self.message_handle())
@@ -68,9 +75,23 @@ class MilkyWebsocketAdapter(MilkyBaseAdapter):
             await asyncio.gather(*pending, return_exceptions=True)
             if sigexit_task in done:
                 break
-            logger.warning("Milky adapter websocket closed, retrying in 5 seconds")
-            await self._handle_disconnect()
-            await asyncio.sleep(5)
+            code = self.connection.close_code if self.connection else None
+            if is_normal_close(code):
+                logger.info(f"Milky adapter websocket closed by server (code={code}), login removed")
+                await self._handle_disconnect()
+                if not is_server_shutdown(code):
+                    return
+            if asyncio.get_running_loop().time() - connected_at >= RECONNECT_STABLE_SECONDS:
+                policy.reset()
+            logger.warning("Milky adapter websocket closed, reconnecting")
+            if self.connection and not self.connection.closed:
+                await self.connection.close()
+            self.close_signal.set()
+            await self._mark_reconnecting()
+            if not await policy.sleep():
+                logger.error("Milky adapter reconnect attempts exhausted, marking logins offline")
+                await self._mark_offline()
+                return
         await self._handle_disconnect()
 
     async def message_handle(self):

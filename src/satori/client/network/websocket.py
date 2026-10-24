@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from typing import cast
 
 import aiohttp
@@ -8,10 +9,11 @@ from launart.manager import Launart
 from launart.utilles import any_completed
 from loguru import logger
 
+from satori.const import EventType
 from satori.model import Event, Identify, LoginStatus, MetaPayload, Opcode, Ready
+from satori.reconnect import RECONNECT_STABLE_SECONDS, ReconnectPolicy, is_normal_close, is_server_shutdown
 from satori.utils import decode, encode
 
-from ..account import Account
 from ..config import WebsocketsInfo as WebsocketsInfo
 from .base import BaseNetwork
 
@@ -108,24 +110,10 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
         ready = Ready.parse(data["body"])
         self.proxy_urls = ready.proxy_urls
         for login in ready.logins:
-            if not login.user:
-                continue
-            login_sn = login.identifier
-            if login_sn in self.app.accounts:
-                account = self.app.accounts[login_sn]
-                self.accounts[login_sn] = account
-                if login.status == LoginStatus.ONLINE:
-                    account.connected.set()
-                else:
-                    account.connected.clear()
-                account.config = self.config
+            if login.identifier in self.accounts:
+                await self.app.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login), self)
             else:
-                account = Account(login, self.config, ready.proxy_urls, self.app.default_api_cls)
-                logger.info(f"account registered: {account}")
-                (account.connected.set() if login.status == LoginStatus.ONLINE else account.connected.clear())
-                self.app.accounts[login_sn] = account
-                self.accounts[login_sn] = account
-            await self.app.account_update(account, LoginStatus.ONLINE)
+                await self.app.post(Event(EventType.LOGIN_ADDED, datetime.now(), login), self)
         if not self.accounts:
             logger.warning(f"No account available for {self.config}")
             # return False
@@ -140,16 +128,43 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                 logger.error(f"Error while sending heartbeat: {e!r}")
             await asyncio.sleep(9)
 
+    async def _mark_accounts(self, status: LoginStatus, *, removed: bool = False):
+        event_type = EventType.LOGIN_REMOVED if removed else EventType.LOGIN_UPDATED
+        for account in list(self.accounts.values()):
+            if status in (LoginStatus.ONLINE, LoginStatus.CONNECT):
+                account.connected.set()
+            else:
+                account.connected.clear()
+            account.self_info.status = status
+            await self.app.post(Event(event_type, datetime.now(), account.self_info), self)
+        if removed:
+            self.accounts.clear()
+
     async def daemon(self, manager: Launart, session: aiohttp.ClientSession):
+        policy = ReconnectPolicy()
         while not manager.status.exiting:
             try:
+                await self._mark_accounts(LoginStatus.RECONNECT)
                 async with session.ws_connect(self.config.ws_base / "events", timeout=300) as self.connection:
                     logger.debug(f"{self.id} Websocket client connected")
+                    await self._mark_accounts(LoginStatus.CONNECT)
                     self.close_signal.clear()
                     result = await self._authenticate()
                     if not result:
-                        await asyncio.sleep(3)
+                        code = self.connection.close_code
+                        if is_normal_close(code):
+                            logger.info(f"{self.id} Connection closed by server (code={code}), login removed")
+                            await self._mark_accounts(LoginStatus.OFFLINE, removed=True)
+                            if not is_server_shutdown(code):
+                                return
+                        await self._mark_accounts(LoginStatus.RECONNECT)
+                        if not await policy.sleep():
+                            logger.error(f"{self.id} Reconnect attempts exhausted, marking accounts offline")
+                            await self._mark_accounts(LoginStatus.OFFLINE)
+                            return
+                        logger.info(f"{self.id} Reconnecting...")
                         continue
+                    connected_at = asyncio.get_running_loop().time()
                     self.close_signal.clear()
                     close_task = asyncio.create_task(self.close_signal.wait())
                     receiver_task = asyncio.create_task(self.message_receive())
@@ -166,28 +181,33 @@ class WsNetwork(BaseNetwork[WebsocketsInfo]):
                         await self.connection.close()
                         self.close_signal.set()
                         self.connection = None
-                        for v in list(self.app.accounts.values()):
-                            if (identity := v.self_info.identifier) in self.accounts:
-                                v.connected.clear()
-                                await self.app.account_update(v, LoginStatus.OFFLINE)
-                                del self.app.accounts[identity]
-                                del self.accounts[identity]
+                        await self._mark_accounts(LoginStatus.OFFLINE, removed=True)
                         return
-                    if close_task in done:
-                        receiver_task.cancel()
-                        logger.warning(f"{self.id} Connection closed by server, will reconnect in 5 seconds...")
-                        for k in self.accounts.keys():
-                            logger.debug(f"Unregistering satori account {k}...")
-                            account = self.app.accounts[k]
-                            account.connected.clear()
-                            await self.app.account_update(account, LoginStatus.RECONNECT)
-                        self.accounts.clear()
-                        await asyncio.sleep(5)
-                        logger.info(f"{self.id} Reconnecting...")
-                        continue
+                    for task in pending:
+                        task.cancel()
+                    await asyncio.gather(*pending, return_exceptions=True)
+                    code = self.connection.close_code if self.connection else None
+                    if is_normal_close(code):
+                        logger.info(f"{self.id} Connection closed by server (code={code}), login removed")
+                        await self._mark_accounts(LoginStatus.OFFLINE, removed=True)
+                        if not is_server_shutdown(code):
+                            return
+                    if connected_at and asyncio.get_running_loop().time() - connected_at >= RECONNECT_STABLE_SECONDS:
+                        policy.reset()
+                    await self._mark_accounts(LoginStatus.RECONNECT)
+                    if not await policy.sleep():
+                        logger.error(f"{self.id} Reconnect attempts exhausted, marking accounts offline")
+                        await self._mark_accounts(LoginStatus.OFFLINE)
+                        return
+                    logger.info(f"{self.id} Reconnecting...")
+                    continue
             except Exception as e:
                 logger.error(f"{self.id} Error while connecting: {e}")
-                await asyncio.sleep(5)
+                await self._mark_accounts(LoginStatus.RECONNECT)
+                if not await policy.sleep():
+                    logger.error(f"{self.id} Reconnect attempts exhausted, marking accounts offline")
+                    await self._mark_accounts(LoginStatus.OFFLINE)
+                    return
                 logger.info(f"{self.id} Reconnecting...")
 
     async def launch(self, manager: Launart):

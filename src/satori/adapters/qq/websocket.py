@@ -18,6 +18,7 @@ from yarl import URL
 from satori import EventType
 from satori.exception import NetworkError
 from satori.model import Event, Login, LoginStatus
+from satori.reconnect import RECONNECT_STABLE_SECONDS, ReconnectPolicy, is_normal_close, is_server_shutdown
 from satori.server.adapter import Adapter as BaseAdapter
 from satori.server.model import Request
 from satori.utils import decode
@@ -163,7 +164,11 @@ class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
         return "qq"
 
     def ensure(self, platform: str, self_id: str) -> bool:
-        return platform in ("qq", "qqguild") and any(lg.id == self_id for lg in self.logins)
+        if platform not in ("qq", "qqguild"):
+            return False
+        if any((login := lg).id == self_id for lg in self.logins):
+            return login.status not in (LoginStatus.OFFLINE, LoginStatus.DISCONNECT)
+        return False
 
     async def get_logins(self) -> list[Login]:
         for index, lg in enumerate(self.logins):
@@ -521,30 +526,59 @@ class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
     async def connection_daemon(
         self, manager: Launart, session: aiohttp.ClientSession, url: str, shard: tuple[int, int]
     ):
+        policy = ReconnectPolicy()
         while not manager.status.exiting:
             # try:
             #     async with session.ws_connect(url, timeout=30) as conn:
             ctx = session.ws_connect(url, timeout=30)
+            for login in self.logins:
+                login.status = LoginStatus.RECONNECT
+                await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
             try:
                 conn = await ctx.__aenter__()
             except Exception as e:
                 logger.error(f"{self} Websocket client connection failed: {e}")
-                logger.debug(f"{self} Will retry in 5 seconds...")
                 with suppress(AttributeError):
                     await ctx.__aexit__(None, None, None)
-                await asyncio.sleep(5)
+                if not await policy.sleep():
+                    logger.error(f"{self} Reconnect attempts exhausted, marking logins offline")
+                    for login in self.logins:
+                        login.status = LoginStatus.OFFLINE
+                        await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
+                    return
+                logger.info(f"{self} Reconnecting...")
                 continue
 
             self.connections[shard] = conn
             logger.info(f"{self.id} Websocket client connected")
             heartbeat_interval = await self._hello(shard)
             if not heartbeat_interval:
-                await asyncio.sleep(3)
+                await conn.close()
+                self.connections.pop(shard, None)
+                if not await policy.sleep():
+                    logger.error(f"{self} Reconnect attempts exhausted, marking logins offline")
+                    for login in self.logins:
+                        login.status = LoginStatus.OFFLINE
+                        await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
+                    return
+                logger.info(f"{self} Reconnecting...")
                 continue
             result = await self._authenticate(shard)
             if not result:
-                await asyncio.sleep(3)
+                await conn.close()
+                self.connections.pop(shard, None)
+                if not await policy.sleep():
+                    logger.error(f"{self} Reconnect attempts exhausted, marking logins offline")
+                    for login in self.logins:
+                        login.status = LoginStatus.OFFLINE
+                        await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
+                    return
+                logger.info(f"{self} Reconnecting...")
                 continue
+            connected_at = asyncio.get_running_loop().time()
+            for login in self.logins:
+                login.status = LoginStatus.CONNECT
+                await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
             self.close_signal.clear()
             close_task = asyncio.create_task(self.close_signal.wait())
             receiver_task = asyncio.create_task(self.message_handle(shard))
@@ -560,6 +594,7 @@ class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
                 logger.info(f"{self} Websocket client exiting...")
                 await conn.close()
                 self.close_signal.set()
+                self.connections.pop(shard, None)
                 receiver_task.cancel()
                 heartbeat_task.cancel()
                 for login in self.logins:
@@ -568,17 +603,34 @@ class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
                 self.logins.clear()
                 await asyncio.sleep(1)
                 return
-            if close_task in done:
-                receiver_task.cancel()
-                heartbeat_task.cancel()
-                logger.warning(f"{self} Connection closed by server, will reconnect in 5 seconds...")
 
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+            code = conn.close_code
+            if not conn.closed:
+                await conn.close()
+            self.connections.pop(shard, None)
+            if is_normal_close(code):
+                logger.info(f"{self} Connection closed by server (code={code}), login removed")
                 for login in self.logins:
-                    login.status = LoginStatus.RECONNECT
+                    login.status = LoginStatus.OFFLINE
+                    await self.server.post(Event(EventType.LOGIN_REMOVED, datetime.now(), login))
+                self.logins.clear()
+                if not is_server_shutdown(code):
+                    return
+            if asyncio.get_running_loop().time() - connected_at >= RECONNECT_STABLE_SECONDS:
+                policy.reset()
+            for login in self.logins:
+                login.status = LoginStatus.RECONNECT
+                await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
+            if not await policy.sleep():
+                logger.error(f"{self} Reconnect attempts exhausted, marking logins offline")
+                for login in self.logins:
+                    login.status = LoginStatus.OFFLINE
                     await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
-                await asyncio.sleep(5)
-                logger.info(f"{self} Reconnecting...")
-                continue
+                return
+            logger.info(f"{self} Reconnecting...")
 
     def __str__(self):
         return self.id

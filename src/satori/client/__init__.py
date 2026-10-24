@@ -220,6 +220,8 @@ class App(Service):
         self.lifecycle_callbacks.append(callback)
 
     async def account_update(self, account: Account, state: LoginStatus):
+        if account.self_info.status != state:
+            account.self_info.status = state
         if self.lifecycle_callbacks:
             task = asyncio.gather(*(callback(account, state) for callback in self.lifecycle_callbacks))
             try:
@@ -230,26 +232,7 @@ class App(Service):
 
     async def post(self, event: Event, conn: BaseNetwork):
         ev_type = event.type
-        if ev_type == EventType.LOGIN_ADDED:
-            if TYPE_CHECKING:
-                assert isinstance(event, events.LoginEvent)
-            login = event.login
-            if not login.user:
-                logger.warning(f"Received login-added event without user info: {login}")
-                return
-            login_sn = login.identifier
-            account = Account(
-                login,
-                conn.config,
-                conn.proxy_urls,
-                self.default_api_cls,
-            )
-            logger.info(f"account added: {account}")
-            (account.connected.set() if login.status == LoginStatus.ONLINE else account.connected.clear())
-            self.accounts[login_sn] = account
-            conn.accounts[login_sn] = account
-            await self.account_update(account, login.status)
-        elif ev_type == EventType.LOGIN_UPDATED:
+        if ev_type in (EventType.LOGIN_ADDED, EventType.LOGIN_UPDATED):
             if TYPE_CHECKING:
                 assert isinstance(event, events.LoginEvent)
             login = event.login
@@ -258,9 +241,6 @@ class App(Service):
                 return
             login_sn = login.identifier
             if login_sn not in self.accounts:
-                if login.status != LoginStatus.ONLINE:
-                    logger.warning(f"Received event for unknown account: {event}")
-                    return
                 account = Account(
                     login,
                     conn.config,
@@ -271,11 +251,11 @@ class App(Service):
                 account.connected.set()
                 self.accounts[login_sn] = account
                 conn.accounts[login_sn] = account
-                await self.account_update(account, LoginStatus.ONLINE)
             else:
                 account = self.accounts[login_sn]
                 account.self_info = login
-            logger.info(f"account updated: {account}")
+                account.config = conn.config
+                logger.info(f"account updated: {account} to {login.status.name}")
             (
                 account.connected.set()
                 if login.status in (LoginStatus.ONLINE, LoginStatus.CONNECT)
@@ -294,6 +274,7 @@ class App(Service):
                 logger.warning(f"Received event for unknown account: {event}")
                 return
             account = self.accounts[login_sn]
+            account.self_info = login
         else:
             login_sn = event.login.identifier
             if login_sn not in self.accounts:
@@ -318,7 +299,7 @@ class App(Service):
         if event.type == EventType.LOGIN_REMOVED:
             logger.info(f"account removed: {account}")
             account.connected.clear()
-            await self.account_update(account, LoginStatus.OFFLINE)
+            await self.account_update(account, event.login.status)
             del self.accounts[login_sn]
             del conn.accounts[login_sn]
 
@@ -332,7 +313,7 @@ class App(Service):
         async with self.stage("blocking"):
             await any_completed(
                 manager.status.wait_for_sigexit(),
-                *(conn.status.wait_for("blocking-completed") for conn in self.connections),
+                # *(conn.status.wait_for("blocking-completed") for conn in self.connections),
             )
 
         async with self.stage("cleanup"):

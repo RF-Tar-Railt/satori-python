@@ -245,7 +245,13 @@ class QQBotWebhookAdapter(BaseAdapter[QQBotWebhookConfig]):
         return "qq"
 
     def ensure(self, platform: str, self_id: str) -> bool:
-        return platform in ("qq", "qqguild") and any(lg.id == self_id for lg in self.logins)
+        if platform not in ("qq", "qqguild"):
+            return False
+        if self_id not in self.bot_id_mapping:
+            return False
+        if self.bot_id_mapping[self_id] not in self.networks:
+            return False
+        return True
 
     async def get_logins(self) -> list[Login]:
         for index, login in enumerate(self.logins):

@@ -15,6 +15,7 @@ from yarl import URL
 from satori import Event, EventType, LoginStatus
 from satori.exception import ActionFailed
 from satori.model import Login, User
+from satori.reconnect import RECONNECT_TOTAL_SECONDS, is_normal_close
 from satori.server import Request
 from satori.server.adapter import Adapter as BaseAdapter
 from satori.utils import decode, encode
@@ -29,6 +30,7 @@ class _Connection:
         self.adapter = adapter
         self.ws = ws
         self.close_signal = asyncio.Event()
+        self.close_code: int | None = None
         self.response_waiters: dict[str, asyncio.Future] = {}
 
     async def message_receive(self):
@@ -37,6 +39,7 @@ class _Connection:
             message = await self.ws.receive()
 
             if message["type"] == "websocket.disconnect":
+                self.close_code = message.get("code")
                 break
             yield self, decode(message["text"])
         # async for msg in self.ws.iter_text():
@@ -45,7 +48,7 @@ class _Connection:
         self.close_signal.set()
 
     async def message_handle(self):
-        async def _login_add():
+        async def _login_update(add=True):
             self_info = await self.call_api("get_login_info")
             login = Login(
                 sn=0,
@@ -60,7 +63,10 @@ class _Connection:
                 features=["guild.plain"],
             )
             self.adapter.logins[self_id] = login
-            await self.adapter.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+            if add:
+                await self.adapter.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+            else:
+                await self.adapter.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
 
         async for connection, data in self.message_receive():
             if echo := data.get("echo"):
@@ -72,17 +78,19 @@ class _Connection:
             if event_type == "meta_event.lifecycle.connect":
                 self_id = str(data["self_id"])
                 if self_id not in self.adapter.logins:
-                    asyncio.create_task(_login_add())
+                    asyncio.create_task(_login_update())
+                else:
+                    asyncio.create_task(_login_update(add=False))
             elif event_type == "meta_event.lifecycle.enable":
                 logger.warning(f"received lifecycle.enable event that is only supported in http adapter: {data}")
-                return
+                continue
             elif event_type == "meta_event.lifecycle.disable":
                 logger.warning(f"received lifecycle.disable event that is only supported in http adapter: {data}")
-                return
+                continue
             elif event_type == "meta_event.heartbeat":
                 self_id = str(data["self_id"])
                 if self_id not in self.adapter.logins:
-                    asyncio.create_task(_login_add())
+                    asyncio.create_task(_login_update())
                 logger.trace(f"received heartbeat from {self_id}")
             else:
                 self_id = str(data["self_id"])
@@ -159,12 +167,13 @@ class OneBot11ReverseAdapter(BaseAdapter[OneBot11ReverseConfig]):
         self.access_token = config.access_token
         self.logins: dict[str, Login] = {}
         self.connections: dict[str, _Connection] = {}
+        self.offline_tasks: dict[str, asyncio.Task] = {}
         self.timeout = config.timeout
 
         apply(self, lambda _: self.connections[_], lambda _: self.logins[_])
 
     def ensure(self, platform: str, self_id: str) -> bool:
-        return platform == "qq-client" and self_id in self.logins
+        return platform == "qq-client" and self_id in self.connections
 
     async def get_logins(self) -> list[Login]:
         logins = list(self.logins.values())
@@ -180,6 +189,24 @@ class OneBot11ReverseAdapter(BaseAdapter[OneBot11ReverseConfig]):
     def stages(self) -> set[Phase]:
         return {"preparing", "blocking", "cleanup"}
 
+    def _cancel_offline_task(self, account_id: str):
+        task = self.offline_tasks.pop(account_id, None)
+        if task:
+            task.cancel()
+
+    async def _mark_offline_later(self, account_id: str):
+        try:
+            await asyncio.sleep(RECONNECT_TOTAL_SECONDS)
+        except asyncio.CancelledError:
+            return
+        self.offline_tasks.pop(account_id, None)
+        if account_id in self.connections:
+            return
+        login = self.logins.get(account_id)
+        if login and login.status == LoginStatus.RECONNECT:
+            login.status = LoginStatus.OFFLINE
+            await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
+
     async def websocket_server_handler(self, ws: WebSocket):
         if ws.headers.get("Authorization", "")[7:] != (self.access_token or ""):
             return await ws.close(1008, "Authorization Header is invalid")
@@ -190,23 +217,65 @@ class OneBot11ReverseAdapter(BaseAdapter[OneBot11ReverseConfig]):
         account_id = ws.headers["X-Self-ID"]
         if account_id in self.connections:
             return await ws.close(1008, "Duplicate X-Self-ID")
-
+        self._cancel_offline_task(account_id)
+        login = self.logins.get(account_id)
+        if login:
+            login.status = LoginStatus.RECONNECT
+            await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
         await ws.accept()
+        login = self.logins.get(account_id)
+        if login:
+            login.status = LoginStatus.CONNECT
+            await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
         connection = _Connection(self, ws)
         self.connections[account_id] = connection
-
-        try:
-            await any_completed(connection.message_handle(), connection.close_signal.wait())
-        finally:
+        close_task = asyncio.create_task(connection.close_signal.wait())
+        receiver_task = asyncio.create_task(
+            connection.message_handle(),
+        )
+        sigexit_task = asyncio.create_task(self.manager.status.wait_for_sigexit())  # type: ignore
+        done, pending = await any_completed(
+            sigexit_task,
+            close_task,
+            receiver_task,
+        )
+        if sigexit_task in done:
+            logger.info(f"{self} Websocket server exiting...")
+            await connection.ws.close(reason="Server exiting")
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
             del self.connections[account_id]
-            logger.info(f"Websocket {ws} closed")
-            if connection.response_waiters:
-                for future in connection.response_waiters.values():
-                    future.cancel()
+            for fut in connection.response_waiters.values():
+                fut.cancel()
+            self._cancel_offline_task(account_id)
             login = self.logins.get(account_id)
             if login:
                 login.status = LoginStatus.OFFLINE
                 await self.server.post(Event(EventType.LOGIN_REMOVED, datetime.now(), login))
+            self.logins.pop(account_id, None)
+            await asyncio.sleep(1)
+            return
+
+        if close_task in done or receiver_task in done:
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+            self.connections.pop(account_id, None)
+            logger.warning(f"Websocket {ws} closed (code={connection.close_code})")
+            for fut in connection.response_waiters.values():
+                fut.cancel()
+            self._cancel_offline_task(account_id)
+            login = self.logins.get(account_id)
+            if login:
+                if is_normal_close(connection.close_code):
+                    login.status = LoginStatus.OFFLINE
+                    await self.server.post(Event(EventType.LOGIN_REMOVED, datetime.now(), login))
+                    self.logins.pop(account_id, None)
+                else:
+                    login.status = LoginStatus.RECONNECT
+                    await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
+                    self.offline_tasks[account_id] = asyncio.create_task(self._mark_offline_later(account_id))
             await asyncio.sleep(1)
 
     async def launch(self, manager: Launart):
@@ -217,7 +286,9 @@ class OneBot11ReverseAdapter(BaseAdapter[OneBot11ReverseConfig]):
             await manager.status.wait_for_sigexit()
 
         async with self.stage("cleanup"):
-            pass
+            for task in self.offline_tasks.values():
+                task.cancel()
+            self.offline_tasks.clear()
 
     def get_routes(self):
         return [

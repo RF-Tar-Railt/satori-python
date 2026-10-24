@@ -6,6 +6,7 @@ import aiohttp
 from launart import Launart, any_completed
 from loguru import logger
 
+from satori.reconnect import RECONNECT_STABLE_SECONDS, ReconnectPolicy
 from satori.utils import decode
 
 from .base import MilkyBaseAdapter, MilkyBaseConfig
@@ -38,20 +39,31 @@ class MilkySSEAdapter(MilkyBaseAdapter):
             await self._handle_disconnect()
 
     async def connection_daemon(self, manager: Launart, session: aiohttp.ClientSession):
+        policy = ReconnectPolicy()
         while not manager.status.exiting:
+            await self._mark_reconnecting()
             headers = self.headers.copy()
             headers["Accept"] = "text/event-stream"
             headers["Cache-Control"] = "no-cache"
             headers["Upgrade"] = "none"
             if self.token:
                 headers.setdefault("Authorization", f"Bearer {self.token}")
+            connected_at: float | None = None
             try:
                 async with session.get(self.event_url, headers=headers) as response:
                     if response.status != 200:
                         logger.error(f"Milky SSE adapter connect failed with status {response.status}")
-                        await asyncio.sleep(5)
+                        if 400 <= response.status < 500:
+                            logger.error("Milky SSE adapter rejected by server, no reconnect")
+                            await self._handle_disconnect()
+                            return
+                        if not await policy.sleep():
+                            logger.error("Milky SSE adapter reconnect attempts exhausted, marking logins offline")
+                            await self._mark_offline()
+                            return
                         continue
                     logger.info("Milky SSE adapter connected")
+                    connected_at = asyncio.get_running_loop().time()
                     self.close_signal.clear()
                     await self.refresh_login()
 
@@ -70,9 +82,17 @@ class MilkySSEAdapter(MilkyBaseAdapter):
             except Exception as e:
                 logger.error(f"Milky SSE adapter unexpected error: {e}")
 
-            logger.warning("Milky SSE adapter connection closed, retrying in 5 seconds")
-            await self._handle_disconnect()
-            await asyncio.sleep(5)
+            if (
+                connected_at is not None
+                and asyncio.get_running_loop().time() - connected_at >= RECONNECT_STABLE_SECONDS
+            ):
+                policy.reset()
+            logger.warning("Milky SSE adapter connection closed, reconnecting")
+            await self._mark_reconnecting()
+            if not await policy.sleep():
+                logger.error("Milky SSE adapter reconnect attempts exhausted, marking logins offline")
+                await self._mark_offline()
+                return
         await self._handle_disconnect()
 
     async def _read_sse_stream(self, response: aiohttp.ClientResponse):

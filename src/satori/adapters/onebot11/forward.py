@@ -17,6 +17,7 @@ from yarl import URL
 from satori import Event, EventType, LoginStatus
 from satori.exception import ActionFailed
 from satori.model import Login, User
+from satori.reconnect import RECONNECT_STABLE_SECONDS, ReconnectPolicy, is_normal_close, is_server_shutdown
 from satori.server import Request
 from satori.server.adapter import Adapter as BaseAdapter
 from satori.utils import decode, encode
@@ -57,7 +58,11 @@ class OneBot11ForwardAdapter(BaseAdapter[OneBot11ForwardConfig]):
         apply(self, lambda _: self, lambda _: self.logins[_])
 
     def ensure(self, platform: str, self_id: str) -> bool:
-        return platform == "qq-client" and self_id in self.logins
+        return (
+            platform == "qq-client"
+            and self_id in self.logins
+            and self.logins[self_id].status not in (LoginStatus.OFFLINE, LoginStatus.DISCONNECT)
+        )
 
     async def get_logins(self) -> list[Login]:
         logins = list(self.logins.values())
@@ -74,7 +79,7 @@ class OneBot11ForwardAdapter(BaseAdapter[OneBot11ForwardConfig]):
         return {"preparing", "blocking", "cleanup"}
 
     async def message_handle(self):
-        async def _login_add():
+        async def _login_update(add=True):
             self_info = await self.call_api("get_login_info")
             login = Login(
                 sn=0,
@@ -89,7 +94,10 @@ class OneBot11ForwardAdapter(BaseAdapter[OneBot11ForwardConfig]):
                 features=["guild.plain"],
             )
             self.logins[self_id] = login
-            await self.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+            if add:
+                await self.server.post(Event(EventType.LOGIN_ADDED, datetime.now(), login))
+            else:
+                await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
 
         async for connection, data in self.message_receive():
             if echo := data.get("echo"):
@@ -101,17 +109,19 @@ class OneBot11ForwardAdapter(BaseAdapter[OneBot11ForwardConfig]):
             if event_type == "meta_event.lifecycle.connect":
                 self_id = str(data["self_id"])
                 if self_id not in self.logins:
-                    asyncio.create_task(_login_add())
+                    asyncio.create_task(_login_update())
+                else:
+                    asyncio.create_task(_login_update(add=False))
             elif event_type == "meta_event.lifecycle.enable":
                 logger.warning(f"received lifecycle.enable event that is only supported in http adapter: {data}")
-                return
+                continue
             elif event_type == "meta_event.lifecycle.disable":
                 logger.warning(f"received lifecycle.disable event that is only supported in http adapter: {data}")
-                return
+                continue
             elif event_type == "meta_event.heartbeat":
                 self_id = str(data["self_id"])
                 if self_id not in self.logins:
-                    asyncio.create_task(_login_add())
+                    asyncio.create_task(_login_update())
                 logger.trace(f"received heartbeat from {self_id}")
             else:
                 self_id = str(data["self_id"])
@@ -157,6 +167,7 @@ class OneBot11ForwardAdapter(BaseAdapter[OneBot11ForwardConfig]):
             self.close_signal.set()
 
     async def connection_daemon(self, manager: Launart, session: ClientSession):
+        policy = ReconnectPolicy()
         while not manager.status.exiting:
             ctx = session.ws_connect(
                 self.endpoint,
@@ -167,21 +178,29 @@ class OneBot11ForwardAdapter(BaseAdapter[OneBot11ForwardConfig]):
                 ),
                 timeout=self.timeout,
             )
+            for login in self.logins.values():
+                login.status = LoginStatus.RECONNECT
+                await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
             try:
                 self.connection = await ctx.__aenter__()
             except Exception as e:
                 logger.error(f"{self} Websocket client connection failed: {e}")
-                logger.debug(f"{self} Will retry in 5 seconds...")
                 with suppress(AttributeError):
                     await ctx.__aexit__(None, None, None)
-                await asyncio.sleep(5)
+                if not await policy.sleep():
+                    logger.error(f"{self} Reconnect attempts exhausted, marking logins offline")
+                    for login in self.logins.values():
+                        login.status = LoginStatus.OFFLINE
+                        await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
+                    return
+                logger.info(f"{self} Reconnecting...")
                 continue
             logger.info(f"{self} Websocket client connected")
+            connected_at = asyncio.get_running_loop().time()
+            for login in self.logins.values():
+                login.status = LoginStatus.CONNECT
+                await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
             self.close_signal.clear()
-            if self.logins:
-                for login in self.logins.values():
-                    login.status = LoginStatus.ONLINE
-                    await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
             close_task = asyncio.create_task(self.close_signal.wait())
             receiver_task = asyncio.create_task(self.message_handle())
             sigexit_task = asyncio.create_task(manager.status.wait_for_sigexit())
@@ -199,21 +218,41 @@ class OneBot11ForwardAdapter(BaseAdapter[OneBot11ForwardConfig]):
                 for login in self.logins.values():
                     login.status = LoginStatus.OFFLINE
                     await self.server.post(Event(EventType.LOGIN_REMOVED, datetime.now(), login))
+                self.logins.clear()
                 for fut in self.response_waiters.values():
                     fut.cancel()
                 await asyncio.sleep(1)
                 return
-            if close_task in done:
-                receiver_task.cancel()
-                logger.warning(f"{self} Connection closed by server, will reconnect in 5 seconds...")
+
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+            for fut in self.response_waiters.values():
+                fut.cancel()
+            code = self.connection.close_code if self.connection else None
+            if self.connection and not self.connection.closed:
+                await self.connection.close()
+            self.connection = None
+            if is_normal_close(code):
+                logger.info(f"{self} Connection closed by server (code={code}), login removed")
                 for login in self.logins.values():
-                    login.status = LoginStatus.RECONNECT
+                    login.status = LoginStatus.OFFLINE
+                    await self.server.post(Event(EventType.LOGIN_REMOVED, datetime.now(), login))
+                self.logins.clear()
+                if not is_server_shutdown(code):
+                    return
+            if asyncio.get_running_loop().time() - connected_at >= RECONNECT_STABLE_SECONDS:
+                policy.reset()
+            for login in self.logins.values():
+                login.status = LoginStatus.RECONNECT
+                await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
+            if not await policy.sleep():
+                logger.error(f"{self} Reconnect attempts exhausted, marking logins offline")
+                for login in self.logins.values():
+                    login.status = LoginStatus.OFFLINE
                     await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
-                for fut in self.response_waiters.values():
-                    fut.cancel()
-                await asyncio.sleep(5)
-                logger.info(f"{self} Reconnecting...")
-                continue
+                return
+            logger.info(f"{self} Reconnecting...")
 
     async def launch(self, manager: Launart):
         async with self.stage("preparing"):

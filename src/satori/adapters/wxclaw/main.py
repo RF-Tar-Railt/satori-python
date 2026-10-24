@@ -16,6 +16,7 @@ from starlette.responses import JSONResponse, Response
 from satori import EventType
 from satori.exception import NetworkError
 from satori.model import Event, Login, LoginStatus, User
+from satori.reconnect import RECONNECT_STABLE_SECONDS, ReconnectPolicy
 from satori.server import Request
 from satori.server.adapter import Adapter as BaseAdapter
 from satori.utils import decode
@@ -88,7 +89,11 @@ class WxClawAdapter(BaseAdapter[WxClawConfig]):
         return "wxclaw"
 
     def ensure(self, platform: str, self_id: str) -> bool:
-        return platform == "wxclaw" and self_id in self.logins
+        return (
+            platform == "wxclaw"
+            and self_id in self.logins
+            and self.logins[self_id].status not in (LoginStatus.OFFLINE, LoginStatus.DISCONNECT)
+        )
 
     async def get_logins(self) -> list[Login]:
         logins = list(self.logins.values())
@@ -246,6 +251,12 @@ class WxClawAdapter(BaseAdapter[WxClawConfig]):
             login.status = LoginStatus.RECONNECT
             await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
 
+    async def _mark_offline(self, network: WxClawNetwork):
+        login = self.logins.get(network.self_id)
+        if login and login.status != LoginStatus.OFFLINE:
+            login.status = LoginStatus.OFFLINE
+            await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
+
     async def _remove_login(self, self_id: str):
         login = self.logins.pop(self_id, None)
         if login:
@@ -258,12 +269,17 @@ class WxClawAdapter(BaseAdapter[WxClawConfig]):
         except Exception as exc:
             logger.warning(f"WxClaw notifyStart failed for {network.self_id}: {exc}")
 
-        retry_delay = 1.0
+        policy = ReconnectPolicy()
+        connected_since: float | None = None
         while True:
             try:
                 response = await network.get_updates()
                 await self._mark_online(network)
-                retry_delay = 1.0
+                now = asyncio.get_running_loop().time()
+                if connected_since is None:
+                    connected_since = now
+                elif now - connected_since >= RECONNECT_STABLE_SECONDS:
+                    policy.reset()
                 if response.get_updates_buf is not None:
                     network.get_updates_buf = response.get_updates_buf
                 for msg in response.msgs or []:
@@ -287,16 +303,28 @@ class WxClawAdapter(BaseAdapter[WxClawConfig]):
                     self.networks.pop(network.self_id, None)
                     return
                 logger.error(f"WxClaw polling HTTP error for {network.self_id}: {exc}")
+                connected_since = None
                 await self._mark_reconnecting(network)
+                if not await policy.sleep():
+                    logger.error(f"WxClaw reconnect attempts exhausted for {network.self_id}")
+                    await self._mark_offline(network)
+                    return
             except (NetworkError, WxClawActionFailed) as exc:
                 logger.error(f"WxClaw polling error for {network.self_id}: {exc}")
+                connected_since = None
                 await self._mark_reconnecting(network)
+                if not await policy.sleep():
+                    logger.error(f"WxClaw reconnect attempts exhausted for {network.self_id}")
+                    await self._mark_offline(network)
+                    return
             except Exception as exc:
                 logger.exception(f"Unexpected WxClaw polling error for {network.self_id}: {exc}")
+                connected_since = None
                 await self._mark_reconnecting(network)
-
-            await asyncio.sleep(retry_delay)
-            retry_delay = min(retry_delay * 2, 60)
+                if not await policy.sleep():
+                    logger.error(f"WxClaw reconnect attempts exhausted for {network.self_id}")
+                    await self._mark_offline(network)
+                    return
 
     async def handle_event(self, network: WxClawNetwork, msg: WeixinMessage):
         login = self.logins.get(network.self_id)
