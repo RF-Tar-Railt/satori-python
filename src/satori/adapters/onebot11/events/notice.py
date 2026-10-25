@@ -247,8 +247,7 @@ async def member_leave(login: Login, net: OneBotNetwork, raw: dict):
     operator = User(
         str(raw["operator_id"]),
         operator_info["nickname"],
-        operator_info.get("card"),
-        USER_AVATAR_URL.format(uin=raw["operator_id"]),
+        avatar=USER_AVATAR_URL.format(uin=raw["operator_id"]),
     )
     return Event(
         EventType.GUILD_MEMBER_REMOVED,
@@ -285,8 +284,7 @@ async def member_kick_me(login: Login, net: OneBotNetwork, raw: dict):
     operator = User(
         str(raw["operator_id"]),
         operator_info["nickname"],
-        operator_info.get("card"),
-        USER_AVATAR_URL.format(uin=raw["operator_id"]),
+        avatar=USER_AVATAR_URL.format(uin=raw["operator_id"]),
     )
     return Event(
         EventType.GUILD_REMOVED,
@@ -325,8 +323,7 @@ async def group_increase(login: Login, net: OneBotNetwork, raw: dict):
     user = User(
         str(raw["user_id"]),
         member_info["nickname"],
-        member_info.get("card"),
-        USER_AVATAR_URL.format(uin=raw["user_id"]),
+        avatar=USER_AVATAR_URL.format(uin=raw["user_id"]),
     )
     member = Member(
         user,
@@ -341,8 +338,7 @@ async def group_increase(login: Login, net: OneBotNetwork, raw: dict):
     operator = User(
         str(raw["operator_id"]),
         operator_info["nickname"],
-        operator_info.get("card"),
-        USER_AVATAR_URL.format(uin=raw["operator_id"]),
+        avatar=USER_AVATAR_URL.format(uin=raw["operator_id"]),
     )
     return Event(
         EventType.GUILD_MEMBER_ADDED,

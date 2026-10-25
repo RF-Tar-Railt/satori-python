@@ -73,9 +73,7 @@ async def friend_message_recall(login: Login, net: OneBotNetwork, raw: dict):
 @register_event("message_sent.group.normal")
 async def group(login: Login, net: OneBotNetwork, raw: dict):
     sender: dict = raw["sender"]
-    user = User(
-        str(sender["user_id"]), sender["nickname"], sender.get("card"), USER_AVATAR_URL.format(uin=sender["user_id"])
-    )
+    user = User(str(sender["user_id"]), sender["nickname"], avatar=USER_AVATAR_URL.format(uin=sender["user_id"]))
     group_info = await net.call_api("get_group_info", {"group_id": raw["group_id"]})
     member_info = await net.call_api(
         "get_group_member_info", {"group_id": raw["group_id"], "user_id": sender["user_id"]}
@@ -109,8 +107,7 @@ async def group_message_recall(login: Login, net: OneBotNetwork, raw: dict):
     user = User(
         str(raw["user_id"]),
         member_info["nickname"],
-        member_info.get("card"),
-        USER_AVATAR_URL.format(uin=raw["user_id"]),
+        avatar=USER_AVATAR_URL.format(uin=raw["user_id"]),
     )
     member = Member(
         user,
@@ -125,8 +122,7 @@ async def group_message_recall(login: Login, net: OneBotNetwork, raw: dict):
     operator = User(
         str(raw["operator_id"]),
         operator_info["nickname"],
-        operator_info.get("card"),
-        USER_AVATAR_URL.format(uin=raw["operator_id"]),
+        avatar=USER_AVATAR_URL.format(uin=raw["operator_id"]),
     )
     return Event(
         EventType.MESSAGE_DELETED,
