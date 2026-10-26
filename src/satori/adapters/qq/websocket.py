@@ -332,9 +332,7 @@ class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
                 return False
             self.sequence = payload.sequence
             self.session_id = payload.data["session_id"]
-            profile = payload.data["user"]
-        else:
-            profile = await self.call_api("get", "users/@me")
+        profile = await self.call_api("get", "users/@me")
         await self.refresh_login(profile)
         return True
 
