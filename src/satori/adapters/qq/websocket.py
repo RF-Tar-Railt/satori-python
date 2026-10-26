@@ -563,6 +563,9 @@ class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
                     return
                 logger.info(f"{self} Reconnecting...")
                 continue
+            for login in self.logins:
+                login.status = LoginStatus.CONNECT
+                await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
             result = await self._authenticate(shard)
             if not result:
                 await conn.close()
@@ -576,9 +579,6 @@ class QQBotWebsocketAdapter(BaseAdapter[QQBotWebsocketConfig]):
                 logger.info(f"{self} Reconnecting...")
                 continue
             connected_at = asyncio.get_running_loop().time()
-            for login in self.logins:
-                login.status = LoginStatus.CONNECT
-                await self.server.post(Event(EventType.LOGIN_UPDATED, datetime.now(), login))
             self.close_signal.clear()
             close_task = asyncio.create_task(self.close_signal.wait())
             receiver_task = asyncio.create_task(self.message_handle(shard))
