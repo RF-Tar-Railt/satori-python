@@ -24,25 +24,34 @@ def unescape(text: str) -> str:
     return uc_escape_pat3.sub("&", result)
 
 
-def uncapitalize(source: str) -> str:
-    return source[:1].lower() + source[1:]
-
-
 camel_pat = re.compile(r"[_-][a-z]")
-param_pat = re.compile(r".[A-Z]+")
-snake_pat = re.compile(r".[A-Z]")
 
 
 def camel_case(source: str) -> str:
     return camel_pat.sub(lambda mat: mat[0][1:].upper(), source)
 
 
+def convert_case(source: str, delimiter: str) -> str:
+    source = re.sub(
+        r"([A-Z]+)([A-Z][a-z])",
+        rf"\1{delimiter}\2",
+        source,
+    )
+    source = re.sub(
+        r"([a-z0-9])([A-Z])",
+        rf"\1{delimiter}\2",
+        source,
+    )
+    source = re.sub(r"[-_]+", delimiter, source)
+    return source.strip("-_").lower()
+
+
 def param_case(source: str) -> str:
-    return param_pat.sub(lambda mat: mat[0][0] + "-" + mat[0][1:].lower(), uncapitalize(source).replace("_", "-"))
+    return convert_case(source, "-")
 
 
 def snake_case(source: str) -> str:
-    return snake_pat.sub(lambda mat: mat[0][0] + "_" + mat[0][1:].lower(), uncapitalize(source).replace("-", "_"))
+    return convert_case(source, "_")
 
 
 def ensure_list(value: T | list[T] | None) -> list[T]:

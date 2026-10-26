@@ -72,16 +72,17 @@ class Element:
         args = {}
         convert_fields = cls.__convert_fields__
         names = cls.__unpack_names__
-        for name in convert_fields:
-            if name not in attrs:
+        for k, v in attrs.items():
+            if k not in convert_fields:
+                data[k] = v
                 continue
-            convert = convert_fields[name]
+            convert = convert_fields[k]
             if convert is True:
-                data[name] = attrs[name]
+                data[k] = v
             else:
-                data[name] = convert(attrs[name])
-            if name in names:
-                args[name] = data[name]
+                data[k] = convert(v)
+            if k in names:
+                args[k] = data[k]
         obj = cls(**args)  # type: ignore
         obj._attrs.update(data)
         return obj
@@ -276,9 +277,10 @@ class Resource(Element):
         poster: str | None = None,
         cache: bool | None = None,
         timeout: int | None = None,
-        **kwargs,
+        *,
+        extra: dict[str, Any] | None = None,
     ) -> Self:
-        data: dict[str, Any] = {**kwargs}
+        data: dict[str, Any] = {}
         if url is not None:
             data |= {"src": url}
         elif path:
@@ -308,6 +310,8 @@ class Resource(Element):
             data["cache"] = cache
         if timeout is not None:
             data["timeout"] = timeout
+        if extra:
+            data |= extra
         return cls.unpack(data)
 
 

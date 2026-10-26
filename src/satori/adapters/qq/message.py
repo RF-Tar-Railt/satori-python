@@ -710,7 +710,7 @@ class QQGroupMessageEncoder(QQBotMessageEncoder):
 
 def _decode_attachment(attachment: dict) -> Element:
     if "content_type" not in attachment:
-        return E.image(src=attachment["url"])
+        return E.image(url=attachment["url"])
     mime = attachment["content_type"]
     if mime.startswith("image/"):
         return E.image(

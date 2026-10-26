@@ -247,7 +247,17 @@ class OneBot11MessageEncoder:
                 _data = {
                     "cache": 1 if "cache" in attrs and attrs["cache"] else 0,
                     "file": attrs.get("src") or attrs.get("url"),
+                    "summary": attrs.get("summary")
+                    or attrs.get("onebot:summary")
+                    or attrs.get("title")
+                    or attrs.get("alt"),
+                    "sub_type": attrs.get("onebot:sub-type")
+                    or attrs.get("onebot:subType")
+                    or attrs.get("sub-type")
+                    or attrs.get("subType"),
                 }
+                if _data["sub_type"]:
+                    _data["sub_type"] = int(_data["sub_type"])
                 if mat := b64_cap.match(_data["file"]):
                     _data["file"] = f"base64://{_data['file'][len(mat[0]):]}"
                 self.children.append({"type": type_, "data": _data})
@@ -325,15 +335,19 @@ async def _decode(content: list[MessageSegment], net: OneBotNetwork) -> list[Ele
                 else:
                     result.append(E.at(str(qq), name=seg_data.get("name")))
             case "face":
-                result.append(E.emoji(str(seg_data["id"])))
+                result.append(E.emoji(str(seg_data["id"]), seg_data.get("name")))
             case "image":
-                result.append(E.image(seg_data.get("url") or seg_data.get("file")))
+                others = {f"onebot:{k}": v for k, v in seg_data.items() if k not in ("url", "file")}
+                result.append(E.image(seg_data.get("url") or seg_data.get("file"), extra=others))
             case "record":
-                result.append(E.audio(seg_data.get("url") or seg_data.get("file")))
+                others = {f"onebot:{k}": v for k, v in seg_data.items() if k not in ("url", "file")}
+                result.append(E.audio(seg_data.get("url") or seg_data.get("file"), extra=others))
             case "video":
-                result.append(E.video(seg_data.get("url") or seg_data.get("file")))
+                others = {f"onebot:{k}": v for k, v in seg_data.items() if k not in ("url", "file")}
+                result.append(E.video(seg_data.get("url") or seg_data.get("file"), extra=others))
             case "file":
-                result.append(E.file(seg_data.get("url") or seg_data.get("file")))
+                others = {f"onebot:{k}": v for k, v in seg_data.items() if k not in ("url", "file")}
+                result.append(E.file(seg_data.get("url") or seg_data.get("file"), extra=others))
             case "reply":
                 if msg := (await net.call_api("get_msg", {"message_id": seg_data["id"]})):
                     author = E.author(

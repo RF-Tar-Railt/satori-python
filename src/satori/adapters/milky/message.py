@@ -140,16 +140,19 @@ class MilkyMessageEncoder:
                 if match := _BASE64_RE.match(uri):
                     uri = f"base64://{uri[len(match.group(0)) :]}"
                 sub_type = "normal"
-                if "sub_type" in attrs:
-                    sub_type = attrs["sub_type"]
-                if "subType" in attrs:
-                    sub_type = attrs["subType"]
-                if "milky:type" in attrs:
-                    sub_type = attrs["milky:type"]
+                for t in ("sub_type", "subType", "milky:sub-type", "milky:subType"):
+                    if t in attrs:
+                        sub_type = attrs[t]
+                        break
+                summary = None
+                for t in ("summary", "alt", "milky:summary", "title"):
+                    if t in attrs:
+                        summary = attrs[t]
+                        break
                 self.segments.append(
                     {
                         "type": "image",
-                        "data": {"uri": uri, "sub_type": sub_type},
+                        "data": {"uri": uri, "sub_type": sub_type, "summary": summary},
                     }
                 )
             case "audio":
@@ -175,7 +178,8 @@ class MilkyMessageEncoder:
                     emj_id = emj_id_str
                 else:
                     emj_id = attrs["id"]
-                self.segments.append({"type": "face", "data": {"face_id": emj_id}})
+                is_large = attrs.get("milky:is-large") or attrs.get("milky:isLarge") or attrs.get("isLarge") or False
+                self.segments.append({"type": "face", "data": {"face_id": emj_id, "is_large": is_large}})
             case "file":
                 await self.flush()
                 await self._send_file(attrs)
@@ -380,8 +384,8 @@ async def decode_message(net: MilkyNetwork, payload: dict) -> MessageObject:
 async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[dict]) -> list[Element]:
     result: list[Element] = []
     for segment in segments:
-        seg_type = segment.get("type")
-        data = segment.get("data", {})
+        seg_type: str | None = segment.get("type")
+        data: dict = segment.get("data", {})
         match seg_type:
             case "text":
                 result.append(E.text(data.get("text", "")))
@@ -390,15 +394,60 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
             case "mention_all":
                 result.append(E.at_all())
             case "face":
-                result.append(E.emoji(str(data.get("face_id"))))
+                result.append(
+                    E.emoji.unpack({"id": str(data.get("face_id")), "milky:is-large": data.get("is_large", False)})
+                )
             case "image":
-                result.append(E.image(await _resource_url(net, data)))
+                result.append(
+                    E.image(
+                        await _resource_url(net, data),
+                        width=data.get("width", None),
+                        height=data.get("height", None),
+                        extra={"milky:subType": data.get("sub_type"), "milky:summary": data.get("summary")},
+                    )
+                )
             case "record":
-                result.append(E.audio(await _resource_url(net, data)))
+                result.append(
+                    E.audio(
+                        await _resource_url(net, data),
+                        duration=float(data.get("duration", 0)),
+                    )
+                )
             case "video":
-                result.append(E.video(await _resource_url(net, data)))
+                result.append(
+                    E.video(
+                        await _resource_url(net, data),
+                        width=data.get("width", None),
+                        height=data.get("height", None),
+                        duration=float(data.get("duration", 0)),
+                    )
+                )
             case "file":
-                result.append(E.file(await _resource_url(net, data)))
+                if payload["message_scene"] == "group":
+                    url = (
+                        await net.call_api(
+                            "get_group_file_download_url",
+                            {"group_id": payload["peer_id"], "file_id": data.get("file_id")},
+                        )
+                    )["download_url"]
+                else:
+                    url = (
+                        await net.call_api(
+                            "get_private_file_download_url",
+                            {
+                                "user_id": payload["peer_id"],
+                                "file_id": data.get("file_id"),
+                                "file_hash": data.get("file_hash"),
+                            },
+                        )
+                    )["download_url"]
+                result.append(
+                    E.file(
+                        url,
+                        name=data.get("file_name", None),
+                        extra={"milky:fileSize": data.get("file_size"), "milky:fileHash": data.get("file_hash")},
+                    )
+                )
             case "reply":
                 seq = data.get("message_seq")
                 if seq is not None:
@@ -457,8 +506,10 @@ async def _decode_segments(net: MilkyNetwork, payload: dict, segments: Sequence[
                     result.append(E.message(forward_id, content=forward_elements, forward=True))
             case _:
                 elem = Custom(f"milky:{seg_type}", data)
-                if seg_type == "market_face" and "url" in data:
-                    elem.children.append(E.image(data["url"]))
+                if seg_type == "market_face":
+                    elem.children.append(
+                        E.image(data["url"], extra={"milky:subType": "sticker", "milky:summary": data.get("summary")})
+                    )
                 result.append(elem)
     return result
 
